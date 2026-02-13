@@ -1,0 +1,126 @@
+<?php
+
+return [
+    'enabled' => (bool) env('SEARCH_ENABLED', false),
+    'driver' => env('SEARCH_DRIVER', 'meilisearch'),
+    'per_page' => (int) env('SEARCH_PER_PAGE', 12),
+    'auto_index_mode' => env('SEARCH_AUTO_INDEX_MODE', 'sync'), // sync | queue
+    'meilisearch' => [
+        'host' => env('MEILISEARCH_HOST', 'http://127.0.0.1:7700'),
+        'key' => env('MEILISEARCH_KEY', ''),
+        'index' => env('MEILISEARCH_INDEX', 'notobuku_biblio'),
+        'timeout' => (int) env('MEILISEARCH_TIMEOUT', 5),
+    ],
+    'typo_tolerance' => [
+        // Lebih agresif untuk kata pendek
+        'one_typo' => (int) env('SEARCH_TYPO_ONE', 3),
+        'two_typos' => (int) env('SEARCH_TYPO_TWO', 5),
+        'short_word' => (int) env('SEARCH_TYPO_SHORT_WORD', 4),
+        'short_one_typo' => (int) env('SEARCH_TYPO_SHORT_ONE', 2),
+        'short_two_typos' => (int) env('SEARCH_TYPO_SHORT_TWO', 4),
+    ],
+    'branch_typo_tolerance' => [
+        // Override per cabang: [branch_id => ['one_typo' => 2, 'two_typos' => 4, ...]]
+        'branches' => [
+            // Rekomendasi: cabang utama lebih ketat untuk query pendek agar presisi tinggi.
+            9 => [
+                'short_word' => 3,
+                'short_one_typo' => 1,
+                'short_two_typos' => 3,
+                'one_typo' => 3,
+                'two_typos' => 5,
+            ],
+            10 => [
+                'short_word' => 3,
+                'short_one_typo' => 1,
+                'short_two_typos' => 3,
+                'one_typo' => 3,
+                'two_typos' => 5,
+            ],
+        ],
+    ],
+    'branch_sort_overrides' => [
+        // Override sort per cabang: [branch_id => ['relevant' => [...], 'latest' => [...], 'popular' => [...], 'available' => [...], 'empty' => [...]]]
+        'branches' => [
+            9 => [
+                'relevant' => ['available_items_count:desc', 'popularity_score:desc', 'title:asc'],
+                'latest' => ['publish_year:desc', 'available_items_count:desc', 'title:asc'],
+                'popular' => ['popularity_score:desc', 'available_items_count:desc', 'title:asc'],
+                'available' => ['available_items_count:desc', 'popularity_score:desc', 'title:asc'],
+                'empty' => ['available_items_count:desc', 'popularity_score:desc', 'title:asc'],
+            ],
+            10 => [
+                'relevant' => ['available_items_count:desc', 'popularity_score:desc', 'title:asc'],
+                'latest' => ['publish_year:desc', 'available_items_count:desc', 'title:asc'],
+                'popular' => ['popularity_score:desc', 'available_items_count:desc', 'title:asc'],
+                'available' => ['available_items_count:desc', 'popularity_score:desc', 'title:asc'],
+                'empty' => ['available_items_count:desc', 'popularity_score:desc', 'title:asc'],
+            ],
+        ],
+    ],
+    'short_query_boost' => [
+        'max_len' => (int) env('SEARCH_SHORT_BOOST_LEN', 4),
+        'multiplier' => (float) env('SEARCH_SHORT_BOOST_MULTIPLIER', 1.6),
+    ],
+    'synonym_max' => (int) env('SEARCH_SYNONYM_MAX', 10),
+    'ranking' => [
+        'half_life_days' => (int) env('SEARCH_RANK_HALF_LIFE_DAYS', 30),
+    ],
+    'synonyms' => [
+        'perpustakaan' => ['perpus', 'pustaka', 'library'],
+        'perpus' => ['perpustakaan', 'pustaka', 'library'],
+        'pustaka' => ['perpustakaan', 'perpus', 'library'],
+        'pemrograman' => ['programming', 'coding', 'koding'],
+        'programming' => ['pemrograman', 'coding', 'koding'],
+        'filsafat' => ['philosophy', 'filosofi'],
+        'filosofi' => ['filsafat', 'philosophy'],
+        'ilmu komputer' => ['computer science', 'informatika', 'ilkom'],
+        'informatika' => ['computer science', 'ilmu komputer', 'ilkom'],
+        'ilkom' => ['ilmu komputer', 'informatika', 'computer science'],
+        'sains' => ['science', 'ilmu pengetahuan'],
+        'science' => ['sains', 'ilmu pengetahuan'],
+        'matematika' => ['mathematics', 'math'],
+        'statistika' => ['statistics', 'statistic'],
+        'teknik' => ['engineering'],
+        'ekonomi' => ['economics'],
+        'manajemen' => ['management'],
+        'psikologi' => ['psychology'],
+        'sejarah' => ['history'],
+        'agama' => ['religion'],
+        'sosiologi' => ['sociology'],
+        'politik' => ['politics'],
+        'pendidikan' => ['education', 'edukasi'],
+        'hukum' => ['law'],
+        'kesehatan' => ['health', 'medical'],
+        'kedokteran' => ['medical', 'medicine'],
+        'komunikasi' => ['communication'],
+        'linguistik' => ['linguistics'],
+        'novel' => ['fiksi', 'fiction'],
+        'fiksi' => ['novel', 'fiction'],
+        'skripsi' => ['penelitian', 'thesis'],
+        'penelitian' => ['riset', 'research'],
+        'riset' => ['research', 'penelitian'],
+        'biografi' => ['biography', 'riwayat hidup'],
+    ],
+    'typos' => [
+        'perpustkaan' => 'perpustakaan',
+        'perpustkan' => 'perpustakaan',
+        'perpuskatan' => 'perpustakaan',
+        'perpusatakaan' => 'perpustakaan',
+        'filosafat' => 'filsafat',
+        'filsfat' => 'filsafat',
+        'pemogramaan' => 'pemrograman',
+        'pemrogrammn' => 'pemrograman',
+        'programing' => 'programming',
+        'matematk' => 'matematika',
+        'statstik' => 'statistika',
+        'komputer' => 'komputer',
+        'skripsii' => 'skripsi',
+        'penelitan' => 'penelitian',
+        'reseach' => 'research',
+    ],
+    'stop_words' => [
+        'dan', 'atau', 'yang', 'di', 'ke', 'dari', 'untuk', 'pada', 'dengan', 'dalam',
+        'the', 'and', 'of', 'to', 'in', 'for',
+    ],
+];
