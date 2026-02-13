@@ -44,6 +44,18 @@ class Kernel extends ConsoleKernel
             ->withoutOverlapping()
             ->runInBackground();
 
+        $schedule->command('notobuku:member-import-snapshot')
+            ->monthlyOn(1, '02:40')
+            ->timezone($tz)
+            ->withoutOverlapping()
+            ->runInBackground();
+
+        $schedule->command('notobuku:interop-reconcile')
+            ->dailyAt('03:50')
+            ->timezone($tz)
+            ->withoutOverlapping()
+            ->runInBackground();
+
         // Kalau suatu saat deploy multi-instance:
         // ->onOneServer()
         //

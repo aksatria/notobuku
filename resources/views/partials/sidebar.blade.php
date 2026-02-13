@@ -28,10 +28,13 @@
   // Menu khusus staff/admin
   if ($isStaff) {
     $items[] = ['route' => 'anggota.index', 'label' => 'Anggota', 'icon' => '#nb-icon-users', 'color' => '#8e24aa'];
+    $items[] = ['route' => 'laporan.index', 'match' => ['laporan.*'], 'label' => 'Laporan', 'icon' => '#nb-icon-chart', 'color' => '#42a5f5'];
+    $items[] = ['route' => 'serial_issues.index', 'match' => ['serial_issues.*'], 'label' => 'Serial Issue', 'icon' => '#nb-icon-clipboard', 'color' => '#26a69a'];
   }
 
   // Komunitas untuk semua role
   $items[] = ['route' => 'komunitas.feed', 'match' => ['komunitas.*'], 'label' => 'Komunitas', 'icon' => '#nb-icon-chat', 'color' => '#00acc1'];
+  $items[] = ['route' => 'docs.index', 'match' => ['docs.*'], 'label' => 'Dokumentasi', 'icon' => '#nb-icon-book', 'color' => '#90caf9'];
 
   // =========================
   // MEMBER (SUBMENU) - MEMBER ONLY
@@ -177,6 +180,7 @@
   $systemItems = [
     ['route' => 'admin.search_synonyms', 'label' => 'Sinonim Pencarian', 'icon' => '#nb-icon-search', 'color' => '#42a5f5'],
     ['route' => 'admin.marc.settings', 'label' => 'MARC Settings', 'icon' => '#nb-icon-chart', 'color' => '#42a5f5'],
+    ['route' => 'docs.marc-policy', 'label' => 'Dokumentasi MARC', 'icon' => '#nb-icon-book', 'color' => '#90caf9'],
   ];
 
   // =========================

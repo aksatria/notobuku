@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, xml, bcmath, gd, intl, pcntl, sqlite
+          ini-values: post_max_size=256M, memory_limit=2G
+
+      - name: Setup Composer cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      - name: Install Composer dependencies
+        run: composer install --no-progress --no-suggest --prefer-dist
+
+      - name: Prepare environment
+        run: php -r "file_exists('.env') || copy('.env.example', '.env');"
+
+      - name: Generate app key
+        run: php artisan key:generate --ansi
+
+      - name: Create SQLite database file
+        run: mkdir -p database && touch database/database.sqlite
+
+      - name: Configure DB for SQLite
+        run: |
+          php -r "\$env = file_get_contents('.env');\nif (strpos(\$env, 'DB_CONNECTION=') === false) { file_put_contents('.env', \$env . "\nDB_CONNECTION=sqlite\n"); } else { file_put_contents('.env', preg_replace('/DB_CONNECTION=.*/', 'DB_CONNECTION=sqlite', \$env)); }"
+
+      - name: Run migrations
+        run: php artisan migrate --force
+
+      - name: Run tests
+        run: composer test --no-interaction --no-ansi
+
+      - name: Run Pint (format)
+        run: vendor/bin/pint --no-interaction || true

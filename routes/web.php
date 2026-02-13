@@ -33,6 +33,12 @@ use App\Http\Controllers\MemberNotificationController;
 use App\Http\Controllers\MemberProfileController;
 use App\Http\Controllers\MemberSecurityController;
 use App\Http\Controllers\AdminDashboardController;
+use App\Http\Controllers\MemberController;
+use App\Http\Controllers\OperationalReportController;
+use App\Http\Controllers\SerialIssueController;
+use App\Http\Controllers\OaiPmhController;
+use App\Http\Controllers\SruController;
+use App\Http\Controllers\InteropMetricsController;
 
 // ✅ Pustakawan Digital Controller (Utama)
 use App\Http\Controllers\PustakawanDigitalController;
@@ -60,6 +66,14 @@ Route::get('/docs/marc-policy', function () {
     return view('docs.marc-policy');
 })->middleware(['auth', 'role.any:super_admin,admin,staff'])->name('docs.marc-policy');
 
+Route::get('/docs', function () {
+    return view('docs.index');
+})->middleware(['auth'])->name('docs.index');
+
+Route::get('/docs/uat-checklist', function () {
+    return view('docs.uat-checklist');
+})->middleware(['auth', 'role.any:super_admin,admin,staff'])->name('docs.uat-checklist');
+
 Route::get('/masuk', fn () => redirect()->route('login'))->name('masuk');
 Route::get('/daftar', fn () => redirect()->route('register'))->name('daftar');
 
@@ -74,6 +88,12 @@ Route::get('/opac/{id}/attachments/{attachment}/download', [KatalogController::c
     ->name('opac.attachments.download');
 Route::post('/opac/preferences/shelves', [KatalogController::class, 'setShelvesPreference'])
     ->name('opac.preferences.shelves');
+Route::match(['GET', 'POST'], '/oai', [OaiPmhController::class, 'handle'])
+    ->middleware('throttle:oai-interop')
+    ->name('oai.pmh');
+Route::match(['GET', 'POST'], '/sru', [SruController::class, 'handle'])
+    ->middleware('throttle:sru-interop')
+    ->name('sru.endpoint');
 
 Route::post('/keluar', [AuthenticatedSessionController::class, 'destroy'])
     ->middleware('auth')
@@ -410,6 +430,85 @@ Route::middleware(['auth', 'role.any:super_admin,admin,staff'])->group(function 
 
 /*
 |--------------------------------------------------------------------------
+| ANGGOTA
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth', 'role.any:super_admin,admin,staff'])->group(function () {
+    Route::get('/anggota', [MemberController::class, 'index'])->name('anggota.index');
+    Route::get('/anggota/tambah', [MemberController::class, 'create'])->name('anggota.create');
+    Route::post('/anggota', [MemberController::class, 'store'])->name('anggota.store');
+    Route::get('/anggota/template/csv', [MemberController::class, 'downloadTemplate'])->name('anggota.template.csv');
+    Route::post('/anggota/import/csv', [MemberController::class, 'importCsv'])
+        ->middleware('throttle:10,1')
+        ->name('anggota.import.csv');
+    Route::post('/anggota/import/csv/preview', [MemberController::class, 'previewImportCsv'])
+        ->middleware('throttle:10,1')
+        ->name('anggota.import.preview');
+    Route::post('/anggota/import/csv/confirm', [MemberController::class, 'confirmImportCsv'])
+        ->middleware('throttle:20,1')
+        ->name('anggota.import.confirm');
+    Route::post('/anggota/import/csv/cancel', [MemberController::class, 'cancelImportPreview'])
+        ->middleware('throttle:30,1')
+        ->name('anggota.import.cancel');
+    Route::get('/anggota/import/csv/errors', [MemberController::class, 'downloadImportErrorCsv'])->name('anggota.import.errors');
+    Route::get('/anggota/import/csv/summary', [MemberController::class, 'downloadImportSummaryCsv'])->name('anggota.import.summary');
+    Route::get('/anggota/import/csv/history', [MemberController::class, 'downloadImportHistoryCsv'])->name('anggota.import.history');
+    Route::get('/anggota/import/xlsx/history', [MemberController::class, 'downloadImportHistoryXlsx'])->name('anggota.import.history.xlsx');
+    Route::get('/anggota/import/metrics', [MemberController::class, 'importMetrics'])
+        ->middleware('throttle:60,1')
+        ->name('anggota.import.metrics');
+    Route::get('/anggota/import/metrics/chart', [MemberController::class, 'importMetricsChart'])
+        ->middleware('throttle:120,1')
+        ->name('anggota.import.metrics.chart');
+    Route::get('/anggota/metrics/kpi', [MemberController::class, 'kpiMetrics'])
+        ->middleware('throttle:60,1')
+        ->name('anggota.metrics.kpi');
+    Route::post('/anggota/import/csv/undo', [MemberController::class, 'undoImportBatch'])
+        ->middleware('throttle:10,1')
+        ->name('anggota.import.undo');
+    Route::get('/anggota/{id}', [MemberController::class, 'show'])->whereNumber('id')->name('anggota.show');
+    Route::get('/anggota/{id}/edit', [MemberController::class, 'edit'])->whereNumber('id')->name('anggota.edit');
+    Route::put('/anggota/{id}', [MemberController::class, 'update'])->whereNumber('id')->name('anggota.update');
+});
+
+/*
+|--------------------------------------------------------------------------
+| LAPORAN OPERASIONAL
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth', 'role.any:super_admin,admin,staff'])->group(function () {
+    Route::get('/laporan', [OperationalReportController::class, 'index'])->name('laporan.index');
+    Route::get('/laporan/export/{type}', [OperationalReportController::class, 'export'])
+        ->whereIn('type', ['sirkulasi', 'overdue', 'denda', 'pengadaan', 'anggota', 'serial'])
+        ->name('laporan.export');
+    Route::get('/laporan/export-xlsx/{type}', [OperationalReportController::class, 'exportXlsx'])
+        ->whereIn('type', ['sirkulasi', 'overdue', 'denda', 'pengadaan', 'anggota', 'serial'])
+        ->name('laporan.export_xlsx');
+});
+
+/*
+|--------------------------------------------------------------------------
+| SERIAL ISSUES CONTROL
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth', 'role.any:super_admin,admin,staff'])->group(function () {
+    Route::get('/serial-issues', [SerialIssueController::class, 'index'])->name('serial_issues.index');
+    Route::post('/serial-issues', [SerialIssueController::class, 'store'])->name('serial_issues.store');
+    Route::get('/serial-issues/export/csv', [SerialIssueController::class, 'exportCsv'])->name('serial_issues.export.csv');
+    Route::get('/serial-issues/export/xlsx', [SerialIssueController::class, 'exportXlsx'])->name('serial_issues.export.xlsx');
+    Route::post('/serial-issues/{id}/receive', [SerialIssueController::class, 'receive'])
+        ->whereNumber('id')
+        ->name('serial_issues.receive');
+    Route::post('/serial-issues/{id}/missing', [SerialIssueController::class, 'markMissing'])
+        ->whereNumber('id')
+        ->name('serial_issues.missing');
+    Route::post('/serial-issues/{id}/claim', [SerialIssueController::class, 'claim'])
+        ->whereNumber('id')
+        ->name('serial_issues.claim');
+});
+
+/*
+|--------------------------------------------------------------------------
 | MASTER (RAK)
 |--------------------------------------------------------------------------
 */
@@ -599,6 +698,13 @@ Route::middleware(['auth', 'role.any:super_admin,admin'])
             ->name('policy.api.audits.csv');
     });
 
+Route::middleware(['auth', 'role.any:super_admin,admin,staff'])
+    ->get('/interop/metrics', InteropMetricsController::class)
+    ->name('interop.metrics');
+Route::middleware(['auth', 'role.any:super_admin,admin'])
+    ->get('/interop/metrics/export/csv', [InteropMetricsController::class, 'exportCsv'])
+    ->name('interop.metrics.export.csv');
+
 
 /*
 |--------------------------------------------------------------------------
@@ -606,15 +712,6 @@ Route::middleware(['auth', 'role.any:super_admin,admin'])
 |--------------------------------------------------------------------------
 */
 Route::middleware('auth')->group(function () {
-
-    Route::get('/anggota', fn () => view('placeholders.page', [
-        'title' => 'Anggota',
-        'subtitle' => 'Data member & aktivitas',
-        'tone' => 'green',
-        'primary' => ['label' => 'Tambah Anggota', 'href' => '#'],
-    ]))
-        ->middleware('role.any:super_admin,admin,staff')
-        ->name('anggota.index');
 
     Route::get('/komunitas', fn () => view('placeholders.page', [
         'title' => 'Komunitas',

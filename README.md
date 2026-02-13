@@ -14,6 +14,37 @@ NOTOBUKU adalah sistem manajemen perpustakaan dengan exporter MARC21 yang konsis
 5. `php artisan migrate`
 6. (Opsional) `php artisan db:seed` untuk data demo awal
 
+## Quickstart — Docker (local/dev)
+
+Prerequisites: Docker and Docker Compose installed.
+
+1. Start services:
+
+```bash
+docker compose up -d
+```
+
+2. App will be available at http://localhost:8000 — phpMyAdmin at http://localhost:8080 and Meilisearch at http://localhost:7700.
+
+3. The `app` container runs `composer install` and attempts `php artisan migrate` on first start. To get a shell in the app container:
+
+```bash
+docker compose exec app bash
+```
+
+4. To run migrations or seed manually:
+
+```bash
+docker compose exec app php artisan migrate --force
+docker compose exec app php artisan db:seed
+```
+
+5. Useful Makefile shortcuts (see `Makefile`): `make up`, `make down`, `make bash`, `make migrate`, `make test`.
+
+Notes:
+- If you prefer nginx+php-fpm, replace the `app` service command and add an `nginx` service in `docker-compose.yml`.
+- Adjust `.env` to set `DB_HOST=db`, `MEILISEARCH_HOST=http://meilisearch:7700`, and Redis host `redis` when running via Docker.
+
 ## Konfigurasi Ekspor MARC
 - Default MARC berada di `config/marc.php`:
   - `place_codes` untuk kode tempat terbit (008/15–17).
@@ -36,6 +67,28 @@ Catatan: badge CI/Coverage saat ini placeholder karena belum ada pipeline CI.
 - Relator term/code otomatis (author/editor/narrator/dll).
 - Indikator nama personal: inverted vs direct order (gelar/sufiks dikecualikan; tanggal authority memaksa inverted).
 - Validasi ekspor (008 panjang 40, kode bahasa 3 huruf, 856 wajib untuk online, aturan berbasis profile).
+
+## User Documentation
+- Dokumentasi pengguna (tab per role): `http://notobuku.test/docs` atau route `docs.index`.
+- Ditujukan untuk:
+  - `super_admin`: governance, lintas cabang, monitoring.
+  - `admin/staff`: operasional harian (katalog, sirkulasi, anggota, laporan, serial).
+  - `member`: pencarian, pinjaman, reservasi, notifikasi, pustakawan digital.
+- Checklist UAT produksi: route `docs.uat-checklist`.
+
+## Standar Metadata (MARC/MARC21/RDA)
+- Penjelasan ringkas tersedia di tab `MARC/RDA` pada halaman `/docs`.
+- Prinsip:
+  - `RDA` mengatur **isi deskripsi** bibliografi.
+  - `MARC21` mengatur **struktur penyimpanan** data bibliografi.
+- Mapping field form katalog ke MARC21 tersedia di tab `Field Katalog` pada halaman `/docs`.
+
+## Operasional Harian (Ringkas)
+1. Katalog: input bibliografi -> tambah eksemplar.
+2. Sirkulasi: pinjam/kembali/perpanjang -> review denda.
+3. Anggota: import CSV via preview -> confirm -> undo bila perlu.
+4. Laporan: filter periode/cabang -> export CSV/XLSX.
+5. Serial: kelola expected/missing/claimed/received -> export audit.
 
 ## Kepatuhan & Konsistensi
 - MARC21: Leader/006/007/008 konsisten per media profile.

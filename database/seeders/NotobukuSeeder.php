@@ -99,7 +99,8 @@ class NotobukuSeeder extends Seeder
             |--------------------------------------------------
             | 4. Admin Cabang
             |--------------------------------------------------
-            User::updateOrCreate(
+            */
+            $this->firstOrKeepUser(
                 ['email' => 'admin.pusat@notobuku.test'],
                 [
                     'name' => 'Admin Perpustakaan Pusat',
@@ -112,7 +113,7 @@ class NotobukuSeeder extends Seeder
                 ]
             );
 
-            User::updateOrCreate(
+            $this->firstOrKeepUser(
                 ['email' => 'admin.surabaya@notobuku.test'],
                 [
                     'name' => 'Admin Perpustakan Kota Surabaya',

@@ -1480,12 +1480,10 @@
     border-color: rgba(148,163,184,.24);
     background: rgba(30,136,229,.12);
   }
-  .nb-k-batchBar.is-hidden{ display:none; }
+  .nb-k-batchBar.is-hidden{ display:none !important; }
+  .nb-k-batchBar[hidden]{ display:none !important; }
   .nb-k-batchLeft{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; flex:1 1 auto; }
-  .nb-k-batchRight{ margin-left:0; display:flex; gap:10px; align-items:center; flex-wrap:wrap; flex:1 1 100%; }
-  @media (min-width: 980px){
-    .nb-k-batchRight{ margin-left:auto; flex:0 0 auto; }
-  }
+  .nb-k-batchRight{ margin-left:0; display:grid; gap:10px; flex:1 1 100%; width:100%; }
   .nb-k-batchCount{ font-size:12.5px; font-weight:700; color: rgba(11,37,69,.7); }
   html.dark .nb-k-batchCount{ color: rgba(226,232,240,.8); }
   .nb-k-batchHint{
@@ -1510,9 +1508,58 @@
   }
   .nb-k-batchField{ min-width:160px; flex:1 1 160px; }
   .nb-k-batchField:disabled{ opacity:.7; cursor:not-allowed; }
-  .nb-k-batchApply:disabled{ opacity:.7; cursor:not-allowed; }
-  .nb-k-batchFields{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; flex:1 1 auto; }
-  .nb-k-batchActions{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .nb-k-batchApply:disabled,
+  .nb-k-batchUndo:disabled,
+  #nbBatchClear:disabled{ opacity:.6; cursor:not-allowed; }
+  .nb-k-batchFields{ display:grid; gap:10px; width:100%; }
+  .nb-k-batchRow{
+    display:grid;
+    grid-template-columns: repeat(4, minmax(160px, 1fr));
+    gap:8px;
+    align-items:center;
+    background: rgba(15,23,42,.02);
+    border:1px solid rgba(148,163,184,.18);
+    border-radius:12px;
+    padding:8px;
+  }
+  .nb-k-batchActions{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    justify-content:flex-end;
+    flex-wrap:wrap;
+    width:100%;
+    padding-top:10px;
+    border-top:1px dashed rgba(148,163,184,.22);
+  }
+  .nb-k-batchActions .nb-btn{
+    min-height:40px;
+    padding:9px 14px;
+    border-radius:12px;
+    font-weight:700;
+    white-space:nowrap;
+  }
+  .nb-k-batchApply{ min-width:130px; }
+  .nb-k-batchUndo{
+    border-color: rgba(245,158,11,.35);
+    background: rgba(245,158,11,.08);
+    color: rgba(146,64,14,.95);
+  }
+  #nbBatchClear{
+    border-color: rgba(148,163,184,.35);
+    background: rgba(255,255,255,.75);
+    color: rgba(30,41,59,.88);
+  }
+  html.dark .nb-k-batchUndo{
+    border-color: rgba(251,191,36,.35);
+    background: rgba(217,119,6,.18);
+    color: rgba(254,240,138,.95);
+  }
+  html.dark #nbBatchClear{
+    border-color: rgba(148,163,184,.25);
+    background: rgba(15,23,42,.45);
+    color: rgba(226,232,240,.9);
+  }
 
   /* ---------- Shortcut list ---------- */
   .nb-k-shortcuts{
@@ -2691,32 +2738,9 @@
     background: rgba(148,163,184,.12);
     color: rgba(226,232,240,.78);
   }
-    .nb-k-batchSearch{
-      min-width:220px;
-    }
-    .nb-k-batchUndo{
-      border-color: rgba(148,163,184,.45);
-    }
-    .nb-k-batchFields{
-      display:grid;
-      gap:10px;
-    }
-    .nb-k-batchBar .nb-field{
-      border-radius:10px;
-    }
-    .nb-k-batchField{
-      min-width:160px;
-    }
-    .nb-k-batchRow{
-      display:grid;
-      grid-template-columns: repeat(4, minmax(160px, 1fr));
-      gap:8px;
-      align-items:center;
-      background: rgba(15,23,42,.02);
-      border:1px solid rgba(148,163,184,.18);
-      border-radius:12px;
-      padding:8px;
-    }
+    .nb-k-batchSearch{ min-width:220px; }
+    .nb-k-batchBar .nb-field{ border-radius:10px; }
+    .nb-k-batchField{ min-width:160px; }
     @media (max-width: 1280px){
       .nb-k-batchRow{ grid-template-columns: repeat(3, minmax(160px, 1fr)); }
     }
@@ -2726,28 +2750,12 @@
     @media (max-width: 720px){
       .nb-k-batchRow{ grid-template-columns: 1fr; }
     }
-    .nb-k-batchBar{
-      display:grid;
-      gap:10px;
-      border-radius:16px;
-    }
-    .nb-k-batchLeft{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      flex-wrap:wrap;
-    }
-    .nb-k-batchRight{
-      display:grid;
-      gap:10px;
-    }
-    .nb-k-batchActions{
-      display:flex;
-      align-items:center;
-      justify-content:flex-end;
-      gap:8px;
-      flex-wrap:wrap;
-      padding: top 10px;
+    .nb-k-batchBar{ display:grid; gap:10px; border-radius:16px; }
+    .nb-k-batchLeft{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+    .nb-k-batchRight{ display:grid; gap:10px; width:100%; }
+    @media (max-width: 720px){
+      .nb-k-batchActions{ justify-content:stretch; }
+      .nb-k-batchActions .nb-btn{ flex:1 1 100%; }
     }
 
     .nb-k-modal{
@@ -3264,7 +3272,7 @@
     </div>
 
     @if($canManage)
-      <div class="nb-k-batchBar is-hidden" id="nbBatchBar">
+      <div class="nb-k-batchBar is-hidden" id="nbBatchBar" hidden aria-hidden="true">
         <div class="nb-k-batchLeft">
           <label class="nb-k-batchSelect">
             <input type="checkbox" id="nbBatchAll">
@@ -3329,7 +3337,7 @@
                 </select>
                 <input class="nb-field nb-k-batchField" type="text" name="location_note" placeholder="Catatan lokasi (opsional)">
               </div>
-            </div></div>
+            </div>
             <div class="nb-k-batchActions">
               <button class="nb-btn nb-btn-primary nb-k-batchApply" type="submit">Terapkan</button>
               <button class="nb-btn nb-k-batchUndo" type="button" id="nbBatchUndo">Undo batch terakhir</button>
@@ -4023,6 +4031,13 @@
       els.idsInput.value = selected.join(',');
       var isEmpty = selected.length === 0;
       els.bar.classList.toggle('is-hidden', isEmpty);
+      if (isEmpty) {
+        els.bar.setAttribute('hidden', 'hidden');
+        els.bar.setAttribute('aria-hidden', 'true');
+      } else {
+        els.bar.removeAttribute('hidden');
+        els.bar.setAttribute('aria-hidden', 'false');
+      }
       setBatchDisabled(isEmpty);
       if (els.selectAll) {
         els.selectAll.checked = selected.length === checkboxes.length && checkboxes.length > 0;
@@ -4071,11 +4086,21 @@
     };
 
     var setupBatchBar = function () {
+      // Hard reset selection state on page load to avoid stale checked state from browser cache.
+      var els = getBatchEls();
+      getCheckboxes().forEach(function (cb) { cb.checked = false; });
+      if (els && els.selectAll) {
+        els.selectAll.checked = false;
+      }
       refresh();
     };
 
     window.nbKatalogSetupBatch = setupBatchBar;
     setupBatchBar();
+    window.addEventListener('pageshow', function () {
+      // Handle bfcache restore (back/forward navigation) consistently.
+      setupBatchBar();
+    });
 
     document.addEventListener('click', function (e) {
       var cb = e.target.closest && e.target.closest('.nb-k-selectInput');
@@ -4267,13 +4292,6 @@
 </script>
 @endif
 @endsection
-
-
-
-
-
-
-
 
 
 

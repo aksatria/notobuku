@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Biblio;
+use App\Support\InteropMetrics;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -268,6 +269,13 @@ class AdminDashboardController extends Controller
             }
         }
 
+        $interop = InteropMetrics::snapshot();
+        $health = (array) data_get($interop, 'health', []);
+        $interopP95 = (int) ($health['p95_ms'] ?? 0);
+        $interopInvalid = (int) ($health['invalid_token_total'] ?? 0);
+        $interopLimited = (int) ($health['rate_limited_total'] ?? 0);
+        $interopHealth = (string) ($health['label'] ?? 'Sehat');
+
         return view('admin.dashboard', [
             'totals' => $data['totals'],
             'topClicked' => $data['topClicked'],
@@ -292,6 +300,11 @@ class AdminDashboardController extends Controller
             'autoTopPaths' => $autoTopPaths,
             'autoTopUserShare' => $autoTopUserShare,
             'autoSuggestions' => $autoSuggestions,
+            'interopMetrics' => $interop,
+            'interopP95' => $interopP95,
+            'interopInvalid' => $interopInvalid,
+            'interopLimited' => $interopLimited,
+            'interopHealth' => $interopHealth,
         ]);
     }
 }

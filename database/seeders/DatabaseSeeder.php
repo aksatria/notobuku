@@ -24,6 +24,10 @@ class DatabaseSeeder extends Seeder
             KatalogMetadataSeeder::class,
             DdcSummarySeeder::class,
             KatalogCollectionsSeeder::class,
+            SeedBiblioIntroAlgorithmsSeeder::class,
+            SeedBiblioMathStructuresSeeder::class,
+            SeedBiblioResistBookTagSeeder::class,
+            RealCatalogSeeder::class,
             LoanReturnFineSeeder::class,
             AcquisitionsSeeder::class,
         ]);

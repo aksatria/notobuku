@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Support\InteropMetrics;
 use App\Models\User;
 use App\Models\Biblio;
 use App\Models\Item;
@@ -14,14 +15,21 @@ use App\Policies\AcquisitionsPolicy;
 use App\Observers\BiblioSearchObserver;
 use App\Observers\ItemSearchObserver;
 use Database\Seeders\NotobukuSeeder;
+use Illuminate\Console\Events\CommandStarting;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\View;
+use RuntimeException;
+use Symfony\Component\HttpFoundation\Response;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -38,6 +46,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $this->guardDangerousDatabaseCommands();
+        $this->configureInteropRateLimiters();
+
         Gate::policy(Biblio::class, KatalogPolicy::class);
         Gate::policy(AcquisitionRequest::class, AcquisitionsPolicy::class);
         Gate::policy(PurchaseOrder::class, AcquisitionsPolicy::class);
@@ -93,6 +104,43 @@ class AppServiceProvider extends ServiceProvider
         });
     }
 
+    private function configureInteropRateLimiters(): void
+    {
+        RateLimiter::for('oai-interop', function (Request $request) {
+            $ip = (string) ($request->ip() ?? 'unknown');
+            $perMinute = (int) config('notobuku.interop.rate_limit.oai.per_minute', 180);
+            $perSecond = (int) config('notobuku.interop.rate_limit.oai.per_second', 12);
+
+            return [
+                Limit::perMinute(max(1, $perMinute))->by($ip)->response(function () {
+                    InteropMetrics::incrementRateLimited('oai');
+                    return response('Too Many Requests', Response::HTTP_TOO_MANY_REQUESTS);
+                }),
+                Limit::perSecond(max(1, $perSecond))->by($ip)->response(function () {
+                    InteropMetrics::incrementRateLimited('oai');
+                    return response('Too Many Requests', Response::HTTP_TOO_MANY_REQUESTS);
+                }),
+            ];
+        });
+
+        RateLimiter::for('sru-interop', function (Request $request) {
+            $ip = (string) ($request->ip() ?? 'unknown');
+            $perMinute = (int) config('notobuku.interop.rate_limit.sru.per_minute', 240);
+            $perSecond = (int) config('notobuku.interop.rate_limit.sru.per_second', 20);
+
+            return [
+                Limit::perMinute(max(1, $perMinute))->by($ip)->response(function () {
+                    InteropMetrics::incrementRateLimited('sru');
+                    return response('Too Many Requests', Response::HTTP_TOO_MANY_REQUESTS);
+                }),
+                Limit::perSecond(max(1, $perSecond))->by($ip)->response(function () {
+                    InteropMetrics::incrementRateLimited('sru');
+                    return response('Too Many Requests', Response::HTTP_TOO_MANY_REQUESTS);
+                }),
+            ];
+        });
+    }
+
     private function guardUsersTable(): void
     {
         if (app()->runningInConsole()) {
@@ -116,5 +164,63 @@ class AppServiceProvider extends ServiceProvider
         } catch (\Throwable $e) {
             Log::warning('Users table guard failed: ' . $e->getMessage());
         }
+    }
+
+    private function guardDangerousDatabaseCommands(): void
+    {
+        if (!app()->runningInConsole()) {
+            return;
+        }
+
+        Event::listen(CommandStarting::class, function (CommandStarting $event): void {
+            $command = strtolower(trim((string) $event->command));
+            if (!$this->isDangerousDatabaseCommand($command)) {
+                return;
+            }
+
+            if (config('notobuku.allow_dangerous_db_commands', false)) {
+                return;
+            }
+
+            $defaultConnection = (string) config('database.default', '');
+            $databaseName = (string) config("database.connections.{$defaultConnection}.database", '');
+            $databaseNameLower = strtolower($databaseName);
+            $isSqliteMemory = $defaultConnection === 'sqlite' && in_array($databaseName, [':memory:', ''], true);
+            $isTestingDbName = str_contains($databaseNameLower, 'test') || str_contains($databaseNameLower, 'testing');
+            // Guard ketat: environment testing saja tidak cukup.
+            // Tetap wajib target DB bernama test/testing atau sqlite memory.
+            $isSafeTarget = $isSqliteMemory || $isTestingDbName;
+
+            if ($isSafeTarget) {
+                return;
+            }
+
+            throw new RuntimeException(
+                "Blocked dangerous command [{$event->command}] on database [{$databaseName}] (connection: {$defaultConnection}). "
+                . 'Use a testing DB (e.g. *_test) or set NB_ALLOW_DANGEROUS_DB_COMMANDS=true explicitly.'
+            );
+        });
+    }
+
+    private function isDangerousDatabaseCommand(string $command): bool
+    {
+        if ($command === '') {
+            return false;
+        }
+
+        $dangerous = [
+            'migrate:fresh',
+            'migrate:refresh',
+            'migrate:reset',
+            'db:wipe',
+        ];
+
+        foreach ($dangerous as $item) {
+            if ($command === $item || str_starts_with($command, $item . ' ')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

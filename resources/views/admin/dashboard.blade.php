@@ -24,6 +24,29 @@
   $topClickedCount = isset($topClicked) ? $topClicked->count() : 0;
   $topBorrowedCount = isset($topBorrowed) ? $topBorrowed->count() : 0;
   $branchCount = isset($branches) ? $branches->count() : 0;
+  $interopP95 = (int) ($interopP95 ?? 0);
+  $interopInvalid = (int) ($interopInvalid ?? 0);
+  $interopLimited = (int) ($interopLimited ?? 0);
+  $interopHealth = (string) ($interopHealth ?? 'Sehat');
+  $interopMetrics = (array) ($interopMetrics ?? []);
+  $interopOaiP95 = (int) data_get($interopMetrics, 'latency.oai.p95_ms', 0);
+  $interopSruP95 = (int) data_get($interopMetrics, 'latency.sru.p95_ms', 0);
+  $interopOaiLimited = (int) data_get($interopMetrics, 'counters.oai_rate_limited', 0);
+  $interopSruLimited = (int) data_get($interopMetrics, 'counters.sru_rate_limited', 0);
+  $interopHistory24h = (array) data_get($interopMetrics, 'history.last_24h', []);
+  $interopP95Series24h = array_values(array_map(fn($r) => (int) ($r['p95_ms'] ?? 0), $interopHistory24h));
+  $interopP95Min24h = count($interopP95Series24h) > 0 ? min($interopP95Series24h) : 0;
+  $interopP95Max24h = count($interopP95Series24h) > 0 ? max($interopP95Series24h) : 0;
+  $interopP95Latest24h = count($interopP95Series24h) > 0 ? (int) end($interopP95Series24h) : 0;
+  $interopCriticalAlert = (array) data_get($interopMetrics, 'alerts.critical_streak', []);
+  $interopCriticalActive = (bool) ($interopCriticalAlert['active'] ?? false);
+  $interopCriticalStreak = (int) ($interopCriticalAlert['streak_minutes'] ?? 0);
+  $interopCriticalThreshold = (int) ($interopCriticalAlert['threshold_minutes'] ?? 0);
+  $interopHealthClass = match ($interopHealth) {
+    'Kritis' => 'critical',
+    'Waspada' => 'warning',
+    default => 'good',
+  };
 
   $quickActions = collect([
     ['label' => 'Tambah Bibliografi', 'desc' => 'Input koleksi baru', 'route' => 'katalog.create', 'icon' => '#nb-icon-plus'],
@@ -343,6 +366,165 @@
   .nb-admin-insight-label{ font-size:11px; font-weight:700; letter-spacing:.08px; text-transform:uppercase; color: var(--admin-muted); }
   .nb-admin-insight-value{ margin-top:4px; font-size:20px; font-weight:700; color: var(--admin-ink); }
   .nb-admin-insight-sub{ margin-top:2px; font-size:12px; color: var(--admin-muted); }
+  .nb-admin-health-breakdown{
+    margin-top:6px;
+    display:grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap:6px;
+  }
+  .nb-admin-health-breakdown .row{
+    border:1px dashed var(--admin-border);
+    background: rgba(248,250,252,.75);
+    border-radius:10px;
+    padding:6px 8px;
+    font-size:11.5px;
+    color: var(--admin-muted);
+  }
+  .nb-admin-health-breakdown .row b{ color: var(--admin-ink); font-weight:700; }
+  html.dark .nb-admin-health-breakdown .row{ background: rgba(15,23,42,.55); }
+  .nb-admin-health-actions{
+    margin-top:8px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:8px;
+  }
+  .nb-admin-health-sync{
+    font-size:11px;
+    font-weight:700;
+    color: var(--admin-muted);
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+  }
+  .nb-admin-health-sync::before{
+    content:"";
+    width:7px;
+    height:7px;
+    border-radius:999px;
+    background: currentColor;
+    display:inline-block;
+  }
+  .nb-admin-health-sync.live{ color: rgba(6,95,70,.95); }
+  .nb-admin-health-sync.offline{ color: rgba(153,27,27,.95); }
+  html.dark .nb-admin-health-sync.live{ color: rgba(167,243,208,.95); }
+  html.dark .nb-admin-health-sync.offline{ color: rgba(254,202,202,.95); }
+  .nb-admin-health-sync.refreshing{ color: var(--admin-primary); }
+  html.dark .nb-admin-health-sync.refreshing{ color: rgba(147,197,253,.95); }
+  .nb-admin-health-refresh{
+    min-width:96px;
+    text-align:center;
+  }
+  .nb-admin-health-refresh{
+    border:1px solid var(--admin-border);
+    border-radius:999px;
+    background: var(--nb-card);
+    color: var(--admin-ink);
+    font-size:11px;
+    font-weight:700;
+    padding:4px 10px;
+    line-height:1.2;
+    cursor:pointer;
+  }
+  .nb-admin-health-refresh:hover{
+    border-color: rgba(31,111,235,.3);
+    color: var(--admin-primary);
+  }
+  .nb-admin-health-refresh:disabled{
+    opacity:.55;
+    cursor:wait;
+  }
+  .nb-admin-health-export{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    border:1px solid var(--admin-border);
+    border-radius:999px;
+    background: var(--nb-card);
+    color: var(--admin-ink);
+    font-size:11px;
+    font-weight:700;
+    padding:4px 10px;
+    line-height:1.2;
+    text-decoration:none;
+    min-width:96px;
+  }
+  .nb-admin-health-export:hover{
+    border-color: rgba(31,111,235,.3);
+    color: var(--admin-primary);
+  }
+  .nb-admin-health-mini{
+    margin-top:8px;
+    display:grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap:6px;
+  }
+  .nb-admin-health-mini .row{
+    border:1px dashed var(--admin-border);
+    background: rgba(248,250,252,.75);
+    border-radius:10px;
+    padding:6px 8px;
+    font-size:11px;
+    color: var(--admin-muted);
+  }
+  .nb-admin-health-mini .row b{ color: var(--admin-ink); }
+  html.dark .nb-admin-health-mini .row{ background: rgba(15,23,42,.55); }
+  .nb-admin-health-alert{
+    margin-top:6px;
+    font-size:11.5px;
+    font-weight:700;
+  }
+  .nb-admin-health-alert.ok{ color: rgba(6,95,70,.95); }
+  .nb-admin-health-alert.warn{ color: rgba(146,64,14,.95); }
+  .nb-admin-health-alert.critical{ color: rgba(153,27,27,.95); }
+  .nb-admin-health-pill{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    border-radius:999px;
+    padding:4px 10px;
+    font-size:13px;
+    font-weight:700;
+    border:1px solid transparent;
+  }
+  .nb-admin-health-pill::before{
+    content:"";
+    width:8px;
+    height:8px;
+    border-radius:999px;
+    background: currentColor;
+    display:inline-block;
+  }
+  .nb-admin-health-pill.good{
+    color: rgba(6,95,70,.95);
+    background: rgba(16,185,129,.12);
+    border-color: rgba(16,185,129,.35);
+  }
+  .nb-admin-health-pill.warning{
+    color: rgba(146,64,14,.95);
+    background: rgba(245,158,11,.14);
+    border-color: rgba(245,158,11,.35);
+  }
+  .nb-admin-health-pill.critical{
+    color: rgba(153,27,27,.95);
+    background: rgba(239,68,68,.12);
+    border-color: rgba(239,68,68,.35);
+  }
+  html.dark .nb-admin-health-pill.good{
+    color: rgba(167,243,208,.96);
+    background: rgba(16,185,129,.2);
+    border-color: rgba(16,185,129,.45);
+  }
+  html.dark .nb-admin-health-pill.warning{
+    color: rgba(253,230,138,.96);
+    background: rgba(245,158,11,.22);
+    border-color: rgba(245,158,11,.45);
+  }
+  html.dark .nb-admin-health-pill.critical{
+    color: rgba(254,202,202,.96);
+    background: rgba(239,68,68,.22);
+    border-color: rgba(239,68,68,.45);
+  }
 
   .nb-admin-auto-grid{
     margin-top:12px;
@@ -770,6 +952,44 @@
           <div class="nb-admin-insight-value">{{ $topClickedCount }}</div>
           <div class="nb-admin-insight-sub">{{ $branchCount }} cabang aktif</div>
         </div>
+        <div class="nb-admin-insight">
+          <div class="nb-admin-insight-label">Interop Health (OAI + SRU)</div>
+          <div class="nb-admin-insight-value">
+            <span
+              id="interop-health-pill"
+              class="nb-admin-health-pill {{ $interopHealthClass }}"
+              data-metrics-url="{{ route('interop.metrics') }}"
+            >{{ $interopHealth }}</span>
+          </div>
+          <div id="interop-health-sub" class="nb-admin-insight-sub">p95 {{ $interopP95 }} ms, invalid {{ number_format($interopInvalid) }}, limited {{ number_format($interopLimited) }}</div>
+          <div class="nb-admin-health-breakdown">
+            <div id="interop-health-oai" class="row"><b>OAI</b> p95 {{ $interopOaiP95 }} ms, limited {{ number_format($interopOaiLimited) }}</div>
+            <div id="interop-health-sru" class="row"><b>SRU</b> p95 {{ $interopSruP95 }} ms, limited {{ number_format($interopSruLimited) }}</div>
+          </div>
+          <div class="nb-admin-health-mini">
+            <div id="interop-health-p95-min" class="row"><b>24h Min</b> {{ $interopP95Min24h }} ms</div>
+            <div id="interop-health-p95-max" class="row"><b>24h Max</b> {{ $interopP95Max24h }} ms</div>
+            <div id="interop-health-p95-now" class="row"><b>Now</b> {{ $interopP95Latest24h }} ms</div>
+          </div>
+          <div
+            id="interop-health-alert"
+            class="nb-admin-health-alert {{ $interopCriticalActive ? 'critical' : 'ok' }}"
+            data-critical-threshold="{{ $interopCriticalThreshold }}"
+          >
+            @if($interopCriticalActive)
+              Alert: status Kritis {{ $interopCriticalStreak }} menit berturut-turut.
+            @else
+              Alert rule aktif: Kritis berturut-turut {{ $interopCriticalThreshold }} menit.
+            @endif
+          </div>
+          <div class="nb-admin-health-actions">
+            <span id="interop-health-sync" class="nb-admin-health-sync live">Live</span>
+            <button id="interop-health-refresh" type="button" class="nb-admin-health-refresh">Refresh now</button>
+            <a class="nb-admin-health-export" href="{{ route('interop.metrics.export.csv', ['days' => 30]) }}">Export CSV</a>
+          </div>
+          <div id="interop-health-next" class="nb-admin-insight-sub">Refresh berikutnya dalam 30 detik</div>
+          <div id="interop-health-updated" class="nb-admin-insight-sub">Last updated baru saja</div>
+        </div>
       </div>
     </section>
 
@@ -1111,4 +1331,212 @@
     </section>
   </div>
 </div>
+
+<script>
+  (function () {
+    const pill = document.getElementById('interop-health-pill');
+    const sub = document.getElementById('interop-health-sub');
+    const updated = document.getElementById('interop-health-updated');
+    const oaiEl = document.getElementById('interop-health-oai');
+    const sruEl = document.getElementById('interop-health-sru');
+    const refreshBtn = document.getElementById('interop-health-refresh');
+    const syncEl = document.getElementById('interop-health-sync');
+    const nextEl = document.getElementById('interop-health-next');
+    const minEl = document.getElementById('interop-health-p95-min');
+    const maxEl = document.getElementById('interop-health-p95-max');
+    const nowEl = document.getElementById('interop-health-p95-now');
+    const alertEl = document.getElementById('interop-health-alert');
+    if (!pill || !sub || !updated || !oaiEl || !sruEl || !refreshBtn || !syncEl || !nextEl || !minEl || !maxEl || !nowEl || !alertEl) return;
+
+    const metricsUrl = pill.dataset.metricsUrl || '';
+    if (!metricsUrl) return;
+    let lastUpdatedAt = Date.now();
+
+    function updateBadge(health, p95, invalid, limited, oaiP95, sruP95, oaiLimited, sruLimited) {
+      pill.textContent = health.label;
+      pill.classList.remove('good', 'warning', 'critical');
+      pill.classList.add(health.klass);
+      sub.textContent = `p95 ${p95} ms, invalid ${invalid.toLocaleString('id-ID')}, limited ${limited.toLocaleString('id-ID')}`;
+      oaiEl.innerHTML = `<b>OAI</b> p95 ${oaiP95} ms, limited ${oaiLimited.toLocaleString('id-ID')}`;
+      sruEl.innerHTML = `<b>SRU</b> p95 ${sruP95} ms, limited ${sruLimited.toLocaleString('id-ID')}`;
+      lastUpdatedAt = Date.now();
+      updated.textContent = 'Last updated baru saja';
+    }
+
+    function tickLastUpdated() {
+      const diffSec = Math.max(0, Math.floor((Date.now() - lastUpdatedAt) / 1000));
+      if (diffSec <= 1) {
+        updated.textContent = 'Last updated baru saja';
+        return;
+      }
+      if (diffSec < 60) {
+        updated.textContent = `Last updated ${diffSec} detik lalu`;
+        return;
+      }
+      const diffMin = Math.floor(diffSec / 60);
+      updated.textContent = `Last updated ${diffMin} menit lalu`;
+    }
+
+    async function refreshInteropHealth() {
+      refreshBtn.disabled = true;
+      refreshBtn.textContent = 'Refreshing...';
+      syncEl.textContent = 'Refreshing';
+      syncEl.classList.remove('live', 'offline');
+      syncEl.classList.add('refreshing');
+      try {
+        const resp = await fetch(metricsUrl, {
+          headers: { 'Accept': 'application/json' },
+          credentials: 'same-origin',
+        });
+        if (!resp.ok) {
+          syncEl.textContent = 'Offline';
+          syncEl.classList.remove('refreshing', 'live');
+          syncEl.classList.add('offline');
+          nextDelayMs = Math.min(MAX_BACKOFF_MS, Math.max(REFRESH_INTERVAL_MS, nextDelayMs * 2));
+          restartRefreshTimer();
+          return;
+        }
+        const data = await resp.json();
+        if (!data || data.ok !== true || !data.metrics) {
+          syncEl.textContent = 'Offline';
+          syncEl.classList.remove('refreshing', 'live');
+          syncEl.classList.add('offline');
+          nextDelayMs = Math.min(MAX_BACKOFF_MS, Math.max(REFRESH_INTERVAL_MS, nextDelayMs * 2));
+          restartRefreshTimer();
+          return;
+        }
+
+        const oai = (data.metrics.latency && data.metrics.latency.oai) || {};
+        const sru = (data.metrics.latency && data.metrics.latency.sru) || {};
+        const counters = data.metrics.counters || {};
+        const oaiP95 = Number(oai.p95_ms || 0);
+        const sruP95 = Number(sru.p95_ms || 0);
+        const p95 = Math.max(oaiP95, sruP95);
+        const invalid = Number(counters.oai_invalid_token || 0) + Number(counters.sru_invalid_token || 0);
+        const oaiLimited = Number(counters.oai_rate_limited || 0);
+        const sruLimited = Number(counters.sru_rate_limited || 0);
+        const limited = oaiLimited + sruLimited;
+        const health = (data.metrics && data.metrics.health) || {};
+        const healthLabel = String(health.label || 'Sehat');
+        const healthClass = String(health.class || 'good');
+        const history24h = (data.metrics && data.metrics.history && data.metrics.history.last_24h) || [];
+        p95History = Array.isArray(history24h)
+          ? history24h.map((r) => Number((r && r.p95_ms) || 0)).filter((v) => !Number.isNaN(v))
+          : [];
+        refreshP95Mini();
+        refreshAlert((data.metrics && data.metrics.alerts) || {});
+
+        updateBadge({ label: healthLabel, klass: healthClass }, p95, invalid, limited, oaiP95, sruP95, oaiLimited, sruLimited);
+        syncEl.textContent = 'Live';
+        syncEl.classList.remove('refreshing', 'offline');
+        syncEl.classList.add('live');
+        nextDelayMs = REFRESH_INTERVAL_MS;
+        restartRefreshTimer();
+      } catch (e) {
+        // No-op: keep last rendered value when refresh fails.
+        syncEl.textContent = 'Offline';
+        syncEl.classList.remove('refreshing', 'live');
+        syncEl.classList.add('offline');
+        nextDelayMs = Math.min(MAX_BACKOFF_MS, Math.max(REFRESH_INTERVAL_MS, nextDelayMs * 2));
+        restartRefreshTimer();
+      } finally {
+        refreshBtn.disabled = false;
+        refreshBtn.textContent = 'Refresh now';
+      }
+    }
+
+    refreshBtn.addEventListener('click', function () {
+      refreshInteropHealth();
+    });
+
+    let refreshTimer = null;
+    let nextDelayMs = 30000;
+    const REFRESH_INTERVAL_MS = 30000;
+    const MAX_BACKOFF_MS = 300000;
+    let nextRefreshAt = Date.now() + nextDelayMs;
+    let p95History = [];
+
+    function startRefreshTimer() {
+      if (refreshTimer) return;
+      nextRefreshAt = Date.now() + nextDelayMs;
+      refreshTimer = setInterval(function () {
+        if (document.visibilityState === 'visible') {
+          refreshInteropHealth();
+          nextRefreshAt = Date.now() + nextDelayMs;
+        }
+      }, nextDelayMs);
+    }
+
+    function stopRefreshTimer() {
+      if (!refreshTimer) return;
+      clearInterval(refreshTimer);
+      refreshTimer = null;
+    }
+
+    function restartRefreshTimer() {
+      if (document.visibilityState !== 'visible') return;
+      stopRefreshTimer();
+      startRefreshTimer();
+    }
+
+    function refreshP95Mini() {
+      if (!Array.isArray(p95History) || p95History.length === 0) return;
+      const min = Math.min(...p95History);
+      const max = Math.max(...p95History);
+      const now = Number(p95History[p95History.length - 1] || 0);
+      minEl.innerHTML = `<b>24h Min</b> ${min} ms`;
+      maxEl.innerHTML = `<b>24h Max</b> ${max} ms`;
+      nowEl.innerHTML = `<b>Now</b> ${now} ms`;
+    }
+
+    function refreshAlert(alerts) {
+      const critical = (alerts && alerts.critical_streak) || {};
+      const active = Boolean(critical.active);
+      const streak = Number(critical.streak_minutes || 0);
+      const threshold = Number(critical.threshold_minutes || Number(alertEl.dataset.criticalThreshold || 0));
+      alertEl.classList.remove('ok', 'warn', 'critical');
+      if (active) {
+        alertEl.classList.add('critical');
+        alertEl.textContent = `Alert: status Kritis ${streak} menit berturut-turut.`;
+        return;
+      }
+      if (streak > 0) {
+        alertEl.classList.add('warn');
+        alertEl.textContent = `Peringatan: streak Kritis sempat ${streak} menit (threshold ${threshold}).`;
+        return;
+      }
+      alertEl.classList.add('ok');
+      alertEl.textContent = `Alert rule aktif: Kritis berturut-turut ${threshold} menit.`;
+    }
+
+    function tickNextRefresh() {
+      if (document.visibilityState !== 'visible') {
+        nextEl.textContent = 'Refresh dijeda (tab tidak aktif)';
+        return;
+      }
+      if (!refreshTimer) {
+        nextEl.textContent = 'Refresh dijeda';
+        return;
+      }
+      const sec = Math.max(1, Math.ceil((nextRefreshAt - Date.now()) / 1000));
+      nextEl.textContent = `Refresh berikutnya dalam ${sec} detik`;
+    }
+
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible') {
+        startRefreshTimer();
+        refreshInteropHealth();
+      } else {
+        stopRefreshTimer();
+      }
+    });
+
+    setInterval(tickLastUpdated, 1000);
+    setInterval(tickNextRefresh, 1000);
+    if (document.visibilityState === 'visible') {
+      startRefreshTimer();
+      tickNextRefresh();
+    }
+  })();
+</script>
 @endsection

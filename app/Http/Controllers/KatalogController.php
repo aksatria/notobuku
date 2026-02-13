@@ -43,10 +43,29 @@ class KatalogController extends Controller
     {
         $active = (int) session('active_branch_id', 0);
         if ($active > 0) {
-            return $active;
+            $institutionId = $this->currentInstitutionId();
+            $isValidActive = Branch::query()
+                ->where('id', $active)
+                ->where('institution_id', $institutionId)
+                ->where('is_active', 1)
+                ->exists();
+            if ($isValidActive) {
+                return $active;
+            }
         }
         $userBranch = (int) (auth()->user()->branch_id ?? 0);
-        return $userBranch > 0 ? $userBranch : null;
+        if ($userBranch > 0) {
+            $institutionId = $this->currentInstitutionId();
+            $isValidUserBranch = Branch::query()
+                ->where('id', $userBranch)
+                ->where('institution_id', $institutionId)
+                ->where('is_active', 1)
+                ->exists();
+            if ($isValidUserBranch) {
+                return $userBranch;
+            }
+        }
+        return null;
     }
 
     private function canManageCatalog(): bool
@@ -805,6 +824,9 @@ class KatalogController extends Controller
         $searchService = app(BiblioSearchService::class);
         $searchResult = null;
         $shouldUseMeili = empty($fieldFilters);
+        if ($q === '') {
+            $shouldUseMeili = false; // Browse default wajib stabil walau index search belum sinkron.
+        }
         if ($sort === 'latest' && $activeBranchId && Schema::hasColumn('items', 'branch_id')) {
             $shouldUseMeili = false; // per cabang: pakai DB agar urut per item cabang
         }
@@ -839,6 +861,29 @@ class KatalogController extends Controller
             } else {
                 $searchResult = $searchService->search($searchPayload, $institutionId);
             }
+        }
+
+        $isUnfilteredBrowse =
+            $q === ''
+            && $title === ''
+            && $authorName === ''
+            && $subjectTerm === ''
+            && $isbn === ''
+            && $callNumber === ''
+            && $language === ''
+            && $materialType === ''
+            && $mediaType === ''
+            && $ddc === ''
+            && $year === ''
+            && $author === ''
+            && $subject === ''
+            && $publisher === ''
+            && !$onlyAvailable
+            && empty($fieldFilters);
+
+        // Safety net: jika index search kosong/out-of-sync, browse katalog default tetap tampil via DB.
+        if ($searchResult && $isUnfilteredBrowse && (int) ($searchResult['total'] ?? 0) === 0) {
+            $searchResult = null;
         }
 
         if ($searchResult) {
@@ -3007,9 +3052,11 @@ class KatalogController extends Controller
 
         $auditMeta = [
             'biblio_id' => (int) $biblio->id,
+            'institution_id' => $institutionId,
             'title' => (string) ($biblio->title ?? ''),
             'publisher' => (string) ($biblio->publisher ?? ''),
             'isbn' => (string) ($biblio->isbn ?? ''),
+            'deleted_at' => now()->toIso8601String(),
             'ip' => (string) request()->ip(),
             'user_agent' => (string) request()->userAgent(),
         ];
