@@ -1,6 +1,6 @@
 # UAT Produksi - ILS Core Checklist
 
-Tujuan checklist ini: menjaga modul inti ILS (`katalog`, `sirkulasi`, `anggota`, `laporan`, `serial`) tetap stabil pada level 10/10 saat rilis.
+Tujuan checklist ini: menjaga modul inti ILS (`katalog`, `sirkulasi`, `anggota`, `laporan`, `serial`) plus modul klasik tambahan (`stock opname`, `copy cataloging`) tetap stabil pada level 10/10 saat rilis.
 
 ## 1. Prasyarat Wajib (Sebelum UAT)
 1. Gunakan database produksi cadangan/snapshot, bukan data utama langsung.
@@ -69,16 +69,41 @@ Tujuan checklist ini: menjaga modul inti ILS (`katalog`, `sirkulasi`, `anggota`,
 2. `member` tidak bisa akses endpoint staff:
    1. import anggota
    2. export laporan operasional
-   3. serial claim workflow
+3. serial claim workflow
+   4. stock opname
+   5. copy cataloging
 
-## 8. Non-Fungsional Wajib
+## 8. UAT Modul Stock Opname
+1. Buat sesi opname baru dengan filter cabang/rak/status item.
+2. Mulai sesi opname (`draft -> in_progress`).
+3. Scan barcode item valid:
+   1. line berubah menjadi `found`
+4. Selesaikan sesi:
+   1. line expected yang belum discan berubah `missing`
+   2. ringkasan `expected/found/missing/unexpected` konsisten
+5. Export CSV sesi berhasil.
+
+## 9. UAT Modul Copy Cataloging
+1. Tambah sumber copy cataloging:
+   1. SRU
+   2. Z39.50 gateway
+   3. P2P
+2. Jalankan pencarian ke sumber aktif, hasil tampil.
+3. Import satu record ke katalog lokal:
+   1. bibliografi baru terbentuk
+   2. riwayat import tercatat
+4. Validasi error handling:
+   1. payload record invalid ditolak
+   2. judul kosong ditandai `failed` di riwayat import
+
+## 10. Non-Fungsional Wajib
 1. Tidak ada error 500 di log untuk flow UAT.
 2. p95 response endpoint inti dalam batas SLO internal.
 3. Scheduler utama berjalan:
    1. snapshot import history bulanan
    2. jobs interop metrics/reconcile
 
-## 9. Kriteria Go-Live
+## 11. Kriteria Go-Live
 1. Semua poin UAT lolos.
 2. Tidak ada blocker severity tinggi.
 3. Stakeholder operasi menyetujui checklist final.

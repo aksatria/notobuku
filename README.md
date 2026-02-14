@@ -70,11 +70,21 @@ Catatan: badge CI/Coverage saat ini placeholder karena belum ada pipeline CI.
 
 ## User Documentation
 - Dokumentasi pengguna (tab per role): `http://notobuku.test/docs` atau route `docs.index`.
+- Tab `Panduan Lengkap` di `/docs` berisi penjelasan fungsi + cara penggunaan per modul:
+  - Katalog
+  - Sirkulasi
+  - Anggota
+  - Laporan
+  - Serial Issue
+  - Stock Opname
+  - Copy Cataloging
+  - OPAC & Interop
 - Ditujukan untuk:
   - `super_admin`: governance, lintas cabang, monitoring.
   - `admin/staff`: operasional harian (katalog, sirkulasi, anggota, laporan, serial).
   - `member`: pencarian, pinjaman, reservasi, notifikasi, pustakawan digital.
 - Checklist UAT produksi: route `docs.uat-checklist`.
+- Dokumen checklist UAT (markdown): `docs/UAT_PRODUKSI_ILS_CORE_CHECKLIST.md`.
 
 ## Standar Metadata (MARC/MARC21/RDA)
 - Penjelasan ringkas tersedia di tab `MARC/RDA` pada halaman `/docs`.
@@ -89,6 +99,26 @@ Catatan: badge CI/Coverage saat ini placeholder karena belum ada pipeline CI.
 3. Anggota: import CSV via preview -> confirm -> undo bila perlu.
 4. Laporan: filter periode/cabang -> export CSV/XLSX.
 5. Serial: kelola expected/missing/claimed/received -> export audit.
+6. Stock Opname: buat sesi -> mulai -> scan barcode -> selesaikan -> export CSV.
+7. Copy Cataloging: pilih sumber SRU/Z39.50 gateway/P2P -> cari -> impor ke katalog -> review metadata.
+
+## Modul ILS Klasik Tambahan
+- `Stock Opname`
+  - Route: `stock_takes.index`
+  - Fitur: sesi opname, line expected/found/missing/unexpected, export CSV audit.
+- `Copy Cataloging Client`
+  - Route: `copy_cataloging.index`
+  - Fitur: manajemen source (`SRU`, `Z39.50 gateway`, `P2P`), search eksternal, import bibliografi lokal.
+
+## Testing & Stabilitas Environment
+- Gunakan database testing terpisah (`notobuku_test`) untuk semua suite.
+- Hindari command destruktif di DB non-testing (guard permanen aktif di aplikasi).
+- Untuk regresi modul klasik:
+  - `php artisan test tests/Feature/StockTakeWorkflowTest.php --env=testing`
+  - `php artisan test tests/Feature/CopyCatalogingWorkflowTest.php --env=testing`
+- Stabilitas `CopyCatalogingWorkflowTest` sudah diperkuat:
+  - migrasi schema testing dijalankan aman di setup test
+  - transaksi DB dipakai untuk rollback per test
 
 ## Kepatuhan & Konsistensi
 - MARC21: Leader/006/007/008 konsisten per media profile.

@@ -1,6 +1,6 @@
 @extends('layouts.notobuku')
 
-@section('title', 'Serial Issue Control')
+@section('title', 'Kendali Issue Serial')
 
 @section('content')
 @php
@@ -37,6 +37,12 @@
   .actions{ display:flex; gap:8px; }
   .kpi-grid{ display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:10px; margin-top:12px; }
   .kpi{ border:1px solid var(--nb-border); border-radius:12px; padding:10px; }
+  .kpi.var-total{ background:rgba(59,130,246,.10); }
+  .kpi.var-expected{ background:rgba(56,189,248,.10); }
+  .kpi.var-received{ background:rgba(16,185,129,.10); }
+  .kpi.var-missing{ background:rgba(239,68,68,.10); }
+  .kpi.var-claimed{ background:rgba(245,158,11,.12); }
+  .kpi.var-late{ background:rgba(99,102,241,.10); }
   .kpi .label{ color:var(--nb-muted); font-size:12px; }
   .kpi .value{ margin-top:6px; font-size:20px; font-weight:700; }
   @media (max-width:1100px){ .grid{ grid-template-columns:1fr; } }
@@ -45,14 +51,14 @@
 
 <div class="page">
   <div class="card">
-    <h1 class="title">Serial Issue Control</h1>
-    <div class="muted">Kelola issue serial: expected, received, dan missing.</div>
+    <h1 class="title">Kendali Issue Serial</h1>
+    <div class="muted">Kelola issue serial: terjadwal, diterima, hilang, dan klaim.</div>
 
     <form method="POST" action="{{ route('serial_issues.store') }}">
       @csrf
       <div class="grid">
         <div class="field">
-          <label>Judul Serial</label>
+          <label>Judul serial</label>
           <select class="nb-field" name="biblio_id" required>
             <option value="">Pilih judul</option>
             @foreach($biblios as $b)
@@ -61,7 +67,7 @@
           </select>
         </div>
         <div class="field">
-          <label>Kode Issue</label>
+          <label>Kode issue</label>
           <input class="nb-field" name="issue_code" placeholder="2026-Vol.1-No.1" required>
         </div>
         <div class="field">
@@ -82,11 +88,11 @@
           </select>
         </div>
         <div class="field">
-          <label>Tgl Terbit</label>
+          <label>Tanggal terbit</label>
           <input class="nb-field" type="date" name="published_on">
         </div>
         <div class="field">
-          <label>Tgl Expected</label>
+          <label>Tanggal terjadwal</label>
           <input class="nb-field" type="date" name="expected_on">
         </div>
         <div class="field">
@@ -95,7 +101,7 @@
         </div>
       </div>
       <div style="margin-top:12px;">
-        <button class="btn btn-primary" type="submit">Tambah Issue</button>
+        <button class="btn btn-primary" type="submit">Tambah issue</button>
       </div>
     </form>
   </div>
@@ -104,17 +110,17 @@
     <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:10px;">
       <div class="muted">Ringkasan periode {{ \Illuminate\Support\Carbon::parse($from)->format('d M Y') }} - {{ \Illuminate\Support\Carbon::parse($to)->format('d M Y') }}</div>
       <div style="display:flex; gap:8px;">
-        <a class="btn" href="{{ route('serial_issues.export.csv', ['q' => $q, 'status' => $status, 'branch_id' => $branchId, 'from' => $from, 'to' => $to]) }}">Export CSV</a>
-        <a class="btn" href="{{ route('serial_issues.export.xlsx', ['q' => $q, 'status' => $status, 'branch_id' => $branchId, 'from' => $from, 'to' => $to]) }}">Export XLSX</a>
+        <a class="btn" href="{{ route('serial_issues.export.csv', ['q' => $q, 'status' => $status, 'branch_id' => $branchId, 'from' => $from, 'to' => $to]) }}">Ekspor CSV</a>
+        <a class="btn" href="{{ route('serial_issues.export.xlsx', ['q' => $q, 'status' => $status, 'branch_id' => $branchId, 'from' => $from, 'to' => $to]) }}">Ekspor XLSX</a>
       </div>
     </div>
     <div class="kpi-grid">
-      <div class="kpi"><div class="label">Total Issue</div><div class="value">{{ number_format((int) $summary['total']) }}</div></div>
-      <div class="kpi"><div class="label">Expected</div><div class="value">{{ number_format((int) $summary['expected']) }}</div></div>
-      <div class="kpi"><div class="label">Received</div><div class="value">{{ number_format((int) $summary['received']) }}</div></div>
-      <div class="kpi"><div class="label">Missing</div><div class="value">{{ number_format((int) $summary['missing']) }}</div></div>
-      <div class="kpi"><div class="label">Claimed</div><div class="value">{{ number_format((int) $summary['claimed']) }}</div></div>
-      <div class="kpi"><div class="label">Expected Terlambat</div><div class="value">{{ number_format((int) $summary['late_expected']) }}</div></div>
+      <div class="kpi var-total"><div class="label">Total issue</div><div class="value">{{ number_format((int) $summary['total']) }}</div></div>
+      <div class="kpi var-expected"><div class="label">Terjadwal</div><div class="value">{{ number_format((int) $summary['expected']) }}</div></div>
+      <div class="kpi var-received"><div class="label">Diterima</div><div class="value">{{ number_format((int) $summary['received']) }}</div></div>
+      <div class="kpi var-missing"><div class="label">Hilang</div><div class="value">{{ number_format((int) $summary['missing']) }}</div></div>
+      <div class="kpi var-claimed"><div class="label">Diklaim</div><div class="value">{{ number_format((int) $summary['claimed']) }}</div></div>
+      <div class="kpi var-late"><div class="label">Terjadwal terlambat</div><div class="value">{{ number_format((int) $summary['late_expected']) }}</div></div>
     </div>
   </div>
 
@@ -128,10 +134,10 @@
         <label>Status</label>
         <select class="nb-field" name="status">
           <option value="">Semua status</option>
-          <option value="expected" @selected($status === 'expected')>Expected</option>
-          <option value="received" @selected($status === 'received')>Received</option>
-          <option value="missing" @selected($status === 'missing')>Missing</option>
-          <option value="claimed" @selected($status === 'claimed')>Claimed</option>
+          <option value="expected" @selected($status === 'expected')>Terjadwal</option>
+          <option value="received" @selected($status === 'received')>Diterima</option>
+          <option value="missing" @selected($status === 'missing')>Hilang</option>
+          <option value="claimed" @selected($status === 'claimed')>Diklaim</option>
         </select>
       </div>
       <div class="field">
@@ -152,7 +158,7 @@
         <input class="nb-field" type="date" name="to" value="{{ $to }}">
       </div>
       <div style="display:flex; gap:8px;">
-        <button class="btn btn-primary" type="submit">Filter</button>
+        <button class="btn btn-primary" type="submit">Terapkan</button>
         <a class="btn" href="{{ route('serial_issues.index') }}">Reset</a>
       </div>
     </form>
@@ -172,11 +178,11 @@
         <table>
           <thead>
             <tr>
-              <th>Issue</th>
+              <th>Kode issue</th>
               <th>Judul</th>
               <th>Volume/No</th>
-              <th>Tgl Terbit</th>
-              <th>Expected</th>
+              <th>Tanggal terbit</th>
+              <th>Terjadwal</th>
               <th>Status</th>
               <th>Klaim</th>
               <th>Cabang</th>
@@ -191,7 +197,16 @@
                 <td>{{ trim(($it->volume ?: '-') . ' / ' . ($it->issue_no ?: '-')) }}</td>
                 <td>{{ $it->published_on ? \Illuminate\Support\Carbon::parse($it->published_on)->format('d M Y') : '-' }}</td>
                 <td>{{ $it->expected_on ? \Illuminate\Support\Carbon::parse($it->expected_on)->format('d M Y') : '-' }}</td>
-                <td><span class="tag {{ $it->status }}">{{ strtoupper($it->status) }}</span></td>
+                @php
+                  $statusLabel = match($it->status){
+                    'expected' => 'TERJADWAL',
+                    'received' => 'DITERIMA',
+                    'missing' => 'HILANG',
+                    'claimed' => 'DIKLAIM',
+                    default => strtoupper((string) $it->status),
+                  };
+                @endphp
+                <td><span class="tag {{ $it->status }}">{{ $statusLabel }}</span></td>
                 <td>
                   @if(!empty($it->claim_reference))
                     <div>{{ $it->claim_reference }}</div>
@@ -199,7 +214,7 @@
                   @if(!empty($it->claim_notes))
                     <div class="muted">{{ \Illuminate\Support\Str::limit($it->claim_notes, 80) }}</div>
                   @elseif($it->status === 'claimed')
-                    <div class="muted">Claimed tanpa catatan</div>
+                      <div class="muted">Diklaim tanpa catatan</div>
                   @else
                     -
                   @endif
@@ -216,15 +231,15 @@
                     @if($it->status !== 'missing')
                       <form method="POST" action="{{ route('serial_issues.missing', $it->id) }}">
                         @csrf
-                        <button class="btn" type="submit">Missing</button>
+                        <button class="btn" type="submit">Tandai hilang</button>
                       </form>
                     @endif
                     @if($it->status !== 'received')
                       <form method="POST" action="{{ route('serial_issues.claim', $it->id) }}" style="display:flex; gap:6px; align-items:center;">
                         @csrf
-                        <input class="nb-field" name="claim_reference" placeholder="Ref klaim" style="min-width:120px; padding:7px 8px;">
+                        <input class="nb-field" name="claim_reference" placeholder="Referensi klaim" style="min-width:120px; padding:7px 8px;">
                         <input class="nb-field" name="claim_notes" placeholder="Catatan klaim" style="min-width:140px; padding:7px 8px;">
-                        <button class="btn" type="submit">Claim</button>
+                        <button class="btn" type="submit">Klaim</button>
                       </form>
                     @endif
                   </div>

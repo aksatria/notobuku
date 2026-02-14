@@ -4,7 +4,7 @@
 
 @section('content')
 @php
-  $filters = $filters ?? ['from' => now()->subDays(30)->toDateString(), 'to' => now()->toDateString(), 'branch_id' => 0];
+  $filters = $filters ?? ['from' => now()->subDays(30)->toDateString(), 'to' => now()->toDateString(), 'branch_id' => 0, 'operator_id' => 0, 'loan_status' => ''];
   $kpi = $kpi ?? ['loans' => 0, 'returns' => 0, 'overdue' => 0, 'fines_assessed' => 0, 'fines_paid' => 0, 'purchase_orders' => 0, 'new_members' => 0, 'serial_open' => 0];
   $topTitles = $topTitles ?? [];
   $topOverdueMembers = $topOverdueMembers ?? [];
@@ -12,7 +12,9 @@
   $acquisitionRows = $acquisitionRows ?? [];
   $memberRows = $memberRows ?? [];
   $serialRows = $serialRows ?? [];
+  $circulationAuditRows = $circulationAuditRows ?? [];
   $branches = $branches ?? [];
+  $operators = $operators ?? [];
 @endphp
 
 <style>
@@ -22,9 +24,17 @@
   .muted{ color:var(--nb-muted); font-size:13px; }
   .grid{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-top:12px; }
   .kpi{ border:1px solid var(--nb-border); border-radius:14px; padding:10px; }
+  .kpi.var-loans{ background:rgba(59,130,246,.10); }
+  .kpi.var-returns{ background:rgba(16,185,129,.10); }
+  .kpi.var-overdue{ background:rgba(239,68,68,.10); }
+  .kpi.var-po{ background:rgba(99,102,241,.10); }
+  .kpi.var-fines-a{ background:rgba(245,158,11,.12); }
+  .kpi.var-fines-p{ background:rgba(20,184,166,.12); }
+  .kpi.var-members{ background:rgba(168,85,247,.12); }
+  .kpi.var-serial{ background:rgba(148,163,184,.16); }
   .kpi .label{ font-size:12px; color:var(--nb-muted); }
   .kpi .value{ margin-top:4px; font-size:20px; font-weight:700; }
-  .filter{ display:grid; grid-template-columns:1fr 1fr 1fr auto auto; gap:10px; align-items:end; }
+  .filter{ display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:10px; align-items:end; }
   .field label{ display:block; font-size:12px; font-weight:600; color:var(--nb-muted); margin-bottom:6px; }
   .nb-field{ width:100%; border:1px solid var(--nb-border); border-radius:12px; padding:10px 12px; background:var(--nb-surface); }
   .btn{ display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--nb-border); border-radius:12px; padding:10px 12px; font-weight:600; }
@@ -60,29 +70,97 @@
           @endforeach
         </select>
       </div>
+      <div class="field">
+        <label>Operator</label>
+        <select class="nb-field" name="operator_id">
+          <option value="0">Semua operator</option>
+          @foreach($operators as $op)
+            <option value="{{ $op['id'] }}" @selected((int) ($filters['operator_id'] ?? 0) === (int) $op['id'])>{{ $op['name'] }} ({{ strtoupper($op['role']) }})</option>
+          @endforeach
+        </select>
+      </div>
+      <div class="field">
+        <label>Status Loan</label>
+        <select class="nb-field" name="loan_status">
+          <option value="">Semua status</option>
+          <option value="open" @selected(($filters['loan_status'] ?? '') === 'open')>TERBUKA</option>
+          <option value="overdue" @selected(($filters['loan_status'] ?? '') === 'overdue')>TERLAMBAT</option>
+          <option value="closed" @selected(($filters['loan_status'] ?? '') === 'closed')>SELESAI</option>
+        </select>
+      </div>
       <button class="btn btn-primary" type="submit">Terapkan</button>
       <a class="btn" href="{{ route('laporan.index') }}">Reset</a>
     </form>
 
     <div class="grid">
-      <div class="kpi"><div class="label">Total Peminjaman</div><div class="value">{{ number_format((int) $kpi['loans']) }}</div></div>
-      <div class="kpi"><div class="label">Total Pengembalian</div><div class="value">{{ number_format((int) $kpi['returns']) }}</div></div>
-      <div class="kpi"><div class="label">Item Overdue Aktif</div><div class="value">{{ number_format((int) $kpi['overdue']) }}</div></div>
-      <div class="kpi"><div class="label">PO Dibuat</div><div class="value">{{ number_format((int) $kpi['purchase_orders']) }}</div></div>
-      <div class="kpi"><div class="label">Denda Tercatat</div><div class="value">Rp {{ number_format((float) $kpi['fines_assessed'], 0, ',', '.') }}</div></div>
-      <div class="kpi"><div class="label">Denda Terbayar</div><div class="value">Rp {{ number_format((float) $kpi['fines_paid'], 0, ',', '.') }}</div></div>
-      <div class="kpi"><div class="label">Anggota Baru (periode)</div><div class="value">{{ number_format((int) $kpi['new_members']) }}</div></div>
-      <div class="kpi"><div class="label">Serial Open (expected/missing/claimed)</div><div class="value">{{ number_format((int) $kpi['serial_open']) }}</div></div>
+      <div class="kpi var-loans"><div class="label">Total peminjaman</div><div class="value">{{ number_format((int) $kpi['loans']) }}</div></div>
+      <div class="kpi var-returns"><div class="label">Total pengembalian</div><div class="value">{{ number_format((int) $kpi['returns']) }}</div></div>
+      <div class="kpi var-overdue"><div class="label">Item terlambat aktif</div><div class="value">{{ number_format((int) $kpi['overdue']) }}</div></div>
+      <div class="kpi var-po"><div class="label">PO dibuat</div><div class="value">{{ number_format((int) $kpi['purchase_orders']) }}</div></div>
+      <div class="kpi var-fines-a"><div class="label">Denda tercatat</div><div class="value">Rp {{ number_format((float) $kpi['fines_assessed'], 0, ',', '.') }}</div></div>
+      <div class="kpi var-fines-p"><div class="label">Denda terbayar</div><div class="value">Rp {{ number_format((float) $kpi['fines_paid'], 0, ',', '.') }}</div></div>
+      <div class="kpi var-members"><div class="label">Anggota baru (periode)</div><div class="value">{{ number_format((int) $kpi['new_members']) }}</div></div>
+      <div class="kpi var-serial"><div class="label">Serial terbuka (terjadwal/hilang/klaim)</div><div class="value">{{ number_format((int) $kpi['serial_open']) }}</div></div>
     </div>
   </div>
 
   <div class="tables">
+    <div class="card" style="grid-column:1 / -1;">
+      <div class="head-row">
+        <h2 class="title" style="font-size:16px;">Audit Sirkulasi Detail</h2>
+        <div style="display:flex; gap:8px;">
+          <a class="btn" href="{{ route('laporan.export', ['type' => 'sirkulasi_audit', 'from' => $filters['from'], 'to' => $filters['to'], 'branch_id' => $filters['branch_id'], 'operator_id' => $filters['operator_id'] ?? 0, 'loan_status' => $filters['loan_status'] ?? '']) }}">CSV</a>
+          <a class="btn" href="{{ route('laporan.export_xlsx', ['type' => 'sirkulasi_audit', 'from' => $filters['from'], 'to' => $filters['to'], 'branch_id' => $filters['branch_id'], 'operator_id' => $filters['operator_id'] ?? 0, 'loan_status' => $filters['loan_status'] ?? '']) }}">XLSX</a>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Peminjaman</th>
+            <th>Anggota</th>
+            <th>Item</th>
+            <th>Tanggal</th>
+            <th>Terlambat</th>
+            <th>Cabang</th>
+            <th>Operator</th>
+          </tr>
+        </thead>
+        <tbody>
+          @forelse($circulationAuditRows as $row)
+            <tr>
+              @php
+                $loanStatusLabel = match(strtolower((string) $row['loan_status'])){
+                  'open' => 'TERBUKA',
+                  'overdue' => 'TERLAMBAT',
+                  'closed' => 'SELESAI',
+                  default => strtoupper((string) $row['loan_status']),
+                };
+              @endphp
+              <td>{{ $row['loan_code'] }}<br><span class="muted">{{ $loanStatusLabel }}</span></td>
+              <td>{{ $row['member_name'] }}<br><span class="muted">{{ $row['member_code'] }}</span></td>
+              <td>{{ $row['title'] }}<br><span class="muted">{{ $row['barcode'] }}</span></td>
+              <td>
+                <div class="muted">Pinjam: {{ $row['borrowed_at'] !== '' ? \Illuminate\Support\Carbon::parse($row['borrowed_at'])->format('d M Y H:i') : '-' }}</div>
+                <div class="muted">Tempo: {{ $row['due_at'] !== '' ? \Illuminate\Support\Carbon::parse($row['due_at'])->format('d M Y H:i') : '-' }}</div>
+                <div class="muted">Kembali: {{ $row['returned_at'] !== '' ? \Illuminate\Support\Carbon::parse($row['returned_at'])->format('d M Y H:i') : '-' }}</div>
+              </td>
+              <td>{{ number_format((int) $row['late_days']) }} hari</td>
+              <td>{{ $row['branch_name'] }}</td>
+              <td>{{ $row['operator_name'] }}</td>
+            </tr>
+          @empty
+            <tr><td colspan="7" class="muted">Tidak ada data audit sirkulasi untuk filter ini.</td></tr>
+          @endforelse
+        </tbody>
+      </table>
+    </div>
+
     <div class="card">
       <div class="head-row">
         <h2 class="title" style="font-size:16px;">Top Judul Dipinjam</h2>
         <div style="display:flex; gap:8px;">
-          <a class="btn" href="{{ route('laporan.export', ['type' => 'sirkulasi', 'from' => $filters['from'], 'to' => $filters['to'], 'branch_id' => $filters['branch_id']]) }}">CSV</a>
-          <a class="btn" href="{{ route('laporan.export_xlsx', ['type' => 'sirkulasi', 'from' => $filters['from'], 'to' => $filters['to'], 'branch_id' => $filters['branch_id']]) }}">XLSX</a>
+          <a class="btn" href="{{ route('laporan.export', ['type' => 'sirkulasi', 'from' => $filters['from'], 'to' => $filters['to'], 'branch_id' => $filters['branch_id']]) }}">Ekspor CSV</a>
+          <a class="btn" href="{{ route('laporan.export_xlsx', ['type' => 'sirkulasi', 'from' => $filters['from'], 'to' => $filters['to'], 'branch_id' => $filters['branch_id']]) }}">Ekspor XLSX</a>
         </div>
       </div>
       <table>
@@ -101,8 +179,8 @@
       <div class="head-row">
         <h2 class="title" style="font-size:16px;">Top Member Overdue</h2>
         <div style="display:flex; gap:8px;">
-          <a class="btn" href="{{ route('laporan.export', ['type' => 'overdue', 'from' => $filters['from'], 'to' => $filters['to'], 'branch_id' => $filters['branch_id']]) }}">CSV</a>
-          <a class="btn" href="{{ route('laporan.export_xlsx', ['type' => 'overdue', 'from' => $filters['from'], 'to' => $filters['to'], 'branch_id' => $filters['branch_id']]) }}">XLSX</a>
+          <a class="btn" href="{{ route('laporan.export', ['type' => 'overdue', 'from' => $filters['from'], 'to' => $filters['to'], 'branch_id' => $filters['branch_id']]) }}">Ekspor CSV</a>
+          <a class="btn" href="{{ route('laporan.export_xlsx', ['type' => 'overdue', 'from' => $filters['from'], 'to' => $filters['to'], 'branch_id' => $filters['branch_id']]) }}">Ekspor XLSX</a>
         </div>
       </div>
       <table>
@@ -121,8 +199,8 @@
       <div class="head-row">
         <h2 class="title" style="font-size:16px;">Ringkasan Denda</h2>
         <div style="display:flex; gap:8px;">
-          <a class="btn" href="{{ route('laporan.export', ['type' => 'denda', 'from' => $filters['from'], 'to' => $filters['to'], 'branch_id' => $filters['branch_id']]) }}">CSV</a>
-          <a class="btn" href="{{ route('laporan.export_xlsx', ['type' => 'denda', 'from' => $filters['from'], 'to' => $filters['to'], 'branch_id' => $filters['branch_id']]) }}">XLSX</a>
+          <a class="btn" href="{{ route('laporan.export', ['type' => 'denda', 'from' => $filters['from'], 'to' => $filters['to'], 'branch_id' => $filters['branch_id']]) }}">Ekspor CSV</a>
+          <a class="btn" href="{{ route('laporan.export_xlsx', ['type' => 'denda', 'from' => $filters['from'], 'to' => $filters['to'], 'branch_id' => $filters['branch_id']]) }}">Ekspor XLSX</a>
         </div>
       </div>
       <table>
@@ -146,8 +224,8 @@
       <div class="head-row">
         <h2 class="title" style="font-size:16px;">Ringkasan Pengadaan</h2>
         <div style="display:flex; gap:8px;">
-          <a class="btn" href="{{ route('laporan.export', ['type' => 'pengadaan', 'from' => $filters['from'], 'to' => $filters['to'], 'branch_id' => $filters['branch_id']]) }}">CSV</a>
-          <a class="btn" href="{{ route('laporan.export_xlsx', ['type' => 'pengadaan', 'from' => $filters['from'], 'to' => $filters['to'], 'branch_id' => $filters['branch_id']]) }}">XLSX</a>
+          <a class="btn" href="{{ route('laporan.export', ['type' => 'pengadaan', 'from' => $filters['from'], 'to' => $filters['to'], 'branch_id' => $filters['branch_id']]) }}">Ekspor CSV</a>
+          <a class="btn" href="{{ route('laporan.export_xlsx', ['type' => 'pengadaan', 'from' => $filters['from'], 'to' => $filters['to'], 'branch_id' => $filters['branch_id']]) }}">Ekspor XLSX</a>
         </div>
       </div>
       <table>
@@ -171,8 +249,8 @@
       <div class="head-row">
         <h2 class="title" style="font-size:16px;">Ringkasan Anggota</h2>
         <div style="display:flex; gap:8px;">
-          <a class="btn" href="{{ route('laporan.export', ['type' => 'anggota', 'from' => $filters['from'], 'to' => $filters['to'], 'branch_id' => $filters['branch_id']]) }}">CSV</a>
-          <a class="btn" href="{{ route('laporan.export_xlsx', ['type' => 'anggota', 'from' => $filters['from'], 'to' => $filters['to'], 'branch_id' => $filters['branch_id']]) }}">XLSX</a>
+          <a class="btn" href="{{ route('laporan.export', ['type' => 'anggota', 'from' => $filters['from'], 'to' => $filters['to'], 'branch_id' => $filters['branch_id']]) }}">Ekspor CSV</a>
+          <a class="btn" href="{{ route('laporan.export_xlsx', ['type' => 'anggota', 'from' => $filters['from'], 'to' => $filters['to'], 'branch_id' => $filters['branch_id']]) }}">Ekspor XLSX</a>
         </div>
       </div>
       <table>
@@ -198,8 +276,8 @@
       <div class="head-row">
         <h2 class="title" style="font-size:16px;">Ringkasan Serial</h2>
         <div style="display:flex; gap:8px;">
-          <a class="btn" href="{{ route('laporan.export', ['type' => 'serial', 'from' => $filters['from'], 'to' => $filters['to'], 'branch_id' => $filters['branch_id']]) }}">CSV</a>
-          <a class="btn" href="{{ route('laporan.export_xlsx', ['type' => 'serial', 'from' => $filters['from'], 'to' => $filters['to'], 'branch_id' => $filters['branch_id']]) }}">XLSX</a>
+          <a class="btn" href="{{ route('laporan.export', ['type' => 'serial', 'from' => $filters['from'], 'to' => $filters['to'], 'branch_id' => $filters['branch_id']]) }}">Ekspor CSV</a>
+          <a class="btn" href="{{ route('laporan.export_xlsx', ['type' => 'serial', 'from' => $filters['from'], 'to' => $filters['to'], 'branch_id' => $filters['branch_id']]) }}">Ekspor XLSX</a>
         </div>
       </div>
       <table>

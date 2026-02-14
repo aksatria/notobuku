@@ -63,6 +63,7 @@
 
     <div class="doc-tabs" role="tablist" aria-label="Dokumentasi tabs">
       <button class="doc-tab" type="button" role="tab" aria-selected="true" data-doc-tab="overview">Overview</button>
+      <button class="doc-tab" type="button" role="tab" aria-selected="false" data-doc-tab="panduan">Panduan Lengkap</button>
       <button class="doc-tab" type="button" role="tab" aria-selected="false" data-doc-tab="marc">MARC/RDA</button>
       <button class="doc-tab" type="button" role="tab" aria-selected="false" data-doc-tab="katalog">Field Katalog</button>
       <button class="doc-tab" type="button" role="tab" aria-selected="false" data-doc-tab="superadmin">Super Admin</button>
@@ -73,6 +74,15 @@
   </div>
 
   <section class="doc-panel is-active" data-doc-panel="overview" role="tabpanel">
+    <div class="doc-card doc-tone-cyan" style="margin-bottom:12px;">
+      <h3 style="margin:0; font-size:16px; font-weight:900;">Pembaruan Terbaru Dokumentasi</h3>
+      <ul style="margin:8px 0 0; padding-left:14px; font-size:13px; line-height:1.7;">
+        <li>Modul baru: <strong>Stock Opname</strong> (buat sesi, mulai, pindai barcode, selesaikan, ekspor CSV).</li>
+        <li>Modul baru: <strong>Copy Cataloging</strong> (SRU/Z39.50 gateway/P2P, cari rekaman, impor ke katalog).</li>
+        <li>Checklist UAT diperluas untuk dua modul klasik ini agar siap operasional produksi.</li>
+      </ul>
+    </div>
+
     <div class="doc-grid-3">
       <div class="doc-card doc-tone-blue">
         <h3 style="margin:0; font-size:16px; font-weight:900;">Mulai Cepat</h3>
@@ -114,8 +124,107 @@
             <tr><td>Import anggota</td><td>Ya</td><td>Ya</td><td>Tidak</td></tr>
             <tr><td>Laporan export</td><td>Ya</td><td>Ya</td><td>Tidak</td></tr>
             <tr><td>Serial claim workflow</td><td>Ya</td><td>Ya</td><td>Tidak</td></tr>
+            <tr><td>Stock opname</td><td>Ya</td><td>Ya</td><td>Tidak</td></tr>
+            <tr><td>Copy cataloging (SRU/Z39.50/P2P)</td><td>Ya</td><td>Ya</td><td>Tidak</td></tr>
           </tbody>
         </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="doc-panel" data-doc-panel="panduan" role="tabpanel">
+    <div class="doc-card doc-tone-slate">
+      <h3 style="margin:0; font-size:16px; font-weight:900;">Panduan Modul Operasional (Fungsi + Cara Penggunaan)</h3>
+      <p class="doc-muted" style="margin-top:8px;">Bagian ini merangkum fungsi inti tiap modul dan langkah pakai praktis untuk operasional harian.</p>
+    </div>
+
+    <div class="doc-grid-2" style="margin-top:12px;">
+      <div class="doc-card doc-tone-blue">
+        <h3 style="margin:0; font-size:16px; font-weight:900;">1) Katalog</h3>
+        <p style="margin-top:8px; font-size:13px;"><strong>Fungsi:</strong> Menyimpan metadata bibliografi dan data eksemplar koleksi.</p>
+        <ol style="margin:8px 0 0 18px; font-size:13px; line-height:1.7;">
+          <li>Buka menu <strong>Katalog</strong> -> klik <strong>Tambah Bibliografi</strong>.</li>
+          <li>Isi field wajib: judul, pengarang, penerbit, tahun, ISBN/DDC/nomor panggil sesuai kebutuhan.</li>
+          <li>Simpan bibliografi, lalu tambah eksemplar (barcode, cabang, rak, status).</li>
+          <li>Gunakan fitur pencarian untuk validasi apakah data sudah masuk.</li>
+        </ol>
+      </div>
+
+      <div class="doc-card doc-tone-green">
+        <h3 style="margin:0; font-size:16px; font-weight:900;">2) Sirkulasi</h3>
+        <p style="margin-top:8px; font-size:13px;"><strong>Fungsi:</strong> Proses pinjam, kembali, perpanjang, serta pengelolaan denda.</p>
+        <ol style="margin:8px 0 0 18px; font-size:13px; line-height:1.7;">
+          <li><strong>Pinjam:</strong> pilih member -> scan barcode item -> simpan transaksi.</li>
+          <li><strong>Kembali:</strong> scan barcode item -> konfirmasi pengembalian -> cek keterlambatan.</li>
+          <li><strong>Perpanjang:</strong> cari pinjaman aktif -> proses perpanjangan sesuai aturan.</li>
+          <li><strong>Denda:</strong> buka menu denda untuk recalculation, pembayaran, atau void.</li>
+        </ol>
+      </div>
+
+      <div class="doc-card doc-tone-violet">
+        <h3 style="margin:0; font-size:16px; font-weight:900;">3) Anggota</h3>
+        <p style="margin-top:8px; font-size:13px;"><strong>Fungsi:</strong> Kelola data anggota secara manual maupun massal (CSV).</p>
+        <ol style="margin:8px 0 0 18px; font-size:13px; line-height:1.7;">
+          <li>Tambah/edit anggota dari menu <strong>Anggota</strong>.</li>
+          <li>Untuk import massal: upload CSV -> <strong>Preview</strong> -> cek duplikat/error -> <strong>Confirm</strong>.</li>
+          <li>Unduh <strong>Error CSV</strong> jika ada baris invalid.</li>
+          <li>Jika salah import, gunakan <strong>Undo batch terakhir</strong>.</li>
+        </ol>
+      </div>
+
+      <div class="doc-card doc-tone-amber">
+        <h3 style="margin:0; font-size:16px; font-weight:900;">4) Laporan</h3>
+        <p style="margin-top:8px; font-size:13px;"><strong>Fungsi:</strong> Monitoring KPI operasional dan ekspor audit periodik.</p>
+        <ol style="margin:8px 0 0 18px; font-size:13px; line-height:1.7;">
+          <li>Pilih rentang tanggal, cabang, operator, dan status pinjaman.</li>
+          <li>Klik <strong>Terapkan</strong> untuk memuat data KPI dan tabel detail.</li>
+          <li>Ekspor data per kategori (CSV/XLSX): sirkulasi, overdue, denda, pengadaan, anggota, serial.</li>
+          <li>Gunakan laporan audit untuk rekonsiliasi bulanan.</li>
+        </ol>
+      </div>
+
+      <div class="doc-card doc-tone-cyan">
+        <h3 style="margin:0; font-size:16px; font-weight:900;">5) Serial Issue</h3>
+        <p style="margin-top:8px; font-size:13px;"><strong>Fungsi:</strong> Kontrol terbitan berkala (issue terjadwal, diterima, hilang, klaim).</p>
+        <ol style="margin:8px 0 0 18px; font-size:13px; line-height:1.7;">
+          <li>Tambah issue baru (kode issue, volume/nomor, tanggal terbit, tanggal terjadwal).</li>
+          <li>Update status sesuai kondisi: <strong>Diterima</strong>, <strong>Tandai hilang</strong>, atau <strong>Klaim</strong>.</li>
+          <li>Gunakan filter status/cabang/tanggal untuk monitoring backlog.</li>
+          <li>Ekspor CSV/XLSX untuk audit serial periodik.</li>
+        </ol>
+      </div>
+
+      <div class="doc-card doc-tone-rose">
+        <h3 style="margin:0; font-size:16px; font-weight:900;">6) Stock Opname</h3>
+        <p style="margin-top:8px; font-size:13px;"><strong>Fungsi:</strong> Audit stok fisik koleksi berdasarkan barcode.</p>
+        <ol style="margin:8px 0 0 18px; font-size:13px; line-height:1.7;">
+          <li>Buat sesi opname (opsional filter cabang/rak/status item).</li>
+          <li>Mulai sesi, lalu pindai barcode item satu per satu.</li>
+          <li>Tutup sesi untuk menghasilkan ringkasan: target, temuan, hilang, tak terduga.</li>
+          <li>Ekspor hasil sesi dalam CSV sebagai dokumen audit.</li>
+        </ol>
+      </div>
+
+      <div class="doc-card doc-tone-indigo">
+        <h3 style="margin:0; font-size:16px; font-weight:900;">7) Copy Cataloging (SRU/Z39.50/P2P)</h3>
+        <p style="margin-top:8px; font-size:13px;"><strong>Fungsi:</strong> Mengambil metadata dari sumber eksternal untuk mempercepat input katalog.</p>
+        <ol style="margin:8px 0 0 18px; font-size:13px; line-height:1.7;">
+          <li>Tambahkan sumber (nama, protokol, endpoint).</li>
+          <li>Jalankan pencarian berdasarkan judul/ISBN/pengarang.</li>
+          <li>Pilih hasil dan klik <strong>Impor</strong> untuk membuat bibliografi lokal.</li>
+          <li>Buka bibliografi hasil impor di menu Katalog lalu lengkapi metadata lokal jika perlu.</li>
+        </ol>
+      </div>
+
+      <div class="doc-card doc-tone-fuchsia">
+        <h3 style="margin:0; font-size:16px; font-weight:900;">8) OPAC & Interop</h3>
+        <p style="margin-top:8px; font-size:13px;"><strong>Fungsi:</strong> Akses publik katalog dan interoperabilitas (OAI/SRU) untuk discovery lintas sistem.</p>
+        <ol style="margin:8px 0 0 18px; font-size:13px; line-height:1.7;">
+          <li>Gunakan OPAC untuk pencarian publik dan pemeriksaan ketersediaan.</li>
+          <li>Pantau metrik OPAC/interop dari dashboard admin (p95, error rate, burn-rate).</li>
+          <li>Jika health menurun, gunakan refresh/manual troubleshooting sebelum eskalasi.</li>
+          <li>Simpan hasil ekspor metrik untuk audit performa bulanan.</li>
+        </ol>
       </div>
     </div>
   </section>
@@ -271,6 +380,8 @@
             <tr><td>Import CSV Anggota</td><td>Input anggota massal</td><td>Anggota -> Import -> Preview -> cek duplikat/error -> Confirm</td></tr>
             <tr><td>Undo Batch</td><td>Membatalkan import terakhir</td><td>Anggota -> Undo batch terakhir -> konfirmasi</td></tr>
             <tr><td>Serial Workflow</td><td>Kontrol issue serial</td><td>Serial Issue -> tambah -> Claim/Missing/Receive</td></tr>
+            <tr><td>Stock Opname</td><td>Audit stok fisik koleksi</td><td>Stock Opname -> buat sesi -> Mulai -> scan barcode -> Selesaikan -> export CSV</td></tr>
+            <tr><td>Copy Cataloging</td><td>Ambil metadata bibliografi dari sumber eksternal</td><td>Copy Cataloging -> pilih sumber -> cari -> impor record -> review metadata di Katalog</td></tr>
           </tbody>
         </table>
       </div>
@@ -301,7 +412,7 @@
         <h3 style="margin:0; font-size:16px; font-weight:900;">SOP Rutin</h3>
         <ul style="margin:8px 0 0; padding-left:14px; font-size:13px; line-height:1.7;">
           <li><strong>Harian:</strong> cek notifikasi/error, rekonsiliasi transaksi, review serial terlambat.</li>
-          <li><strong>Mingguan:</strong> review overdue/denda, kualitas data anggota, validasi laporan cabang.</li>
+          <li><strong>Mingguan:</strong> review overdue/denda, kualitas data anggota, validasi laporan cabang, dan sesi stock opname aktif.</li>
           <li><strong>Bulanan:</strong> export arsip laporan, rekap import history, audit serial claim.</li>
         </ul>
         @if($isStaffRole)
