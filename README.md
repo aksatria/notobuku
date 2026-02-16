@@ -3,7 +3,7 @@
 NOTOBUKU adalah sistem manajemen perpustakaan dengan exporter MARC21 yang konsisten dengan praktik RDA dan interoperable untuk Koha, Alma, WorldCat, dan ILS lainnya.
 
 ![NOTOBUKU](https://img.shields.io/badge/NOTOBUKU-MARC21%2FRDA-blue)
-![CI](https://img.shields.io/badge/CI-not_configured-lightgrey)
+[![circulation-stable](https://github.com/aksatria/notobuku/actions/workflows/circulation-stable.yml/badge.svg?branch=main)](https://github.com/aksatria/notobuku/actions/workflows/circulation-stable.yml)
 ![Coverage](https://img.shields.io/badge/Coverage-n%2Fa-lightgrey)
 
 ## Instalasi Singkat
@@ -113,12 +113,44 @@ Catatan: badge CI/Coverage saat ini placeholder karena belum ada pipeline CI.
 ## Testing & Stabilitas Environment
 - Gunakan database testing terpisah (`notobuku_test`) untuk semua suite.
 - Hindari command destruktif di DB non-testing (guard permanen aktif di aplikasi).
+- Gunakan script sekuensial stabil:
+  - `composer run test:stable` (reset DB testing + full suite)
+  - `composer run test:circulation:stable` (reset DB testing + smoke suite sirkulasi)
+- Shortcut Docker/Makefile:
+  - `make test-stable`
+  - `make test-circulation-stable`
 - Untuk regresi modul klasik:
   - `php artisan test tests/Feature/StockTakeWorkflowTest.php --env=testing`
   - `php artisan test tests/Feature/CopyCatalogingWorkflowTest.php --env=testing`
 - Stabilitas `CopyCatalogingWorkflowTest` sudah diperkuat:
   - migrasi schema testing dijalankan aman di setup test
   - transaksi DB dipakai untuk rollback per test
+
+## Stability-to-10 Ops Pack
+- `Catalog Quality Gate` (katalog create/update):
+  - Wajib: judul, pengarang, minimal 1 subjek, `ISBN`, dan `DDC`.
+  - Warning duplikasi ISBN/judul ter-normalisasi.
+- `Zero-result governance` (open queue -> closed):
+  - Command triage: `php artisan notobuku:search-zero-triage`
+  - Menutup antrean `zero_result_status=open` ke `resolved_auto/ignored` dengan catatan audit.
+- Alert SLO OPAC:
+  - Command: `php artisan notobuku:opac-slo-alert`
+  - Email target via `.env`: `NB_OPAC_SLO_ALERT_EMAIL_TO` + fallback PIC ops `NB_CATALOG_OPS_EMAIL_TO`
+- Bukti scale/reliability katalog:
+  - Command: `php artisan notobuku:catalog-scale-proof --samples=60`
+  - Output JSON: `storage/app/reports/catalog-scale/*.json` (p50/p95/p99/error-rate)
+- Sertifikat readiness internal:
+  - Command: `php artisan notobuku:readiness-certificate`
+  - Strict mode (auto FAIL jika trafik observasi kurang): `php artisan notobuku:readiness-certificate --strict-ready`
+  - Output: `storage/app/reports/readiness/readiness-YYYYMMDD.md` + `.json`
+- Backup + Restore Drill non-destruktif:
+  - Snapshot: `php artisan notobuku:backup-core-snapshot --tag=manual`
+  - Drill verifikasi: `php artisan notobuku:backup-restore-drill`
+  - Tidak menghapus atau overwrite data aplikasi.
+- UAT rutin + sign-off operator:
+  - Generate checklist: `php artisan notobuku:uat-generate`
+  - Sign-off: `php artisan notobuku:uat-signoff --status=pass --operator=\"Nama Operator\" --note=\"OK\"`
+  - Data sign-off tersimpan di tabel `uat_signoffs`.
 
 ## Kepatuhan & Konsistensi
 - MARC21: Leader/006/007/008 konsisten per media profile.
