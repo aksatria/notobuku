@@ -150,7 +150,11 @@ Catatan: badge CI/Coverage saat ini placeholder karena belum ada pipeline CI.
 - UAT rutin + sign-off operator:
   - Generate checklist: `php artisan notobuku:uat-generate`
   - Sign-off: `php artisan notobuku:uat-signoff --status=pass --operator=\"Nama Operator\" --note=\"OK\"`
+  - Auto sign-off harian: `php artisan notobuku:uat-auto-signoff --strict-ready --window-days=30`
   - Data sign-off tersimpan di tabel `uat_signoffs`.
+  - Scheduler default:
+    - `notobuku:readiness-certificate --strict-ready --window-days=30` (harian)
+    - `notobuku:uat-auto-signoff --strict-ready --window-days=30` (harian, jika `NB_UAT_AUTO_SIGNOFF_ENABLED=true`)
 
 ## Kepatuhan & Konsistensi
 - MARC21: Leader/006/007/008 konsisten per media profile.
