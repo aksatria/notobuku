@@ -5,7 +5,12 @@
     <title>Masuk · NOTOBUKU</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @php
+        $viteReady = file_exists(public_path('hot')) || file_exists(public_path('build/manifest.json'));
+    @endphp
+    @if($viteReady)
+        @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @endif
 </head>
 <body class="min-h-screen bg-slate-50 flex items-center justify-center">
 
