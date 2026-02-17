@@ -3,26 +3,14 @@
 namespace Tests\Feature;
 
 use App\Models\User;
-use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Facades\Artisan;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class SearchOpsWorkflowTest extends TestCase
 {
-    use DatabaseTransactions;
-
-    protected static bool $migrated = false;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-        if (!self::$migrated) {
-            Artisan::call('migrate', ['--force' => true, '--env' => 'testing']);
-            self::$migrated = true;
-        }
-    }
+    use RefreshDatabase;
 
     private function seedContext(): array
     {
