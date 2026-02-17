@@ -1,0 +1,28 @@
+[
+  {
+    "query": "pemrograman php",
+    "k": 10,
+    "relevance": {
+      "900101": 3,
+      "900205": 2,
+      "900309": 1
+    }
+  },
+  {
+    "query": "filsafat ilmu",
+    "k": 10,
+    "relevance": {
+      "900077": 3,
+      "900150": 2
+    }
+  },
+  {
+    "query": "manajemen perpustakaan",
+    "k": 10,
+    "relevance": {
+      "900018": 3,
+      "900028": 2,
+      "900031": 1
+    }
+  }
+]

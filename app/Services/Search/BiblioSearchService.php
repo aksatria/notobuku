@@ -10,7 +10,10 @@ use Illuminate\Support\Collection;
 
 class BiblioSearchService
 {
-    public function __construct(private MeilisearchClient $client)
+    public function __construct(
+        private MeilisearchClient $client,
+        private ?IndonesianTextNormalizer $textNormalizer = null
+    )
     {
     }
 
@@ -553,11 +556,8 @@ class BiblioSearchService
 
         $stopWords = $this->loadStopWords($institutionId, $branchId);
         $stopMap = array_fill_keys(array_map('mb_strtolower', $stopWords), true);
-        $tokens = preg_split('/\s+/', $base);
+        $tokens = $this->normalizer()->tokenize($base, true);
         $synonyms = $this->loadSynonyms($institutionId, $branchId);
-        if (empty($synonyms)) {
-            return $base;
-        }
 
         $expanded = [];
         foreach ($tokens as $token) {
@@ -566,14 +566,29 @@ class BiblioSearchService
             if (isset($stopMap[mb_strtolower($token)])) continue;
             $expanded[] = $token;
             $lower = mb_strtolower($token);
-            if (isset($synonyms[$lower])) {
+            if (!empty($synonyms) && isset($synonyms[$lower])) {
                 foreach ($synonyms[$lower] as $syn) {
                     $expanded[] = $syn;
                 }
             }
         }
 
-        return trim(implode(' ', array_values(array_unique($expanded))));
+        if (empty($expanded)) {
+            return $base;
+        }
+
+        $queryTokens = array_values(array_unique(array_merge([$base], $expanded)));
+        return trim(implode(' ', $queryTokens));
+    }
+
+    private function normalizer(): IndonesianTextNormalizer
+    {
+        if ($this->textNormalizer instanceof IndonesianTextNormalizer) {
+            return $this->textNormalizer;
+        }
+
+        $this->textNormalizer = app(IndonesianTextNormalizer::class);
+        return $this->textNormalizer;
     }
 
     private function loadSynonyms(int $institutionId, ?int $branchId = null): array

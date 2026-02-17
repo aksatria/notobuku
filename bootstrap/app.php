@@ -11,6 +11,7 @@ use App\Http\Middleware\TrackCirculationMetrics;
 use App\Http\Middleware\TrackOpacMetrics;
 use App\Http\Middleware\OpacConditionalGet;
 use App\Http\Middleware\RequestTraceMiddleware;
+use App\Http\Middleware\OpacQueryGuard;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -34,6 +35,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'track.opac.metrics' => TrackOpacMetrics::class,
             'opac.conditional' => OpacConditionalGet::class,
             'trace.request' => RequestTraceMiddleware::class,
+            'opac.query_guard' => OpacQueryGuard::class,
         ]);
 
     })

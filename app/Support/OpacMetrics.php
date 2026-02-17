@@ -15,6 +15,7 @@ class OpacMetrics
     private const HISTORY_MAX_EVENTS = 12000;
     private const HISTORY_24H_MINUTE_POINTS = 1440;
     private const SLO_ALERT_COOLDOWN_DEFAULT = 15;
+    private const SEARCH_ALERT_COOLDOWN_DEFAULT = 15;
 
     public static function recordRequest(string $endpoint, int $statusCode, float $milliseconds, string $traceId = ''): void
     {
@@ -68,8 +69,10 @@ class OpacMetrics
 
         $history24h = self::historyLast24h();
         $slo = self::sloStatus($history24h);
+        $searchAnalytics = self::searchAnalytics();
         $endpointStats = self::endpointStats();
         self::dispatchSloAlertIfNeeded($slo);
+        self::dispatchSearchAnalyticsAlertIfNeeded($searchAnalytics);
 
         return [
             'requests' => $requests,
@@ -83,7 +86,7 @@ class OpacMetrics
             ],
             'endpoints' => $endpointStats,
             'slo' => $slo,
-            'search_analytics' => self::searchAnalytics(),
+            'search_analytics' => $searchAnalytics,
             'history' => [
                 'last_24h' => $history24h,
             ],
@@ -137,6 +140,42 @@ class OpacMetrics
 
             $successSearches = max(0, $totalSearches - $zeroSearches);
             $successRate = $totalSearches > 0 ? round(($successSearches / $totalSearches) * 100, 2) : 0.0;
+            $windowHours = max(1, min(168, (int) config('notobuku.opac.observability.search_window_hours', 24)));
+            $windowStart = now()->subHours($windowHours);
+
+            $windowSearches = 0;
+            $windowZero = 0;
+            if (Schema::hasTable('search_query_events')) {
+                $events = DB::table('search_query_events')
+                    ->where('searched_at', '>=', $windowStart)
+                    ->selectRaw('COUNT(*) as total')
+                    ->selectRaw('SUM(CASE WHEN is_zero_result = 1 THEN 1 ELSE 0 END) as zero_total')
+                    ->first();
+                $windowSearches = (int) ($events->total ?? 0);
+                $windowZero = (int) ($events->zero_total ?? 0);
+            } else {
+                // Fallback lama: agregasi dari search_queries (approximate).
+                $windowSearches = $totalSearches;
+                $windowZero = $zeroSearches;
+            }
+
+            $windowClicks = 0;
+            $windowBorrows = 0;
+            if (Schema::hasTable('biblio_events')) {
+                $events = DB::table('biblio_events')
+                    ->where('created_at', '>=', $windowStart)
+                    ->selectRaw("SUM(CASE WHEN event_type = 'click' THEN 1 ELSE 0 END) as click_total")
+                    ->selectRaw("SUM(CASE WHEN event_type = 'borrow' THEN 1 ELSE 0 END) as borrow_total")
+                    ->first();
+                $windowClicks = (int) ($events->click_total ?? 0);
+                $windowBorrows = (int) ($events->borrow_total ?? 0);
+            }
+
+            $zeroRate = $windowSearches > 0 ? round(($windowZero / $windowSearches) * 100, 2) : 0.0;
+            $ctr = $windowSearches > 0 ? round(min(100.0, ($windowClicks / $windowSearches) * 100), 2) : 0.0;
+            $noClick = $windowSearches > 0 ? round(max(0.0, 100.0 - $ctr), 2) : 0.0;
+            $borrowConv = $windowSearches > 0 ? round(min(100.0, ($windowBorrows / $windowSearches) * 100), 2) : 0.0;
+            $alertMeta = self::evaluateSearchAlertState($windowSearches, $zeroRate, $noClick);
 
             return [
                 'total_distinct_queries' => $totalDistinct,
@@ -145,6 +184,21 @@ class OpacMetrics
                 'zero_result_searches' => $zeroSearches,
                 'successful_searches' => $successSearches,
                 'success_rate_pct' => $successRate,
+                'window_hours' => $windowHours,
+                'window_searches' => $windowSearches,
+                'window_clicks' => $windowClicks,
+                'window_borrows' => $windowBorrows,
+                'zero_result_rate_pct' => $zeroRate,
+                'click_through_rate_pct' => $ctr,
+                'no_click_rate_pct' => $noClick,
+                'conversion_to_borrow_rate_pct' => $borrowConv,
+                'derived_from_events' => Schema::hasTable('search_query_events') && Schema::hasTable('biblio_events'),
+                'no_click_rate_estimated' => true,
+                'alert_state' => (string) ($alertMeta['state'] ?? 'ok'),
+                'alert_enabled' => (bool) ($alertMeta['enabled'] ?? true),
+                'alert_min_window_searches' => (int) ($alertMeta['min_window_searches'] ?? 20),
+                'alert_thresholds' => (array) ($alertMeta['thresholds'] ?? []),
+                'alert_last_triggered_at' => (string) Cache::get(self::searchAlertKey(), ''),
                 'top_keywords' => $topKeywords,
                 'top_zero_result_queries' => $topZero,
             ];
@@ -160,6 +214,26 @@ class OpacMetrics
             'zero_result_searches' => 0,
             'successful_searches' => 0,
             'success_rate_pct' => 0.0,
+            'window_hours' => max(1, min(168, (int) config('notobuku.opac.observability.search_window_hours', 24))),
+            'window_searches' => 0,
+            'window_clicks' => 0,
+            'window_borrows' => 0,
+            'zero_result_rate_pct' => 0.0,
+            'click_through_rate_pct' => 0.0,
+            'no_click_rate_pct' => 0.0,
+            'conversion_to_borrow_rate_pct' => 0.0,
+            'derived_from_events' => false,
+            'no_click_rate_estimated' => true,
+            'alert_state' => 'ok',
+            'alert_enabled' => (bool) config('notobuku.opac.observability.alerts.enabled', true),
+            'alert_min_window_searches' => max(1, (int) config('notobuku.opac.observability.alerts.min_window_searches', 20)),
+            'alert_thresholds' => [
+                'zero_result_warn_pct' => (float) config('notobuku.opac.observability.alerts.zero_result_warn_pct', 35.0),
+                'zero_result_critical_pct' => (float) config('notobuku.opac.observability.alerts.zero_result_critical_pct', 55.0),
+                'no_click_warn_pct' => (float) config('notobuku.opac.observability.alerts.no_click_warn_pct', 65.0),
+                'no_click_critical_pct' => (float) config('notobuku.opac.observability.alerts.no_click_critical_pct', 80.0),
+            ],
+            'alert_last_triggered_at' => (string) Cache::get(self::searchAlertKey(), ''),
             'top_keywords' => [],
             'top_zero_result_queries' => [],
         ];
@@ -375,6 +449,96 @@ class OpacMetrics
         Cache::put(self::sloAlertKey(), $payload['at'], now()->addDays(self::TTL_DAYS));
     }
 
+    private static function dispatchSearchAnalyticsAlertIfNeeded(array $searchAnalytics): void
+    {
+        $windowSearches = (int) ($searchAnalytics['window_searches'] ?? 0);
+        $zeroRate = (float) ($searchAnalytics['zero_result_rate_pct'] ?? 0.0);
+        $noClickRate = (float) ($searchAnalytics['no_click_rate_pct'] ?? 0.0);
+        $meta = self::evaluateSearchAlertState($windowSearches, $zeroRate, $noClickRate);
+
+        if (!((bool) ($meta['enabled'] ?? true))) {
+            return;
+        }
+        if (!((bool) ($meta['eligible'] ?? false))) {
+            return;
+        }
+        $state = (string) ($meta['state'] ?? 'ok');
+        if ($state === 'ok') {
+            return;
+        }
+
+        $cooldown = max(1, (int) config('notobuku.opac.observability.alerts.cooldown_minutes', self::SEARCH_ALERT_COOLDOWN_DEFAULT));
+        $last = (string) Cache::get(self::searchAlertKey(), '');
+        if ($last !== '') {
+            $prevTs = strtotime($last);
+            if ($prevTs !== false && (time() - $prevTs) < ($cooldown * 60)) {
+                return;
+            }
+        }
+
+        $payload = [
+            'event' => 'opac_search_quality_alert',
+            'at' => now()->toIso8601String(),
+            'state' => $state,
+            'window_hours' => (int) ($searchAnalytics['window_hours'] ?? 24),
+            'window_searches' => $windowSearches,
+            'zero_result_rate_pct' => $zeroRate,
+            'no_click_rate_pct' => $noClickRate,
+            'click_through_rate_pct' => (float) ($searchAnalytics['click_through_rate_pct'] ?? 0.0),
+            'conversion_to_borrow_rate_pct' => (float) ($searchAnalytics['conversion_to_borrow_rate_pct'] ?? 0.0),
+            'thresholds' => (array) ($meta['thresholds'] ?? []),
+        ];
+
+        Log::warning('OPAC search quality degradation detected.', $payload);
+
+        $webhook = trim((string) config('notobuku.opac.observability.alerts.webhook_url', ''));
+        if ($webhook === '') {
+            $webhook = trim((string) config('notobuku.opac.slo.alert_webhook_url', ''));
+        }
+        if ($webhook !== '') {
+            try {
+                Http::timeout(4)->post($webhook, $payload);
+            } catch (\Throwable $e) {
+                Log::warning('OPAC search quality webhook dispatch failed: ' . $e->getMessage());
+            }
+        }
+
+        Cache::put(self::searchAlertKey(), $payload['at'], now()->addDays(self::TTL_DAYS));
+    }
+
+    private static function evaluateSearchAlertState(int $windowSearches, float $zeroRate, float $noClickRate): array
+    {
+        $enabled = (bool) config('notobuku.opac.observability.alerts.enabled', true);
+        $minSamples = max(1, (int) config('notobuku.opac.observability.alerts.min_window_searches', 20));
+        $warnZero = (float) config('notobuku.opac.observability.alerts.zero_result_warn_pct', 35.0);
+        $critZero = (float) config('notobuku.opac.observability.alerts.zero_result_critical_pct', 55.0);
+        $warnNoClick = (float) config('notobuku.opac.observability.alerts.no_click_warn_pct', 65.0);
+        $critNoClick = (float) config('notobuku.opac.observability.alerts.no_click_critical_pct', 80.0);
+
+        $state = 'ok';
+        if ($enabled && $windowSearches >= $minSamples) {
+            if ($zeroRate >= $warnZero || $noClickRate >= $warnNoClick) {
+                $state = 'warning';
+            }
+            if ($zeroRate >= $critZero || $noClickRate >= $critNoClick) {
+                $state = 'critical';
+            }
+        }
+
+        return [
+            'enabled' => $enabled,
+            'eligible' => $windowSearches >= $minSamples,
+            'min_window_searches' => $minSamples,
+            'state' => $state,
+            'thresholds' => [
+                'zero_result_warn_pct' => $warnZero,
+                'zero_result_critical_pct' => $critZero,
+                'no_click_warn_pct' => $warnNoClick,
+                'no_click_critical_pct' => $critNoClick,
+            ],
+        ];
+    }
+
     private static function percentile(array $sortedVals, int $percentile): int
     {
         if (empty($sortedVals)) {
@@ -414,5 +578,10 @@ class OpacMetrics
     private static function sloAlertKey(): string
     {
         return 'opac:metrics:slo:last_critical_alert_at';
+    }
+
+    private static function searchAlertKey(): string
+    {
+        return 'opac:metrics:search_quality:last_alert_at';
     }
 }

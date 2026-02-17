@@ -146,12 +146,20 @@ class AppServiceProvider extends ServiceProvider
     {
         RateLimiter::for('opac-public-search', function (Request $request) {
             $ip = (string) ($request->ip() ?? 'unknown');
-            $perMinute = (int) config('notobuku.opac.rate_limit.search.per_minute', 120);
-            $perSecond = (int) config('notobuku.opac.rate_limit.search.per_second', 8);
+            $basePerMinute = (int) config('notobuku.opac.rate_limit.search.per_minute', 120);
+            $basePerSecond = (int) config('notobuku.opac.rate_limit.search.per_second', 8);
+            $risk = $this->opacSearchRiskLevel($request);
+            $multiplier = $risk >= 1
+                ? (float) config('notobuku.opac.rate_limit.search_adaptive.high_risk_multiplier', 0.35)
+                : 1.0;
+            $perMinute = max(1, (int) floor($basePerMinute * $multiplier));
+            $perSecond = max(1, (int) floor($basePerSecond * $multiplier));
+            $bucket = $risk >= 1 ? 'high' : 'normal';
+            $key = $ip . ':' . $bucket;
 
             return [
-                Limit::perMinute(max(1, $perMinute))->by($ip),
-                Limit::perSecond(max(1, $perSecond))->by($ip),
+                Limit::perMinute($perMinute)->by($key),
+                Limit::perSecond($perSecond)->by($key),
             ];
         });
 
@@ -187,6 +195,35 @@ class AppServiceProvider extends ServiceProvider
                 Limit::perSecond(max(1, $perSecond))->by($ip),
             ];
         });
+    }
+
+    private function opacSearchRiskLevel(Request $request): int
+    {
+        $risk = 0;
+        $q = trim((string) $request->query('q', ''));
+        $ua = mb_strtolower((string) $request->userAgent());
+
+        if ($q !== '') {
+            $maxLen = (int) config('notobuku.opac.query_guard.max_query_length', 120);
+            if (mb_strlen($q) > max(16, $maxLen)) {
+                $risk += 2;
+            }
+            if (preg_match('/[%_*?]{2,}/', $q)) {
+                $risk += 2;
+            }
+            if (preg_match('/\\b(or|and)\\b\\s+\\d+\\s*=\\s*\\d+/i', $q)) {
+                $risk += 2;
+            }
+            if (preg_match('/(--|\\/\\*|\\*\\/)/', $q)) {
+                $risk += 2;
+            }
+        }
+
+        if ($ua !== '' && preg_match('/(bot|crawler|spider|curl|wget|python|scrapy|httpclient)/', $ua)) {
+            $risk += 1;
+        }
+
+        return $risk;
     }
 
     private function guardUsersTable(): void

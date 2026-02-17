@@ -7,6 +7,13 @@
   $totalSearches = (int) ($searchAnalytics['total_searches'] ?? 0);
   $successRate = (float) ($searchAnalytics['success_rate_pct'] ?? 0);
   $zeroDistinct = (int) ($searchAnalytics['zero_result_distinct_queries'] ?? 0);
+  $windowSearches = (int) ($searchAnalytics['window_searches'] ?? 0);
+  $zeroRate = (float) ($searchAnalytics['zero_result_rate_pct'] ?? 0);
+  $noClickRate = (float) ($searchAnalytics['no_click_rate_pct'] ?? 0);
+  $borrowConvRate = (float) ($searchAnalytics['conversion_to_borrow_rate_pct'] ?? 0);
+  $alertState = (string) ($searchAnalytics['alert_state'] ?? 'ok');
+  $alertLastAt = trim((string) ($searchAnalytics['alert_last_triggered_at'] ?? ''));
+  $alertCls = $alertState === 'critical' ? 'crit' : ($alertState === 'warning' ? 'warn' : 'ok');
   $topKeywords = collect((array) ($searchAnalytics['top_keywords'] ?? []))->take(10);
   $topZero = collect((array) ($searchAnalytics['top_zero_result_queries'] ?? []))->take(10);
 @endphp
@@ -25,6 +32,10 @@
   .nb-sa-table{width:100%;border-collapse:collapse;font-size:12.5px}
   .nb-sa-table th,.nb-sa-table td{border-top:1px solid var(--b);padding:9px;text-align:left}
   .nb-sa-table th{color:var(--m);font-weight:700}
+  .nb-sa-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;border:1px solid var(--b);font-size:11px;font-weight:700;letter-spacing:.3px;text-transform:uppercase}
+  .nb-sa-badge.ok{background:#ecfdf5;border-color:#86efac;color:#166534}
+  .nb-sa-badge.warn{background:#fffbeb;border-color:#fcd34d;color:#92400e}
+  .nb-sa-badge.crit{background:#fef2f2;border-color:#fca5a5;color:#991b1b}
   @media(max-width:900px){.nb-sa-grid{grid-template-columns:1fr}}
 </style>
 
@@ -35,6 +46,7 @@
         <div class="nb-sa-title">Search Analytics</div>
         <div class="nb-sa-sub">Ringkasan penggunaan pencarian OPAC {{ $days }} hari terakhir.</div>
       </div>
+      <div class="nb-sa-badge {{ $alertCls }}">Search Alert: {{ $alertState }}</div>
       <form method="GET">
         <select name="days" onchange="this.form.submit()" style="border:1px solid var(--b);border-radius:10px;padding:6px 10px;">
           <option value="7" @selected($days===7)>7 hari</option>
@@ -49,6 +61,13 @@
       <div class="nb-sa-k"><div class="l">Success Rate</div><div class="v">{{ number_format($successRate, 2) }}%</div></div>
       <div class="nb-sa-k"><div class="l">Distinct Zero Result</div><div class="v">{{ number_format($zeroDistinct) }}</div></div>
       <div class="nb-sa-k"><div class="l">Queue Open</div><div class="v">{{ number_format((int) ($zeroQueue['open'] ?? 0)) }}</div></div>
+      <div class="nb-sa-k"><div class="l">Zero-result Rate (window)</div><div class="v">{{ number_format($zeroRate, 2) }}%</div></div>
+      <div class="nb-sa-k"><div class="l">No-click Rate (window)</div><div class="v">{{ number_format($noClickRate, 2) }}%</div></div>
+      <div class="nb-sa-k"><div class="l">Borrow Conversion (window)</div><div class="v">{{ number_format($borrowConvRate, 2) }}%</div></div>
+      <div class="nb-sa-k"><div class="l">Window Searches</div><div class="v">{{ number_format($windowSearches) }}</div></div>
+    </div>
+    <div class="nb-sa-sub" style="margin-top:8px;">
+      Alert terakhir: {{ $alertLastAt !== '' ? $alertLastAt : '-' }}
     </div>
   </div>
 
@@ -134,4 +153,3 @@
 })();
 </script>
 @endsection
-

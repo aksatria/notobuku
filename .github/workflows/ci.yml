@@ -79,5 +79,27 @@ jobs:
           DB_PASSWORD: root
         run: composer run test:stable --no-interaction --no-ansi
 
+      - name: Run search quality gate (MRR/NDCG)
+        env:
+          APP_ENV: testing
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: notobuku_test
+          DB_USERNAME: root
+          DB_PASSWORD: root
+        run: |
+          php artisan migrate --force
+          php artisan db:seed --class=Database\\Seeders\\SearchEvalFixtureSeeder --force
+          php artisan notobuku:search-quality-eval --dataset=resources/search/query_eval_dataset.json --k=10 --strict --output=reports/search-quality/ci-search-quality.json
+
+      - name: Upload search quality report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: search-quality-report
+          path: storage/app/reports/search-quality/ci-search-quality.json
+          if-no-files-found: warn
+
       - name: Run Pint (format)
         run: vendor/bin/pint --no-interaction || true

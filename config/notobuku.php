@@ -150,6 +150,9 @@ return [
                 'per_minute' => env('NB_OPAC_PUBLIC_SEARCH_RATE_PER_MINUTE', 120),
                 'per_second' => env('NB_OPAC_PUBLIC_SEARCH_RATE_PER_SECOND', 8),
             ],
+            'search_adaptive' => [
+                'high_risk_multiplier' => env('NB_OPAC_PUBLIC_SEARCH_RATE_HIGH_RISK_MULTIPLIER', 0.35),
+            ],
             'detail' => [
                 'per_minute' => env('NB_OPAC_PUBLIC_DETAIL_RATE_PER_MINUTE', 180),
                 'per_second' => env('NB_OPAC_PUBLIC_DETAIL_RATE_PER_SECOND', 12),
@@ -170,6 +173,26 @@ return [
         'prefetch' => [
             'enabled' => env('NB_OPAC_PREFETCH_ENABLED', true),
             'top_queries' => env('NB_OPAC_PREFETCH_TOP_QUERIES', 6),
+        ],
+        'query_guard' => [
+            'enabled' => env('NB_OPAC_QUERY_GUARD_ENABLED', true),
+            'max_query_length' => env('NB_OPAC_QUERY_GUARD_MAX_QUERY_LENGTH', 120),
+            'max_tokens' => env('NB_OPAC_QUERY_GUARD_MAX_TOKENS', 12),
+            'block_wildcards' => env('NB_OPAC_QUERY_GUARD_BLOCK_WILDCARDS', true),
+            'block_sqli_like' => env('NB_OPAC_QUERY_GUARD_BLOCK_SQLI_LIKE', true),
+        ],
+        'observability' => [
+            'search_window_hours' => env('NB_OPAC_OBSERVABILITY_SEARCH_WINDOW_HOURS', 24),
+            'alerts' => [
+                'enabled' => env('NB_OPAC_OBSERVABILITY_ALERTS_ENABLED', true),
+                'min_window_searches' => env('NB_OPAC_OBSERVABILITY_ALERTS_MIN_WINDOW_SEARCHES', 20),
+                'zero_result_warn_pct' => env('NB_OPAC_OBSERVABILITY_ZERO_WARN_PCT', 35),
+                'zero_result_critical_pct' => env('NB_OPAC_OBSERVABILITY_ZERO_CRIT_PCT', 55),
+                'no_click_warn_pct' => env('NB_OPAC_OBSERVABILITY_NO_CLICK_WARN_PCT', 65),
+                'no_click_critical_pct' => env('NB_OPAC_OBSERVABILITY_NO_CLICK_CRIT_PCT', 80),
+                'cooldown_minutes' => env('NB_OPAC_OBSERVABILITY_ALERTS_COOLDOWN_MINUTES', 15),
+                'webhook_url' => env('NB_OPAC_OBSERVABILITY_ALERT_WEBHOOK_URL', ''),
+            ],
         ],
         'slo' => [
             'availability_target_pct' => env('NB_OPAC_SLO_AVAILABILITY_TARGET_PCT', 99.5),

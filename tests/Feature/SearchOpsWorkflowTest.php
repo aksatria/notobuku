@@ -186,5 +186,6 @@ class SearchOpsWorkflowTest extends TestCase
         $resp = $this->actingAs($admin)->get(route('admin.search_analytics'));
         $resp->assertOk();
         $resp->assertSee('Search Analytics');
+        $resp->assertSee('Search Alert');
     }
 }

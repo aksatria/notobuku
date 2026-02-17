@@ -114,26 +114,47 @@ return new class extends Migration
 
     private function ensureIndexExists(string $table, string $indexName, array $columns): void
     {
-        $exists = DB::selectOne("SHOW INDEX FROM `{$table}` WHERE Key_name = ?", [$indexName]);
-        if ($exists) return;
+        if (DB::getDriverName() !== 'sqlite') {
+            $exists = DB::selectOne("SHOW INDEX FROM `{$table}` WHERE Key_name = ?", [$indexName]);
+            if ($exists) return;
+        }
 
-        Schema::table($table, function (Blueprint $t) use ($columns, $indexName) {
-            $t->index($columns, $indexName);
-        });
+        try {
+            Schema::table($table, function (Blueprint $t) use ($columns, $indexName) {
+                $t->index($columns, $indexName);
+            });
+        } catch (\Throwable $e) {
+            // ignore duplicate/unsupported errors
+        }
     }
 
     private function ensureUniqueExists(string $table, string $indexName, array $columns): void
     {
-        $exists = DB::selectOne("SHOW INDEX FROM `{$table}` WHERE Key_name = ?", [$indexName]);
-        if ($exists) return;
+        if (DB::getDriverName() !== 'sqlite') {
+            $exists = DB::selectOne("SHOW INDEX FROM `{$table}` WHERE Key_name = ?", [$indexName]);
+            if ($exists) return;
+        }
 
-        Schema::table($table, function (Blueprint $t) use ($columns, $indexName) {
-            $t->unique($columns, $indexName);
-        });
+        try {
+            Schema::table($table, function (Blueprint $t) use ($columns, $indexName) {
+                $t->unique($columns, $indexName);
+            });
+        } catch (\Throwable $e) {
+            // ignore duplicate/unsupported errors
+        }
     }
 
     private function ensureForeignKeyExists(string $table, string $fkName, callable $createFk): void
     {
+        if (DB::getDriverName() === 'sqlite') {
+            try {
+                $createFk();
+            } catch (\Throwable $e) {
+                // ignore duplicate/unsupported errors
+            }
+            return;
+        }
+
         $row = DB::selectOne("
             SELECT CONSTRAINT_NAME
             FROM information_schema.REFERENTIAL_CONSTRAINTS

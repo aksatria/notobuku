@@ -28,19 +28,19 @@
    - Hover terbaca
    ========================================================= */
 
-  .rk-wrap{ max-width:1120px; margin:0 auto; }
-  .rk-shell{ padding:16px; }
+  .rk-wrap{ max-width:none; width:100%; margin:0; }
+  .rk-shell{ padding:12px; }
 
   .rk-head{
     display:flex; align-items:flex-start; justify-content:space-between;
     gap:12px; flex-wrap:wrap; margin-bottom:12px;
   }
-  .rk-head .title{ font-weight:900; letter-spacing:.12px; font-size:15px; margin:0; }
-  .rk-head .sub{ margin-top:6px; font-size:12.8px; }
+  .rk-head .title{ font-weight:700; letter-spacing:.10px; font-size:18px; margin:0; }
+  .rk-head .sub{ margin-top:4px; font-size:13px; }
 
   .rk-layout{
     display:grid;
-    grid-template-columns:minmax(0,1fr) 360px;
+    grid-template-columns:minmax(0,1fr) 320px;
     gap:14px;
     align-items:start;
   }
@@ -55,9 +55,9 @@
   .rk-section + .rk-section{ margin-top:12px; }
 
   /* Aksen seperti Katalog Create */
-  .rk-section.acc-blue  { background: rgba(30,136,229,.06); border-color: rgba(30,136,229,.14); }
-  .rk-section.acc-green { background: rgba(39,174,96,.06);  border-color: rgba(39,174,96,.14); }
-  .rk-section.acc-slate { background: rgba(15,23,42,.035);  border-color: rgba(15,23,42,.10); }
+  .rk-section.acc-blue  { background: linear-gradient(180deg, rgba(59,130,246,.11), rgba(59,130,246,.05)); border-color: rgba(59,130,246,.22); }
+  .rk-section.acc-green { background: linear-gradient(180deg, rgba(16,185,129,.11), rgba(16,185,129,.05)); border-color: rgba(16,185,129,.22); }
+  .rk-section.acc-slate { background: linear-gradient(180deg, rgba(30,41,59,.07), rgba(30,41,59,.03)); border-color: rgba(30,41,59,.14); }
 
   html.dark .rk-section.acc-blue  { background: rgba(30,136,229,.12); border-color: rgba(30,136,229,.18); }
   html.dark .rk-section.acc-green { background: rgba(39,174,96,.12);  border-color: rgba(39,174,96,.18); }
@@ -68,21 +68,21 @@
     padding-bottom:10px; margin-bottom:12px;
     border-bottom:1px solid var(--nb-border);
   }
-  .rk-section-head .h{ font-weight:900; letter-spacing:.1px; font-size:13.5px; }
+  .rk-section-head .h{ font-weight:700; letter-spacing:.1px; font-size:13.5px; }
   .rk-section-head .hint{ font-size:12.5px; margin:0; }
 
   /* ---------- Filter field (FIX aneh) ---------- */
   .rk-field{ margin-bottom:12px; }
   .rk-field label{
     display:block;
-    font-weight:800;
+    font-weight:600;
     font-size:12.5px;
     margin-bottom:6px;
   }
   .rk-field .nb-field{
     width:100% !important;
     box-sizing:border-box;
-    font-size:12.8px;
+    font-size:13px;
     line-height:1.4;
     padding:9px 11px;
     border-radius:14px;
@@ -107,24 +107,33 @@
   .rk-table{ width:100%; border-collapse:collapse; }
   .rk-table thead th{
     text-align:left;
-    font-weight:900;
-    font-size:12.2px;
+    font-weight:700;
+    font-size:12.6px;
     padding:10px 12px;
-    background: rgba(15,23,42,.03);
+    background: rgba(15,23,42,.06);
     border-bottom:1px solid var(--nb-border);
     white-space:nowrap;
   }
   html.dark .rk-table thead th{ background: rgba(255,255,255,.03); }
 
   .rk-table tbody td{
-    padding:12px 12px;
+    padding:10px 12px;
     border-bottom:1px solid var(--nb-border);
     vertical-align:top;
   }
   .rk-table tbody tr:last-child td{ border-bottom:0; }
 
-  .rk-name{ font-weight:900; font-size:13px; }
-  .rk-meta{ margin-top:4px; font-size:12.3px; color: rgba(11,37,69,.62); line-height:1.45; }
+  .rk-name{ font-weight:600; font-size:13px; line-height:1.35; }
+  .rk-meta{
+    margin-top:3px;
+    font-size:12px;
+    color: rgba(11,37,69,.62);
+    line-height:1.35;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    max-width:100%;
+  }
   html.dark .rk-meta{ color: rgba(226,232,240,.62); }
 
   .rk-badge{
@@ -132,13 +141,13 @@
     padding:5px 10px;
     border-radius:999px;
     font-size:11.5px;
-    font-weight:900;
+    font-weight:600;
     border:1px solid rgba(15,23,42,.14);
     background: rgba(15,23,42,.03);
     white-space:nowrap;
   }
-  .rk-badge.on { background: rgba(39,174,96,.10); border-color: rgba(39,174,96,.22); }
-  .rk-badge.off{ background: rgba(220,38,38,.10); border-color: rgba(220,38,38,.22); }
+  .rk-badge.on { background: rgba(16,185,129,.14); border-color: rgba(16,185,129,.28); color:#065f46; }
+  .rk-badge.off{ background: rgba(239,68,68,.14); border-color: rgba(239,68,68,.28); color:#991b1b; }
 
   .rk-dot{
     width:8px; height:8px; border-radius:999px;
@@ -151,13 +160,13 @@
   .rk-acts{
     display:flex;
     justify-content:flex-end;
-    gap:8px;
+    gap:6px;
     white-space:nowrap;
   }
 
   .rk-iconBtn{
-    width:36px; height:36px;
-    border-radius:12px;
+    width:30px; height:30px;
+    border-radius:10px;
     display:inline-flex;
     align-items:center;
     justify-content:center;
@@ -176,7 +185,7 @@
   .rk-iconBtn:active{ transform: translateY(0px); }
 
   .rk-iconBtn svg{
-    width:18px; height:18px;
+    width:15px; height:15px;
     stroke: rgba(11,37,69,.78);
   }
   html.dark .rk-iconBtn svg{
@@ -205,16 +214,101 @@
     font-size:12.8px;
     line-height:1.55;
   }
+
+  /* ---------- Pagination ---------- */
+  .rk-pagination{
+    margin-top:12px;
+    padding:8px;
+    border:1px solid var(--nb-border);
+    border-radius:14px;
+    background: rgba(255,255,255,.7);
+    overflow:hidden;
+  }
+  html.dark .rk-pagination{ background: rgba(255,255,255,.04); }
+  .rk-pager{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:8px;
+    flex-wrap:wrap;
+    font-size:12px;
+  }
+  .rk-pager-meta{
+    color: var(--nb-muted);
+    font-weight:500;
+    font-size:12px;
+  }
+  .rk-pager-track{
+    display:flex;
+    align-items:center;
+    justify-content:flex-start;
+    gap:6px;
+    overflow-x:auto;
+    max-width:100%;
+    width:100%;
+    padding:2px 0;
+    scrollbar-width:thin;
+  }
+  .rk-page-btn{
+    border-radius:10px !important;
+    border:1px solid rgba(148,163,184,.35) !important;
+    min-width:30px;
+    height:28px;
+    display:inline-flex !important;
+    align-items:center;
+    justify-content:center;
+    padding:0 10px !important;
+    font-size:11.5px !important;
+    line-height:1;
+    font-weight:500 !important;
+    background:#fff;
+    color:#1e293b;
+    text-decoration:none !important;
+    white-space:nowrap;
+    flex:0 0 auto;
+  }
+  .rk-page-btn.is-disabled{ opacity:.5; pointer-events:none; }
+  .rk-page-btn.is-ellipsis{ min-width:30px; }
+  .rk-page-btn.is-active{
+    background: linear-gradient(90deg, #3b82f6, #2563eb) !important;
+    color:#fff !important;
+    border-color: transparent !important;
+    font-weight:600 !important;
+  }
+  .rk-page-btn:not(.is-disabled):not(.is-active):hover{
+    background: rgba(59,130,246,.12);
+    border-color: rgba(59,130,246,.35) !important;
+    color:#1d4ed8;
+  }
+  html.dark .rk-page-btn{
+    background: rgba(15,23,42,.65);
+    color:#e2e8f0;
+    border-color: rgba(148,163,184,.35) !important;
+  }
   html.dark .rk-empty{
     border-color: rgba(148,163,184,.22);
     background: rgba(255,255,255,.03);
   }
 
+  @media(max-width:1200px){
+    .rk-layout{ grid-template-columns:minmax(0,1fr) 300px; }
+  }
+
   @media(max-width:980px){
     .rk-layout{ grid-template-columns:1fr; }
-    .rk-side{ position:static; }
+    .rk-side{ position:static; order:-1; }
     .rk-actionsRow .nb-btn,.rk-actionsRow .nb-btn-primary{ width:100%; justify-content:center; }
     .rk-acts{ justify-content:flex-start; }
+    .rk-head{ margin-bottom:8px; }
+    .rk-shell{ padding:10px; }
+    .rk-table thead th:nth-child(2),
+    .rk-table tbody td:nth-child(2){
+      display:none;
+    }
+    .rk-table thead th:nth-child(1){ width:56% !important; }
+    .rk-table thead th:nth-child(3){ width:20% !important; }
+    .rk-table thead th:nth-child(4){ width:24% !important; text-align:left !important; }
+    .rk-pager{ flex-direction:column; }
   }
 </style>
 
@@ -253,10 +347,10 @@
             <table class="rk-table">
               <thead>
                 <tr>
-                  <th style="width:38%;">Rak</th>
-                  <th style="width:34%;">Cabang</th>
-                  <th style="width:14%;">Status</th>
-                  <th style="width:14%; text-align:right;">Aksi</th>
+                  <th style="width:44%;">Rak</th>
+                  <th style="width:28%;">Cabang</th>
+                  <th style="width:12%;">Status</th>
+                  <th style="width:16%; text-align:right;">Aksi</th>
                 </tr>
               </thead>
               <tbody>
@@ -266,17 +360,15 @@
                     <td>
                       <div class="rk-name">{{ $s->name }}</div>
                       <div class="rk-meta">
-                        {{ !empty($s->code) ? 'Kode: '.$s->code : 'Kode: —' }}
-                        @if(!empty($s->notes))
-                          <br><span class="nb-muted-2">Catatan:</span> {{ \Illuminate\Support\Str::limit(strip_tags((string)$s->notes), 70) }}
-                        @endif
+                        {{ !empty($s->code) ? 'Kode: '.$s->code : 'Kode: -' }}
+                        
                       </div>
                     </td>
 
                     <td>
                       <div class="rk-name">{{ $s->branch_name ?? '—' }}</div>
                       <div class="rk-meta">
-                        {{ !empty($s->location) ? $s->location : 'Lokasi tidak diisi' }}
+                        {{ !empty($s->location) ? $s->location : 'Lokasi belum diisi' }}
                       </div>
                     </td>
 
@@ -339,8 +431,8 @@
             </table>
           </div>
 
-          <div style="margin-top:12px;">
-            {{ $shelves->links() }}
+          <div class="rk-pagination">
+            {{ $shelves->onEachSide(1)->links('vendor.pagination.rak-compact') }}
           </div>
         @else
           <div class="rk-empty">
@@ -393,6 +485,38 @@
           </form>
         </div>
 
+        <div class="rk-section acc-green" style="margin-top:12px;">
+          <div class="rk-section-head">
+            <div class="h">Automasi DDC</div>
+            <p class="nb-muted-2 hint">Tanpa artisan</p>
+          </div>
+
+          <div class="nb-muted-2" style="line-height:1.55; font-size:12.5px; margin-bottom:10px;">
+            • Generate rak DDC detail <b>000-990</b> per cabang aktif.<br>
+            • Mapping item berdasarkan <b>DDC bibliografi</b> ke rak DDC cabang item.
+          </div>
+
+          <div class="rk-actionsRow">
+            <form method="POST" action="{{ route('rak.generate_ddc') }}" style="display:inline;">
+              @csrf
+              <button type="submit"
+                      class="nb-btn nb-btn-primary"
+                      onclick="return confirm('Generate rak DDC detail untuk semua cabang aktif di institusi ini?');">
+                Generate Rak DDC
+              </button>
+            </form>
+
+            <form method="POST" action="{{ route('rak.map_items_ddc') }}" style="display:inline;">
+              @csrf
+              <button type="submit"
+                      class="nb-btn"
+                      onclick="return confirm('Jalankan mapping item ke rak DDC sekarang?');">
+                Mapping Item by DDC
+              </button>
+            </form>
+          </div>
+        </div>
+
         <div class="rk-section acc-slate" style="margin-top:12px;">
           <div class="rk-section-head">
             <div class="h">Catatan</div>
@@ -413,3 +537,4 @@
 
 @endif
 @endsection
+

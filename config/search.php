@@ -63,6 +63,15 @@ return [
         'multiplier' => (float) env('SEARCH_SHORT_BOOST_MULTIPLIER', 1.6),
     ],
     'synonym_max' => (int) env('SEARCH_SYNONYM_MAX', 10),
+    'stemming' => [
+        'enabled' => (bool) env('SEARCH_STEMMING_ENABLED', true),
+    ],
+    'quality_eval' => [
+        'thresholds' => [
+            'mrr' => (float) env('SEARCH_EVAL_THRESHOLD_MRR', 0.50),
+            'ndcg_at_k' => (float) env('SEARCH_EVAL_THRESHOLD_NDCG', 0.60),
+        ],
+    ],
     'ranking' => [
         'half_life_days' => (int) env('SEARCH_RANK_HALF_LIFE_DAYS', 30),
         'availability' => [

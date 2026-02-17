@@ -175,6 +175,11 @@ return new class extends Migration
     {
         // Deteksi kolom status ada?
         if (!Schema::hasColumn('reservations', 'status')) return;
+        if (DB::getDriverName() === 'sqlite') {
+            // SQLite tidak mendukung ALTER ... MODIFY dan kolom status sudah
+            // bertipe teks secara praktis; lewati hardening khusus MySQL.
+            return;
+        }
 
         // MySQL/MariaDB: pakai ALTER TABLE ... MODIFY
         // Ini meng-overwrite ENUM/short-varchar jadi VARCHAR(20).

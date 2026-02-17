@@ -66,6 +66,42 @@ class OpacObservabilityTest extends TestCase
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+        DB::table('search_query_events')->insert([
+            'institution_id' => $publicInstitutionId,
+            'query' => 'harry poter',
+            'normalized_query' => 'harry poter',
+            'hits' => 0,
+            'is_zero_result' => 1,
+            'searched_at' => now()->subMinutes(5),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('search_query_events')->insert([
+            'institution_id' => $publicInstitutionId,
+            'query' => 'traceable',
+            'normalized_query' => 'traceable',
+            'hits' => 2,
+            'is_zero_result' => 0,
+            'searched_at' => now()->subMinutes(4),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('biblio_events')->insert([
+            'institution_id' => $publicInstitutionId,
+            'biblio_id' => 1,
+            'user_id' => null,
+            'branch_id' => null,
+            'event_type' => 'click',
+            'created_at' => now()->subMinutes(3),
+        ]);
+        DB::table('biblio_events')->insert([
+            'institution_id' => $publicInstitutionId,
+            'biblio_id' => 1,
+            'user_id' => null,
+            'branch_id' => null,
+            'event_type' => 'borrow',
+            'created_at' => now()->subMinutes(2),
+        ]);
 
         $resp = $this->get('/opac');
         $resp->assertOk();
@@ -88,6 +124,9 @@ class OpacObservabilityTest extends TestCase
                 'endpoints',
             ],
         ]);
+        $this->assertArrayHasKey('zero_result_rate_pct', (array) data_get($metrics->json(), 'metrics.search_analytics', []));
+        $this->assertArrayHasKey('no_click_rate_pct', (array) data_get($metrics->json(), 'metrics.search_analytics', []));
+        $this->assertArrayHasKey('conversion_to_borrow_rate_pct', (array) data_get($metrics->json(), 'metrics.search_analytics', []));
     }
 
     public function test_robots_contains_crawl_budget_rules_for_large_scale_opac(): void

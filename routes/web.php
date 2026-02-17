@@ -112,17 +112,17 @@ Route::get('/robots.txt', [OpacSeoController::class, 'robots'])
     ->middleware('throttle:opac-public-seo')
     ->name('opac.robots');
 Route::get('/opac', [CatalogSearchController::class, 'indexPublic'])
-    ->middleware(['trace.request', 'opac.conditional', 'track.opac.metrics', 'throttle:opac-public-search'])
+    ->middleware(['trace.request', 'opac.conditional', 'opac.query_guard', 'track.opac.metrics', 'throttle:opac-public-search'])
     ->name('opac.index');
 Route::get('/opac/facets', [CatalogSearchController::class, 'facetsPublic'])
-    ->middleware(['trace.request', 'opac.conditional', 'track.opac.metrics', 'throttle:opac-public-search'])
+    ->middleware(['trace.request', 'opac.conditional', 'opac.query_guard', 'track.opac.metrics', 'throttle:opac-public-search'])
     ->name('opac.facets');
 Route::get('/opac/{id}', [CatalogDetailController::class, 'show'])
     ->middleware(['trace.request', 'opac.conditional', 'track.opac.metrics', 'throttle:opac-public-detail'])
     ->whereNumber('id')
     ->name('opac.show');
 Route::get('/opac/suggest', [CatalogSearchController::class, 'suggest'])
-    ->middleware(['trace.request', 'opac.conditional', 'track.opac.metrics', 'throttle:opac-public-search'])
+    ->middleware(['trace.request', 'opac.conditional', 'opac.query_guard', 'track.opac.metrics', 'throttle:opac-public-search'])
     ->name('opac.suggest');
 Route::get('/opac/{id}/attachments/{attachment}/download', [CatalogAttachmentController::class, 'download'])
     ->middleware('throttle:opac-public-detail')

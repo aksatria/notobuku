@@ -20,6 +20,7 @@ use App\Services\MarcValidationService;
 use App\Services\MetadataMappingService;
 use App\Services\Search\BiblioSearchService;
 use App\Services\Search\BiblioRankingService;
+use App\Services\Search\IndonesianTextNormalizer;
 use App\Services\BiblioInteractionService;
 use App\Services\BiblioAutofixService;
 use App\Services\PustakawanDigital\ExternalApiService;
@@ -32,6 +33,10 @@ use Illuminate\Support\Facades\Cache;
 
 class CatalogSearchService
 {
+    public function __construct(private ?IndonesianTextNormalizer $textNormalizer = null)
+    {
+    }
+
     private function currentInstitutionId(): int
     {
         $id = (int) (auth()->user()->institution_id ?? 0);
@@ -94,11 +99,25 @@ class CatalogSearchService
 
     private function normalizeLoose(string $text): string
     {
-        return Str::of($text)
-            ->lower()
-            ->replaceMatches('/[^a-z0-9\s]/', ' ')
-            ->squish()
-            ->toString();
+        try {
+            return $this->resolveTextNormalizer()->normalizeLoose($text);
+        } catch (\Throwable) {
+            return Str::of($text)
+                ->lower()
+                ->replaceMatches('/[^a-z0-9\s]/', ' ')
+                ->squish()
+                ->toString();
+        }
+    }
+
+    private function resolveTextNormalizer(): IndonesianTextNormalizer
+    {
+        if ($this->textNormalizer instanceof IndonesianTextNormalizer) {
+            return $this->textNormalizer;
+        }
+
+        $this->textNormalizer = app(IndonesianTextNormalizer::class);
+        return $this->textNormalizer;
     }
 
     private function normalizeTitle(string $title, ?string $subtitle = null): string
@@ -180,7 +199,7 @@ class CatalogSearchService
 
     private function tokenizeQuery(string $query, ?int $institutionId = null): array
     {
-        $tokens = preg_split('/\s+/', $this->normalizeLoose($query));
+        $tokens = $this->resolveTextNormalizer()->tokenize($query, true);
         $stopWords = array_values(array_unique(array_filter((array) config('search.stop_words', []))));
         if ($institutionId !== null) {
             try {

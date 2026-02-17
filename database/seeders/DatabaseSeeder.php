@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             NotobukuSeeder::class,
+            DdcShelvesSeeder::class,
             CirculationPolicyMatrixSeeder::class,
             ReservationPolicyMatrixSeeder::class,
             EmhaTitlesSeeder::class,
