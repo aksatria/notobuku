@@ -68,7 +68,7 @@ jobs:
           echo "Database service did not become ready in time"
           exit 1
 
-      - name: Run migrations
+      - name: Run stable test suite
         env:
           APP_ENV: testing
           DB_CONNECTION: mysql
@@ -77,18 +77,7 @@ jobs:
           DB_DATABASE: notobuku_test
           DB_USERNAME: root
           DB_PASSWORD: root
-        run: php artisan migrate --force
-
-      - name: Run tests
-        env:
-          APP_ENV: testing
-          DB_CONNECTION: mysql
-          DB_HOST: 127.0.0.1
-          DB_PORT: 3306
-          DB_DATABASE: notobuku_test
-          DB_USERNAME: root
-          DB_PASSWORD: root
-        run: composer test --no-interaction --no-ansi
+        run: composer run test:stable --no-interaction --no-ansi
 
       - name: Run Pint (format)
         run: vendor/bin/pint --no-interaction || true
