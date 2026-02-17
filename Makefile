@@ -1,6 +1,6 @@
 COMPOSE := docker compose
 
-.PHONY: help up down rebuild logs bash composer-install migrate seed test artisan
+.PHONY: help up down rebuild logs bash composer-install migrate seed test test-stable test-circulation-stable artisan
 
 help:
 	@echo "Makefile targets:"
@@ -13,6 +13,8 @@ help:
 	@echo "  make migrate           # Run artisan migrate --force"
 	@echo "  make seed              # Run artisan db:seed"
 	@echo "  make test              # Run test suite"
+	@echo "  make test-stable       # Recreate testing DB + run full suite sequentially"
+	@echo "  make test-circulation-stable # Recreate testing DB + run circulation smoke suite"
 	@echo "  make artisan cmd='route:list'  # Run artisan command"
 
 up:
@@ -41,6 +43,12 @@ seed:
 
 test:
 	$(COMPOSE) exec app composer test
+
+test-stable:
+	$(COMPOSE) exec app composer run test:stable
+
+test-circulation-stable:
+	$(COMPOSE) exec app composer run test:circulation:stable
 
 artisan:
 	@if [ -z "$(cmd)" ]; then \

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class ReservationService
 {
@@ -11,6 +12,157 @@ class ReservationService
      * Durasi HOLD (READY) dalam jam.
      */
     public int $holdHours = 48;
+
+    private function policyService(): ReservationPolicyService
+    {
+        return app(ReservationPolicyService::class);
+    }
+
+    private function notificationService(): ReservationNotificationService
+    {
+        return app(ReservationNotificationService::class);
+    }
+
+    /**
+     * Expire hold READY yang lewat expires_at.
+     * - release item (reserved -> available)
+     * - ubah reservasi jadi expired
+     * - promote antrean berikutnya
+     *
+     * @return int jumlah reservasi yang di-expire
+     */
+    public function expireDueHolds(?int $institutionId = null, int $limit = 200): int
+    {
+        if (!Schema::hasTable('reservations')) {
+            return 0;
+        }
+
+        $limit = max(1, $limit);
+        if (!Schema::hasColumn('reservations', 'status') || !Schema::hasColumn('reservations', 'expires_at')) {
+            return 0;
+        }
+
+        $query = DB::table('reservations')
+            ->where('status', 'ready')
+            ->whereNotNull('expires_at')
+            ->where('expires_at', '<=', now());
+
+        if ($institutionId !== null && $institutionId > 0 && Schema::hasColumn('reservations', 'institution_id')) {
+            $query->where('institution_id', $institutionId);
+        }
+
+        $rows = $query
+            ->orderBy('expires_at')
+            ->limit($limit)
+            ->get(['id', 'institution_id', 'biblio_id', 'item_id', 'ready_item_id']);
+
+        $expiredCount = 0;
+        foreach ($rows as $row) {
+            $ok = DB::transaction(function () use ($row) {
+                $institution = (int) ($row->institution_id ?? 0);
+                $reservationId = (int) ($row->id ?? 0);
+                $biblioId = (int) ($row->biblio_id ?? 0);
+
+                $locked = DB::table('reservations')
+                    ->where('id', $reservationId)
+                    ->when($institution > 0, fn ($q) => $q->where('institution_id', $institution))
+                    ->lockForUpdate()
+                    ->first(['id', 'status', 'item_id', 'ready_item_id', 'biblio_id', 'institution_id', 'expires_at']);
+
+                if (!$locked || (string) ($locked->status ?? '') !== 'ready') {
+                    return false;
+                }
+
+                $itemId = (int) ($locked->ready_item_id ?? 0);
+                if ($itemId <= 0) {
+                    $itemId = (int) ($locked->item_id ?? 0);
+                }
+
+                if ($itemId > 0 && Schema::hasTable('items')) {
+                    $it = DB::table('items')
+                        ->where('id', $itemId)
+                        ->when($institution > 0 && Schema::hasColumn('items', 'institution_id'), fn ($q) => $q->where('institution_id', $institution))
+                        ->lockForUpdate()
+                        ->first(['id', 'status']);
+
+                    if ($it && (string) ($it->status ?? '') === 'reserved') {
+                        DB::table('items')
+                            ->where('id', $itemId)
+                            ->when($institution > 0 && Schema::hasColumn('items', 'institution_id'), fn ($q) => $q->where('institution_id', $institution))
+                            ->where('status', 'reserved')
+                            ->update([
+                                'status' => 'available',
+                                'updated_at' => now(),
+                            ]);
+                    }
+                }
+
+                $upd = [
+                    'status' => 'expired',
+                    'updated_at' => now(),
+                ];
+                if (Schema::hasColumn('reservations', 'item_id')) {
+                    $upd['item_id'] = null;
+                }
+                if (Schema::hasColumn('reservations', 'ready_item_id')) {
+                    $upd['ready_item_id'] = null;
+                }
+                if (Schema::hasColumn('reservations', 'cancelled_at')) {
+                    $upd['cancelled_at'] = now();
+                }
+
+                DB::table('reservations')
+                    ->where('id', $reservationId)
+                    ->when($institution > 0, fn ($q) => $q->where('institution_id', $institution))
+                    ->update($upd);
+
+                $updatedReservation = DB::table('reservations as r')
+                    ->leftJoin('biblio as b', 'b.id', '=', 'r.biblio_id')
+                    ->leftJoin('members as m', 'm.id', '=', 'r.member_id')
+                    ->where('r.id', $reservationId)
+                    ->select([
+                        'r.id',
+                        'r.institution_id',
+                        'r.member_id',
+                        'r.biblio_id',
+                        'r.queue_no',
+                        'r.status',
+                        'r.expires_at',
+                        DB::raw("COALESCE(b.title, '') as biblio_title"),
+                        DB::raw("COALESCE(m.full_name, '') as member_name"),
+                    ])
+                    ->first();
+
+                if ($updatedReservation) {
+                    $this->logReservationEvent([
+                        'institution_id' => $institution,
+                        'reservation_id' => $reservationId,
+                        'member_id' => (int) ($updatedReservation->member_id ?? 0),
+                        'biblio_id' => $biblioId,
+                        'item_id' => $itemId,
+                        'event_type' => 'expired',
+                        'status_from' => 'ready',
+                        'status_to' => 'expired',
+                        'queue_no' => (int) ($updatedReservation->queue_no ?? 0),
+                    ]);
+
+                    $this->notificationService()->queueForReservationEvent((array) $updatedReservation, 'expired');
+                }
+
+                if ($institution > 0 && $biblioId > 0) {
+                    $this->tryPromoteNextForBiblio($institution, $biblioId, null);
+                }
+
+                return true;
+            });
+
+            if ($ok) {
+                $expiredCount++;
+            }
+        }
+
+        return $expiredCount;
+    }
 
     /**
      * LIST untuk halaman reservasi.index (sesuai blade kamu)
@@ -192,10 +344,27 @@ class ReservationService
             }
         }
 
+        $collectionType = '';
+        if (Schema::hasTable('biblio')) {
+            $cols = [];
+            if (Schema::hasColumn('biblio', 'material_type')) {
+                $cols[] = 'material_type';
+            }
+            if (Schema::hasColumn('biblio', 'media_type')) {
+                $cols[] = 'media_type';
+            }
+            if (!empty($cols)) {
+                $b = DB::table('biblio')->where('id', $biblioId)->first($cols);
+                $collectionType = strtolower(trim((string) ($b->material_type ?? $b->media_type ?? '')));
+            }
+        }
+
         return [
             'ok' => true,
             'item_id' => (int)($item->id ?? 0),
             'biblio_id' => $biblioId,
+            'branch_id' => (int) ($item->branch_id ?? 0),
+            'collection_type' => $collectionType,
             'barcode' => $code,
         ];
     }
@@ -213,7 +382,15 @@ class ReservationService
         $biblioId = (int)$res['biblio_id'];
 
         // Insert reservasi berdasarkan biblio_id hasil resolve barcode
-        return $this->createReservation($institutionId, $memberId, $biblioId, $notes, $actorUserId);
+        return $this->createReservation(
+            $institutionId,
+            $memberId,
+            $biblioId,
+            $notes,
+            $actorUserId,
+            (int) ($res['branch_id'] ?? 0),
+            (string) ($res['collection_type'] ?? '')
+        );
     }
 
     /* =========================
@@ -224,7 +401,9 @@ class ReservationService
         int $memberId,
         int $biblioId,
         ?string $notes = null,
-        ?int $actorUserId = null
+        ?int $actorUserId = null,
+        ?int $branchId = null,
+        ?string $collectionType = null
     ): array {
         if (!Schema::hasTable('reservations')) {
             return ['ok' => false, 'message' => 'Tabel reservations tidak ditemukan.'];
@@ -244,7 +423,54 @@ class ReservationService
             }
         }
 
-        return DB::transaction(function () use ($institutionId, $memberId, $biblioId, $notes, $actorUserId) {
+        return DB::transaction(function () use ($institutionId, $memberId, $biblioId, $notes, $actorUserId, $branchId, $collectionType) {
+            $member = $this->resolveMemberContext($memberId);
+            if (!$member) {
+                return ['ok' => false, 'message' => 'Data member tidak ditemukan.'];
+            }
+
+            $memberStatus = strtolower(trim((string) ($member->status ?? 'active')));
+            if ($memberStatus !== 'active') {
+                return ['ok' => false, 'message' => 'Akun member sedang nonaktif/suspend, tidak bisa reservasi.'];
+            }
+
+            $effectiveCollectionType = strtolower(trim((string) ($collectionType ?? '')));
+            if ($effectiveCollectionType === '') {
+                $effectiveCollectionType = $this->resolveCollectionTypeFromBiblio($biblioId);
+            }
+            $effectiveBranchId = (int) ($branchId ?? 0);
+
+            $rule = $this->policyService()->resolveRule($institutionId, [
+                'branch_id' => $effectiveBranchId,
+                'member_type' => (string) ($member->member_type ?? 'member'),
+                'collection_type' => $effectiveCollectionType,
+            ]);
+
+            $activeCount = (int) DB::table('reservations')
+                ->where('institution_id', $institutionId)
+                ->where('member_id', $memberId)
+                ->whereIn('status', ['queued', 'ready'])
+                ->count();
+
+            if ($activeCount >= (int) ($rule['max_active_reservations'] ?? 5)) {
+                return ['ok' => false, 'message' => 'Kuota reservasi aktif member sudah penuh.'];
+            }
+
+            $queueCount = (int) DB::table('reservations')
+                ->where('institution_id', $institutionId)
+                ->where('biblio_id', $biblioId)
+                ->whereIn('status', ['queued', 'ready'])
+                ->count();
+
+            if ($queueCount >= (int) ($rule['max_queue_per_biblio'] ?? 30)) {
+                return ['ok' => false, 'message' => 'Antrean reservasi untuk judul ini sudah mencapai batas maksimum.'];
+            }
+
+            $priorityScore = $this->policyService()->resolvePriorityScore([
+                'member_type' => (string) ($member->member_type ?? 'member'),
+            ], $rule);
+
+            $this->holdHours = max(1, (int) ($rule['hold_hours'] ?? $this->holdHours));
 
             // Lock semua reservasi biblio ini agar queue aman
             $base = DB::table('reservations')
@@ -271,10 +497,23 @@ class ReservationService
                 'member_id'      => $memberId,
                 'biblio_id'      => $biblioId,
                 'queue_no'       => $queueNo,
+                'priority_score' => $priorityScore,
                 'status'         => 'queued',
                 'created_at'     => now(),
                 'updated_at'     => now(),
             ];
+
+            if (Schema::hasColumn('reservations', 'policy_rule_id')) {
+                $payload['policy_rule_id'] = (int) ($rule['id'] ?? 0) ?: null;
+            }
+            if (Schema::hasColumn('reservations', 'policy_snapshot')) {
+                $payload['policy_snapshot'] = json_encode([
+                    'rule' => $rule,
+                    'branch_id' => $effectiveBranchId > 0 ? $effectiveBranchId : null,
+                    'collection_type' => $effectiveCollectionType,
+                    'member_type' => (string) ($member->member_type ?? 'member'),
+                ], JSON_UNESCAPED_UNICODE);
+            }
 
             // dukung dua schema item
             if (Schema::hasColumn('reservations', 'item_id')) $payload['item_id'] = null;
@@ -301,7 +540,40 @@ class ReservationService
             }
 
             // coba promote antrean terdepan
+            $this->reorderQueueForBiblio($institutionId, $biblioId);
             $this->tryPromoteNextForBiblio($institutionId, $biblioId, $actorUserId);
+
+            $row = DB::table('reservations as r')
+                ->leftJoin('biblio as b', 'b.id', '=', 'r.biblio_id')
+                ->leftJoin('members as m', 'm.id', '=', 'r.member_id')
+                ->where('r.id', $reservationId)
+                ->select([
+                    'r.id',
+                    'r.institution_id',
+                    'r.member_id',
+                    'r.biblio_id',
+                    'r.queue_no',
+                    'r.status',
+                    'r.expires_at',
+                    DB::raw("COALESCE(b.title, '') as biblio_title"),
+                    DB::raw("COALESCE(m.full_name, '') as member_name"),
+                ])
+                ->first();
+
+            if ($row) {
+                $this->logReservationEvent([
+                    'institution_id' => $institutionId,
+                    'reservation_id' => (int) $reservationId,
+                    'member_id' => $memberId,
+                    'biblio_id' => $biblioId,
+                    'actor_user_id' => $actorUserId,
+                    'event_type' => 'created',
+                    'status_from' => null,
+                    'status_to' => 'queued',
+                    'queue_no' => (int) ($row->queue_no ?? $queueNo),
+                ]);
+                $this->notificationService()->queueForReservationEvent((array) $row, 'created');
+            }
 
             return [
                 'ok' => true,
@@ -340,9 +612,10 @@ class ReservationService
                 ->where('status', 'queued')
                 ->whereNull('fulfilled_at')
                 ->lockForUpdate()
+                ->orderByDesc('priority_score')
                 ->orderBy('queue_no')
                 ->orderBy('id')
-                ->first(['id']);
+                ->first(['id', 'member_id', 'queue_no', 'created_at', 'priority_score']);
 
             if (!$next) return;
 
@@ -390,6 +663,50 @@ class ReservationService
                 ->where('id', (int)$next->id)
                 ->where('status', 'queued')
                 ->update($upd);
+
+            $waitMinutes = null;
+            if (!empty($next->created_at)) {
+                try {
+                    $waitMinutes = now()->diffInMinutes($next->created_at);
+                } catch (\Throwable $e) {
+                    $waitMinutes = null;
+                }
+            }
+
+            $row = DB::table('reservations as r')
+                ->leftJoin('biblio as b', 'b.id', '=', 'r.biblio_id')
+                ->leftJoin('members as m', 'm.id', '=', 'r.member_id')
+                ->where('r.id', (int) $next->id)
+                ->select([
+                    'r.id',
+                    'r.institution_id',
+                    'r.member_id',
+                    'r.biblio_id',
+                    'r.queue_no',
+                    'r.status',
+                    'r.expires_at',
+                    DB::raw("COALESCE(b.title, '') as biblio_title"),
+                    DB::raw("COALESCE(m.full_name, '') as member_name"),
+                ])
+                ->first();
+
+            if ($row) {
+                $this->logReservationEvent([
+                    'institution_id' => $institutionId,
+                    'reservation_id' => (int) $next->id,
+                    'member_id' => (int) ($next->member_id ?? 0),
+                    'biblio_id' => $biblioId,
+                    'item_id' => (int) $item->id,
+                    'actor_user_id' => $actorUserId,
+                    'event_type' => 'ready',
+                    'status_from' => 'queued',
+                    'status_to' => 'ready',
+                    'queue_no' => (int) ($next->queue_no ?? 0),
+                    'wait_minutes' => $waitMinutes !== null ? (int) $waitMinutes : null,
+                    'meta' => ['priority_score' => (int) ($next->priority_score ?? 0)],
+                ]);
+                $this->notificationService()->queueForReservationEvent((array) $row, 'ready');
+            }
         });
     }
 
@@ -463,7 +780,40 @@ class ReservationService
                 ->update($upd);
 
             if ($biblioId > 0) {
+                $this->reorderQueueForBiblio($institutionId, $biblioId);
                 $this->tryPromoteNextForBiblio($institutionId, $biblioId, $actorUserId);
+            }
+
+            $row = DB::table('reservations as r')
+                ->leftJoin('biblio as b', 'b.id', '=', 'r.biblio_id')
+                ->leftJoin('members as m', 'm.id', '=', 'r.member_id')
+                ->where('r.id', $reservationId)
+                ->select([
+                    'r.id',
+                    'r.institution_id',
+                    'r.member_id',
+                    'r.biblio_id',
+                    'r.queue_no',
+                    'r.status',
+                    'r.expires_at',
+                    DB::raw("COALESCE(b.title, '') as biblio_title"),
+                    DB::raw("COALESCE(m.full_name, '') as member_name"),
+                ])
+                ->first();
+            if ($row) {
+                $this->logReservationEvent([
+                    'institution_id' => $institutionId,
+                    'reservation_id' => $reservationId,
+                    'member_id' => (int) ($row->member_id ?? 0),
+                    'biblio_id' => $biblioId,
+                    'item_id' => $itemId > 0 ? $itemId : null,
+                    'actor_user_id' => $actorUserId,
+                    'event_type' => 'cancelled',
+                    'status_from' => $status,
+                    'status_to' => 'cancelled',
+                    'queue_no' => (int) ($row->queue_no ?? 0),
+                ]);
+                $this->notificationService()->queueForReservationEvent((array) $row, 'cancelled');
             }
 
             return ['ok' => true];
@@ -512,7 +862,221 @@ class ReservationService
                 ->where('id', $reservationId)
                 ->update($upd);
 
+            $row = DB::table('reservations as r')
+                ->leftJoin('biblio as b', 'b.id', '=', 'r.biblio_id')
+                ->leftJoin('members as m', 'm.id', '=', 'r.member_id')
+                ->where('r.id', $reservationId)
+                ->select([
+                    'r.id',
+                    'r.institution_id',
+                    'r.member_id',
+                    'r.biblio_id',
+                    'r.queue_no',
+                    'r.status',
+                    'r.expires_at',
+                    DB::raw("COALESCE(b.title, '') as biblio_title"),
+                    DB::raw("COALESCE(m.full_name, '') as member_name"),
+                ])
+                ->first();
+            if ($row) {
+                $this->logReservationEvent([
+                    'institution_id' => $institutionId,
+                    'reservation_id' => $reservationId,
+                    'member_id' => (int) ($row->member_id ?? 0),
+                    'biblio_id' => (int) ($row->biblio_id ?? 0),
+                    'actor_user_id' => $actorUserId,
+                    'event_type' => 'fulfilled',
+                    'status_from' => 'ready',
+                    'status_to' => 'fulfilled',
+                    'queue_no' => (int) ($row->queue_no ?? 0),
+                ]);
+                $this->notificationService()->queueForReservationEvent((array) $row, 'fulfilled');
+            }
+
             return ['ok' => true];
         });
+    }
+
+    public function requeueReservation(int $institutionId, int $reservationId, int $memberId, ?int $actorUserId = null): array
+    {
+        if (!Schema::hasTable('reservations')) {
+            return ['ok' => false, 'message' => 'Tabel reservations tidak ditemukan.'];
+        }
+
+        return DB::transaction(function () use ($institutionId, $reservationId, $memberId, $actorUserId) {
+            $row = DB::table('reservations')
+                ->where('institution_id', $institutionId)
+                ->where('id', $reservationId)
+                ->where('member_id', $memberId)
+                ->lockForUpdate()
+                ->first(['id', 'member_id', 'biblio_id', 'status', 'queue_no']);
+
+            if (!$row) {
+                return ['ok' => false, 'message' => 'Reservasi tidak ditemukan.'];
+            }
+
+            $status = (string) ($row->status ?? '');
+            if (!in_array($status, ['cancelled', 'expired'], true)) {
+                return ['ok' => false, 'message' => 'Hanya reservasi batal/kedaluwarsa yang bisa diantre ulang.'];
+            }
+
+            $dup = DB::table('reservations')
+                ->where('institution_id', $institutionId)
+                ->where('member_id', $memberId)
+                ->where('biblio_id', (int) $row->biblio_id)
+                ->whereIn('status', ['queued', 'ready'])
+                ->exists();
+            if ($dup) {
+                return ['ok' => false, 'message' => 'Sudah ada reservasi aktif untuk judul ini.'];
+            }
+
+            $maxQueue = (int) DB::table('reservations')
+                ->where('institution_id', $institutionId)
+                ->where('biblio_id', (int) $row->biblio_id)
+                ->max('queue_no');
+
+            $upd = [
+                'status' => 'queued',
+                'queue_no' => max(1, $maxQueue + 1),
+                'expires_at' => null,
+                'updated_at' => now(),
+            ];
+            if (Schema::hasColumn('reservations', 'item_id')) {
+                $upd['item_id'] = null;
+            }
+            if (Schema::hasColumn('reservations', 'ready_item_id')) {
+                $upd['ready_item_id'] = null;
+            }
+            if (Schema::hasColumn('reservations', 'ready_at')) {
+                $upd['ready_at'] = null;
+            }
+            if (Schema::hasColumn('reservations', 'cancelled_at')) {
+                $upd['cancelled_at'] = null;
+            }
+            if (Schema::hasColumn('reservations', 'cancelled_by')) {
+                $upd['cancelled_by'] = null;
+            }
+
+            DB::table('reservations')->where('id', (int) $row->id)->update($upd);
+
+            $this->reorderQueueForBiblio($institutionId, (int) $row->biblio_id);
+            $this->tryPromoteNextForBiblio($institutionId, (int) $row->biblio_id, $actorUserId);
+
+            $this->logReservationEvent([
+                'institution_id' => $institutionId,
+                'reservation_id' => (int) $row->id,
+                'member_id' => $memberId,
+                'biblio_id' => (int) $row->biblio_id,
+                'actor_user_id' => $actorUserId,
+                'event_type' => 'requeued',
+                'status_from' => $status,
+                'status_to' => 'queued',
+                'queue_no' => max(1, $maxQueue + 1),
+            ]);
+
+            return ['ok' => true, 'message' => 'Reservasi berhasil diantre ulang.'];
+        });
+    }
+
+    public function onItemAvailable(int $institutionId, int $itemId, ?int $actorUserId = null): void
+    {
+        if (!Schema::hasTable('items') || !Schema::hasTable('reservations')) {
+            return;
+        }
+
+        $item = DB::table('items')
+            ->where('id', $itemId)
+            ->when($institutionId > 0 && Schema::hasColumn('items', 'institution_id'), fn ($q) => $q->where('institution_id', $institutionId))
+            ->first(['id', 'biblio_id']);
+
+        $biblioId = (int) ($item->biblio_id ?? 0);
+        if ($biblioId <= 0) {
+            return;
+        }
+
+        $this->tryPromoteNextForBiblio($institutionId, $biblioId, $actorUserId);
+    }
+
+    private function resolveMemberContext(int $memberId): ?object
+    {
+        if ($memberId <= 0 || !Schema::hasTable('members')) {
+            return null;
+        }
+
+        $cols = ['id', 'status'];
+        if (Schema::hasColumn('members', 'member_type')) {
+            $cols[] = 'member_type';
+        }
+
+        return DB::table('members')->where('id', $memberId)->first($cols);
+    }
+
+    private function resolveCollectionTypeFromBiblio(int $biblioId): string
+    {
+        if ($biblioId <= 0 || !Schema::hasTable('biblio')) {
+            return '';
+        }
+
+        $cols = [];
+        if (Schema::hasColumn('biblio', 'material_type')) {
+            $cols[] = 'material_type';
+        }
+        if (Schema::hasColumn('biblio', 'media_type')) {
+            $cols[] = 'media_type';
+        }
+        if (empty($cols)) {
+            return '';
+        }
+
+        $row = DB::table('biblio')->where('id', $biblioId)->first($cols);
+        return strtolower(trim((string) ($row->material_type ?? $row->media_type ?? '')));
+    }
+
+    private function reorderQueueForBiblio(int $institutionId, int $biblioId): void
+    {
+        if (!Schema::hasTable('reservations')) {
+            return;
+        }
+
+        $rows = DB::table('reservations')
+            ->where('institution_id', $institutionId)
+            ->where('biblio_id', $biblioId)
+            ->where('status', 'queued')
+            ->orderByDesc('priority_score')
+            ->orderBy('queue_no')
+            ->orderBy('id')
+            ->get(['id']);
+
+        $no = 1;
+        foreach ($rows as $row) {
+            DB::table('reservations')->where('id', (int) $row->id)->update([
+                'queue_no' => $no++,
+                'updated_at' => now(),
+            ]);
+        }
+    }
+
+    private function logReservationEvent(array $event): void
+    {
+        if (!Schema::hasTable('reservation_events')) {
+            return;
+        }
+
+        DB::table('reservation_events')->insert([
+            'institution_id' => (int) ($event['institution_id'] ?? 0),
+            'reservation_id' => !empty($event['reservation_id']) ? (int) $event['reservation_id'] : null,
+            'member_id' => !empty($event['member_id']) ? (int) $event['member_id'] : null,
+            'biblio_id' => !empty($event['biblio_id']) ? (int) $event['biblio_id'] : null,
+            'item_id' => !empty($event['item_id']) ? (int) $event['item_id'] : null,
+            'actor_user_id' => !empty($event['actor_user_id']) ? (int) $event['actor_user_id'] : null,
+            'event_type' => Str::limit((string) ($event['event_type'] ?? 'unknown'), 40, ''),
+            'status_from' => !empty($event['status_from']) ? Str::limit((string) $event['status_from'], 20, '') : null,
+            'status_to' => !empty($event['status_to']) ? Str::limit((string) $event['status_to'], 20, '') : null,
+            'queue_no' => isset($event['queue_no']) ? (int) $event['queue_no'] : null,
+            'wait_minutes' => isset($event['wait_minutes']) ? (int) $event['wait_minutes'] : null,
+            'meta' => isset($event['meta']) ? json_encode($event['meta'], JSON_UNESCAPED_UNICODE) : null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 }

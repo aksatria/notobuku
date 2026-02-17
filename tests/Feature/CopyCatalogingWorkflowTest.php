@@ -24,9 +24,17 @@ class CopyCatalogingWorkflowTest extends TestCase
             return;
         }
 
-        $database = strtolower((string) config('database.connections.mysql.database', ''));
-        if ($database === '' || (!str_contains($database, 'test') && !str_contains($database, 'testing'))) {
-            $this->markTestSkipped('CopyCatalogingWorkflowTest hanya boleh berjalan pada database testing.');
+        $defaultConnection = strtolower((string) config('database.default', ''));
+        if ($defaultConnection === 'sqlite') {
+            $database = strtolower((string) config('database.connections.sqlite.database', ''));
+            if (!in_array($database, [':memory:', ''], true) && !str_contains($database, 'test')) {
+                $this->markTestSkipped('CopyCatalogingWorkflowTest hanya boleh berjalan pada database testing.');
+            }
+        } else {
+            $database = strtolower((string) config('database.connections.mysql.database', ''));
+            if ($database === '' || (!str_contains($database, 'test') && !str_contains($database, 'testing'))) {
+                $this->markTestSkipped('CopyCatalogingWorkflowTest hanya boleh berjalan pada database testing.');
+            }
         }
 
         // Stabilkan schema testing tanpa db:wipe agar tidak kena race drop table di MySQL.

@@ -40,6 +40,13 @@
         <li>- Tidak ada 500 error di <code>storage/logs/laravel.log</code> selama skenario UAT.</li>
         <li>- Scheduler dan snapshot rutin berjalan sesuai jadwal.</li>
       </ul>
+      <div class="mt-3 rounded-xl border border-[var(--nb-border)] p-3 text-xs">
+        <div class="font-bold">Ops Command (baru)</div>
+        <div class="mt-1">- Generate checklist: <code>php artisan notobuku:uat-generate</code></div>
+        <div>- Sign-off operator: <code>php artisan notobuku:uat-signoff --status=pass --operator="Nama"</code></div>
+        <div>- Backup snapshot core: <code>php artisan notobuku:backup-core-snapshot --tag=manual</code></div>
+        <div>- Restore drill non-destruktif: <code>php artisan notobuku:backup-restore-drill</code></div>
+      </div>
     </section>
 
     <section class="rounded-2xl border border-[var(--nb-border)] bg-[var(--nb-surface)] p-5">

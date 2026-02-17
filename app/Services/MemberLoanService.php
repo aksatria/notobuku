@@ -2,11 +2,13 @@
 
 namespace App\Services;
 
+use App\Support\CirculationSlaClock;
 use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use App\Services\LoanPolicyService;
+use App\Services\CirculationPolicyEngine;
 
 class MemberLoanService
 {
@@ -221,7 +223,14 @@ class MemberLoanService
                     if ($d->lt($today)) $overdueCount++;
                     if ($nearestDue === null || $d->lt($nearestDue)) $nearestDue = $d;
                     if ($d->lt($today)) {
-                        $daysLate = $today->diffInDays($d);
+                        $daysLate = CirculationSlaClock::elapsedLateDays(
+                            $d->toDateString() . ' 00:00:00',
+                            $today->toDateString() . ' 00:00:00',
+                            null,
+                            $institutionId,
+                            $activeBranchId,
+                            0
+                        );
                         if ($daysLate > $maxOverdueDays) $maxOverdueDays = $daysLate;
                         $sumOverdueDays += $daysLate;
                     }
@@ -229,17 +238,10 @@ class MemberLoanService
             }
         }
 
-        $fineRate = 1000;
-        try {
-            if (Schema::hasTable('institutions') && Schema::hasColumn('institutions', 'fine_rate_per_day')) {
-                $val = DB::table('institutions')
-                    ->where('id', $institutionId)
-                    ->value('fine_rate_per_day');
-                if (is_numeric($val) && (int)$val > 0) $fineRate = (int)$val;
-            }
-        } catch (\Throwable $e) {
-            // ignore
-        }
+        $policySvc = app(LoanPolicyService::class);
+        $memberType = $policySvc->resolveMemberRole($loan);
+        $policy = $policySvc->forContext($institutionId, $activeBranchId, $memberType, null);
+        $fineRate = max(0, (int) ($policy['fine_rate_per_day'] ?? 1000));
 
         $fineEstimate = $sumOverdueDays > 0 ? ($sumOverdueDays * $fineRate) : 0;
 
@@ -282,7 +284,13 @@ class MemberLoanService
             ->first();
 
         $policySvc = app(LoanPolicyService::class);
-        $policy = $policySvc->forRole($policySvc->resolveMemberRole($member));
+        $policyEngine = app(CirculationPolicyEngine::class);
+        $policy = $policySvc->forContext(
+            $institutionId,
+            $activeBranchId,
+            $policySvc->resolveMemberRole($member),
+            null
+        );
 
         $detail = $this->getLoanDetail($institutionId, $memberId, $loanId, $activeBranchId);
         if (!($detail['ok'] ?? false)) return $detail;
@@ -334,46 +342,40 @@ class MemberLoanService
         DB::beginTransaction();
         try {
             $today = Carbon::today();
-            $newDateForNull = $today->copy()->addDays($extendDays)->toDateString();
 
-            // item aktif yang sudah punya due_date -> +extendDays
-            DB::table('loan_items')
+            $activeItems = DB::table('loan_items')
                 ->where('loan_id', $loanId)
                 ->whereNull('returned_at')
-                ->whereNotNull('due_date')
-                ->update([
-                    'due_date' => DB::raw("DATE_ADD(due_date, INTERVAL {$extendDays} DAY)"),
+                ->get(['id', 'due_date']);
+
+            foreach ($activeItems as $it) {
+                $base = !empty($it->due_date) ? Carbon::parse((string) $it->due_date) : $today->copy();
+                $newDue = $policyEngine
+                    ->computeDueAtByBusinessDays($institutionId, $activeBranchId, $extendDays, $base)
+                    ->toDateString();
+
+                $update = [
+                    'due_date' => $newDue,
                     'updated_at' => now(),
-                ]);
-            if ($liHasRenewCount) {
+                ];
+                if ($liHasRenewCount) {
+                    $update['renew_count'] = DB::raw('COALESCE(renew_count,0) + 1');
+                }
+
                 DB::table('loan_items')
-                    ->where('loan_id', $loanId)
-                    ->whereNull('returned_at')
-                    ->whereNotNull('due_date')
-                    ->update([
-                        'renew_count' => DB::raw('COALESCE(renew_count,0) + 1'),
-                        'updated_at' => now(),
-                    ]);
+                    ->where('id', (int) $it->id)
+                    ->update($update);
             }
 
-            // item aktif tapi due_date NULL -> set from today + extendDays
-            DB::table('loan_items')
-                ->where('loan_id', $loanId)
-                ->whereNull('returned_at')
-                ->whereNull('due_date')
-                ->update([
-                    'due_date' => $newDateForNull,
-                    'updated_at' => now(),
-                ]);
             if ($liHasRenewCount) {
-                DB::table('loan_items')
+                $overLimitAfter = DB::table('loan_items')
                     ->where('loan_id', $loanId)
                     ->whereNull('returned_at')
-                    ->whereNull('due_date')
-                    ->update([
-                        'renew_count' => DB::raw('COALESCE(renew_count,0) + 1'),
-                        'updated_at' => now(),
-                    ]);
+                    ->where('renew_count', '>', $maxRenewals)
+                    ->count();
+                if ($overLimitAfter > 0) {
+                    throw new \RuntimeException('Perpanjangan ditolak: batas maksimal perpanjang sudah tercapai.');
+                }
             }
 
             // Sinkronkan due_at (DATETIME) kalau kolomnya ada:

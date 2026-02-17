@@ -20,6 +20,8 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             NotobukuSeeder::class,
+            CirculationPolicyMatrixSeeder::class,
+            ReservationPolicyMatrixSeeder::class,
             EmhaTitlesSeeder::class,
             KatalogMetadataSeeder::class,
             DdcSummarySeeder::class,
@@ -27,9 +29,14 @@ class DatabaseSeeder extends Seeder
             SeedBiblioIntroAlgorithmsSeeder::class,
             SeedBiblioMathStructuresSeeder::class,
             SeedBiblioResistBookTagSeeder::class,
+            FilsafatBukuProgresifSeeder::class,
+            TanMalakaBukuProgresifSeeder::class,
+            GramediaSocratesAllBranchesSeeder::class,
+            GramediaDaleCarnegieAllBranchesSeeder::class,
             RealCatalogSeeder::class,
             LoanReturnFineSeeder::class,
             AcquisitionsSeeder::class,
+            ClassicIlsModulesSeeder::class,
         ]);
     }
 }

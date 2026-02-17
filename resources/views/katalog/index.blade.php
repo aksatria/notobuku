@@ -1,7 +1,7 @@
 {{-- resources/views/katalog/index.blade.php --}}
 @extends('layouts.notobuku')
 
-@section('title', 'Katalog - NOTOBUKU')
+@section('title', $seoTitle ?? 'Katalog - NOTOBUKU')
 
 @section('content')
 @php
@@ -14,12 +14,27 @@
   $language = $language ?? '';
   $materialType = $material_type ?? '';
   $mediaType = $media_type ?? '';
+  $languageList = collect($languageList ?? [])->map(fn($v) => (string) $v)->filter()->values()->all();
+  $materialTypeList = collect($materialTypeList ?? [])->map(fn($v) => (string) $v)->filter()->values()->all();
+  $mediaTypeList = collect($mediaTypeList ?? [])->map(fn($v) => (string) $v)->filter()->values()->all();
+  if (empty($languageList) && trim((string) $language) !== '') $languageList = [(string) $language];
+  if (empty($materialTypeList) && trim((string) $materialType) !== '') $materialTypeList = [(string) $materialType];
+  if (empty($mediaTypeList) && trim((string) $mediaType) !== '') $mediaTypeList = [(string) $mediaType];
   $ddc = $ddc ?? '';
   $year = $year ?? '';
+  $yearFrom = (int) ($yearFrom ?? 0);
+  $yearTo = (int) ($yearTo ?? 0);
   $onlyAvailable = $onlyAvailable ?? false;
   $author = $author ?? '';
   $subject = $subject ?? '';
   $publisher = $publisher ?? '';
+  $authorList = collect($authorList ?? [])->map(fn($v) => (int) $v)->filter(fn($v) => $v > 0)->values()->all();
+  $subjectList = collect($subjectList ?? [])->map(fn($v) => (int) $v)->filter(fn($v) => $v > 0)->values()->all();
+  $publisherList = collect($publisherList ?? [])->map(fn($v) => (string) $v)->filter()->values()->all();
+  $branchList = collect($branchList ?? [])->map(fn($v) => (int) $v)->filter(fn($v) => $v > 0)->values()->all();
+  if (empty($authorList) && trim((string) $author) !== '') $authorList = [(int) $author];
+  if (empty($subjectList) && trim((string) $subject) !== '') $subjectList = [(int) $subject];
+  if (empty($publisherList) && trim((string) $publisher) !== '') $publisherList = [(string) $publisher];
   $qfFields = $qfFields ?? (array) request()->query('qf_field', []);
   $qfValues = $qfValues ?? (array) request()->query('qf_value', []);
   $qfOp = $qfOp ?? (string) request()->query('qf_op', 'AND');
@@ -27,12 +42,19 @@
   $languageOptions = $languageOptions ?? collect();
   $materialTypeOptions = $materialTypeOptions ?? collect();
   $mediaTypeOptions = $mediaTypeOptions ?? collect();
+  $branchOptions = $branchOptions ?? collect();
   $sort = $sort ?? 'relevant';
   $rankMode = $rankMode ?? (string) request()->query('rank', 'institution');
   $rankMode = ($rankMode === 'personal' && auth()->check() && !$isPublic) ? 'personal' : 'institution';
   $authorFacets = $authorFacets ?? collect();
   $subjectFacets = $subjectFacets ?? collect();
   $publisherFacets = $publisherFacets ?? collect();
+  $languageFacets = $languageFacets ?? collect();
+  $materialTypeFacets = $materialTypeFacets ?? collect();
+  $mediaTypeFacets = $mediaTypeFacets ?? collect();
+  $yearFacets = $yearFacets ?? collect();
+  $branchFacets = $branchFacets ?? collect();
+  $availabilityFacets = $availabilityFacets ?? ['available' => 0, 'unavailable' => 0];
   $didYouMean = $didYouMean ?? null;
   $showDiscovery = $showDiscovery ?? false;
   $trendingBooks = $trendingBooks ?? collect();
@@ -40,6 +62,7 @@
   $indexRouteName = $indexRouteName ?? 'katalog.index';
   $showRouteName = $showRouteName ?? 'katalog.show';
   $isPublic = $isPublic ?? request()->routeIs('opac.*');
+  $opacPrefetchUrls = $opacPrefetchUrls ?? [];
   $canManage = $canManage ?? false;
   $user = auth()->user();
   $role = (string) ($user?->role ?? 'member');
@@ -57,8 +80,9 @@
     }
   }
   $hasQuery = trim((string) $q) !== '';
-  $hasFilters = trim((string) $ddc) !== '' || trim((string) $year) !== '' || trim((string) $publisher) !== ''
-    || trim((string) $author) !== '' || trim((string) $subject) !== '' || $onlyAvailable;
+  $hasFilters = trim((string) $ddc) !== '' || trim((string) $year) !== '' || !empty($publisherList)
+    || !empty($authorList) || !empty($subjectList) || !empty($languageList) || !empty($materialTypeList)
+    || !empty($mediaTypeList) || !empty($branchList) || $yearFrom > 0 || $yearTo > 0 || $onlyAvailable;
   $qfPairs = collect($qfFields)
     ->map(function ($field, $i) use ($qfValues) {
       return ['field' => $field, 'value' => $qfValues[$i] ?? ''];
@@ -72,9 +96,9 @@
     || $qfPairs->isNotEmpty();
   $advancedCount = collect([$title, $authorName, $subjectTerm, $isbn, $callNumber, $language, $materialType, $mediaType])
     ->filter(fn($v) => trim((string) $v) !== '')
-    ->count() + $qfPairs->count();
+    ->count() + $qfPairs->count() + count($branchList);
   $forceShelves = $forceShelves ?? false;
-  $showShelves = $forceShelves || ($showDiscovery && !$hasQuery && !$hasFilters);
+  $showShelves = $forceShelves;
 
   // ? helper ringkas untuk filter aktif
   $activeFilters = [];
@@ -84,25 +108,34 @@
   if(trim((string)$subjectTerm) !== '') $activeFilters[] = ['label'=>'Subjek (teks)', 'value'=>$subjectTerm, 'key' => 'subject_term'];
   if(trim((string)$isbn) !== '') $activeFilters[] = ['label'=>'ISBN', 'value'=>$isbn, 'key' => 'isbn'];
   if(trim((string)$callNumber) !== '') $activeFilters[] = ['label'=>'No. Panggil', 'value'=>$callNumber, 'key' => 'call_number'];
-  if(trim((string)$language) !== '') $activeFilters[] = ['label'=>'Bahasa', 'value'=>$language, 'key' => 'language'];
-  if(trim((string)$materialType) !== '') $activeFilters[] = ['label'=>'Jenis', 'value'=>$materialType, 'key' => 'material_type'];
-  if(trim((string)$mediaType) !== '') $activeFilters[] = ['label'=>'Media', 'value'=>$mediaType, 'key' => 'media_type'];
+  foreach($languageList as $langFilter) $activeFilters[] = ['label'=>'Bahasa', 'value'=>$langFilter, 'key' => 'language', 'item' => $langFilter];
+  foreach($materialTypeList as $matFilter) $activeFilters[] = ['label'=>'Jenis', 'value'=>$matFilter, 'key' => 'material_type', 'item' => $matFilter];
+  foreach($mediaTypeList as $mediaFilter) $activeFilters[] = ['label'=>'Media', 'value'=>$mediaFilter, 'key' => 'media_type', 'item' => $mediaFilter];
   if(trim((string)$ddc) !== '') $activeFilters[] = ['label'=>'DDC', 'value'=>$ddc, 'key' => 'ddc'];
   if(trim((string)$year) !== '') $activeFilters[] = ['label'=>'Tahun', 'value'=>$year, 'key' => 'year'];
-  if(trim((string)$publisher) !== '') $activeFilters[] = ['label'=>'Penerbit', 'value'=>$publisher, 'key' => 'publisher'];
+  if($yearFrom > 0 || $yearTo > 0) {
+    $activeFilters[] = ['label'=>'Rentang Tahun', 'value'=>trim(($yearFrom > 0 ? $yearFrom : '...').' - '.($yearTo > 0 ? $yearTo : '...')), 'key' => 'year_from'];
+  }
+  foreach($publisherList as $pubFilter) $activeFilters[] = ['label'=>'Penerbit', 'value'=>$pubFilter, 'key' => 'publisher', 'item' => $pubFilter];
+  foreach($branchList as $branchId) {
+    $branchLabel = $branchOptions->firstWhere('id', $branchId)?->name
+      ?? $branchFacets->firstWhere('id', $branchId)?->name
+      ?? ('Cabang #' . $branchId);
+    $activeFilters[] = ['label'=>'Cabang', 'value'=>$branchLabel, 'key' => 'branch', 'item' => (string) $branchId];
+  }
   if($qfPairs->isNotEmpty()) {
     $builderText = $qfPairs->map(function ($row) {
       return strtoupper((string) $row['field']) . ': ' . trim((string) $row['value']);
     })->implode(' | ');
     $activeFilters[] = ['label'=>'Builder', 'value'=>$builderText, 'key' => 'qf_field'];
   }
-  if(trim((string)$author) !== '') {
-    $authorName = $authorFacets->firstWhere('id', (int) $author)?->name ?? $author;
-    $activeFilters[] = ['label'=>'Pengarang', 'value'=>$authorName, 'key' => 'author'];
+  foreach($authorList as $authorId) {
+    $authorLabel = $authorFacets->firstWhere('id', $authorId)?->name ?? (string) $authorId;
+    $activeFilters[] = ['label'=>'Pengarang', 'value'=>$authorLabel, 'key' => 'author', 'item' => (string) $authorId];
   }
-  if(trim((string)$subject) !== '') {
-    $subjectTerm = $subjectFacets->firstWhere('id', (int) $subject)?->term ?? $subjectFacets->firstWhere('id', (int) $subject)?->name ?? $subject;
-    $activeFilters[] = ['label'=>'Subjek', 'value'=>$subjectTerm, 'key' => 'subject'];
+  foreach($subjectList as $subjectId) {
+    $subjectLabel = $subjectFacets->firstWhere('id', $subjectId)?->term ?? $subjectFacets->firstWhere('id', $subjectId)?->name ?? (string) $subjectId;
+    $activeFilters[] = ['label'=>'Subjek', 'value'=>$subjectLabel, 'key' => 'subject', 'item' => (string) $subjectId];
   }
   if($onlyAvailable) $activeFilters[] = ['label'=>'Ketersediaan', 'value'=>'Hanya yang tersedia', 'key' => 'available'];
   $sortMap = ['relevant' => 'Relevan', 'latest' => 'Terbaru', 'popular' => 'Populer', 'available' => 'Tersedia dulu'];
@@ -123,6 +156,49 @@
   $pageAvailable = (int) $pageCollection->sum('available_items_count');
   $pageItems = (int) $pageCollection->sum('items_count');
   $activeFilterCount = count($activeFilters);
+  $topLanguageFacets = collect($languageFacets)->take(6)->values();
+  $topMaterialFacets = collect($materialTypeFacets)->take(6)->values();
+  $topMediaFacets = collect($mediaTypeFacets)->take(6)->values();
+  $topYearFacets = collect($yearFacets)->take(6)->values();
+  $topBranchFacets = collect($branchFacets)->take(6)->values();
+  $yearCandidates = collect($yearFacets)
+    ->map(fn($r) => (int) ($r->label ?? 0))
+    ->filter(fn($v) => $v > 0)
+    ->values();
+  $yearNow = (int) now()->format('Y');
+  $yearMinBound = $yearCandidates->isNotEmpty() ? max(1000, (int) $yearCandidates->min()) : max(1000, $yearNow - 30);
+  $yearMaxBound = $yearCandidates->isNotEmpty() ? min(3000, (int) $yearCandidates->max()) : min(3000, $yearNow + 1);
+  if ($yearMinBound > $yearMaxBound) {
+    $yearMinBound = max(1000, $yearNow - 30);
+    $yearMaxBound = min(3000, $yearNow + 1);
+  }
+  $yearSliderFrom = $yearFrom > 0 ? $yearFrom : ((int) $year > 0 ? (int) $year : $yearMinBound);
+  $yearSliderTo = $yearTo > 0 ? $yearTo : ((int) $year > 0 ? (int) $year : $yearMaxBound);
+  if ($yearSliderFrom < $yearMinBound) $yearSliderFrom = $yearMinBound;
+  if ($yearSliderTo > $yearMaxBound) $yearSliderTo = $yearMaxBound;
+  if ($yearSliderFrom > $yearSliderTo) {
+    $tmpYear = $yearSliderFrom;
+    $yearSliderFrom = $yearSliderTo;
+    $yearSliderTo = $tmpYear;
+  }
+
+  $seoTitle = $isPublic
+    ? (($q !== '' ? 'Hasil OPAC: ' . $q . ' - ' : '') . 'Katalog OPAC NOTOBUKU')
+    : 'Katalog - NOTOBUKU';
+  $seoDescription = $isPublic
+    ? ($q !== ''
+      ? "Temukan koleksi untuk kata kunci '{$q}'. Tersedia {$totalResults} hasil di OPAC NOTOBUKU."
+      : "Jelajahi katalog OPAC NOTOBUKU. Total koleksi tersedia: {$totalResults} judul.")
+    : 'Katalog internal NOTOBUKU.';
+  $canonicalUrl = $isPublic ? request()->url() . (request()->getQueryString() ? ('?' . request()->getQueryString()) : '') : null;
+  $pageNum = (int) request()->query('page', 1);
+  $queryParamCount = collect(request()->query())
+    ->reject(fn($v, $k) => $k === 'page' || $v === null || $v === '' || $v === [] || $v === false)
+    ->count();
+  $crawlNoIndex = $isPublic && (($pageNum > 20) || ($queryParamCount >= 4) || ($q !== '' && $queryParamCount >= 2));
+  if ($crawlNoIndex && $isPublic) {
+    $canonicalUrl = route('opac.index', array_filter(['q' => $q !== '' ? $q : null]));
+  }
 
   $queryTokens = collect(preg_split('/\s+/', $q))
     ->filter(fn($t) => $t !== '' && mb_strlen($t) >= 3)
@@ -160,12 +236,43 @@
       return $p->url($page);
   };
 
-  $filterClearUrl = function(string $key) use ($indexRouteName) {
+  $filterClearUrl = function(string $key, ?string $item = null) use ($indexRouteName) {
     $params = request()->query();
-    unset($params[$key]);
+    if ($item !== null && isset($params[$key]) && is_array($params[$key])) {
+      $params[$key] = array_values(array_filter((array) $params[$key], fn($v) => (string) $v !== (string) $item));
+      if (count($params[$key]) === 0) {
+        unset($params[$key]);
+      }
+    } else {
+      unset($params[$key]);
+    }
     if ($key === 'qf_field') {
       unset($params['qf_value'], $params['qf_op'], $params['qf_exact']);
     }
+    if ($key === 'year_from') {
+      unset($params['year_to']);
+    }
+    return route($indexRouteName, $params);
+  };
+
+  $facetToggleUrl = function (string $key, string $value) use ($indexRouteName) {
+    $params = request()->query();
+    $current = $params[$key] ?? [];
+    if (!is_array($current)) {
+      $current = $current === '' ? [] : [$current];
+    }
+    $exists = in_array((string) $value, array_map('strval', $current), true);
+    if ($exists) {
+      $current = array_values(array_filter($current, fn($v) => (string) $v !== (string) $value));
+    } else {
+      $current[] = (string) $value;
+    }
+    if (count($current) > 0) {
+      $params[$key] = $current;
+    } else {
+      unset($params[$key]);
+    }
+    $params['page'] = 1;
     return route($indexRouteName, $params);
   };
 
@@ -176,6 +283,81 @@
   };
   $suggestUrl = $isPublic ? route('opac.suggest') : route('katalog.suggest');
 @endphp
+
+@if($isPublic)
+  @push('head')
+    <meta name="description" content="{{ $seoDescription }}">
+    <meta name="robots" content="{{ $crawlNoIndex ? 'noindex,follow,max-image-preview:large' : 'index,follow,max-image-preview:large' }}">
+    <link rel="canonical" href="{{ $canonicalUrl }}">
+    <link rel="alternate" hreflang="id-ID" href="{{ $canonicalUrl }}">
+    <link rel="alternate" hreflang="x-default" href="{{ $canonicalUrl }}">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="{{ $seoTitle }}">
+    <meta property="og:description" content="{{ $seoDescription }}">
+    <meta property="og:url" content="{{ $canonicalUrl }}">
+    <meta property="og:site_name" content="NOTOBUKU OPAC">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{ $seoTitle }}">
+    <meta name="twitter:description" content="{{ $seoDescription }}">
+    <script type="application/ld+json">
+      {!! json_encode([
+        '@' . 'context' => 'https://schema.org',
+        '@' . 'type' => 'SearchResultsPage',
+        'name' => $seoTitle,
+        'description' => $seoDescription,
+        'url' => $canonicalUrl,
+        'mainEntity' => [
+          '@' . 'type' => 'ItemList',
+          'numberOfItems' => $totalResults,
+          'itemListElement' => $pageCollection->take(10)->values()->map(function ($b, $i) use ($showRouteName) {
+            return [
+              '@' . 'type' => 'ListItem',
+              'position' => $i + 1,
+              'url' => route($showRouteName, $b->id),
+              'name' => (string) ($b->display_title ?? $b->title ?? '-'),
+            ];
+          })->all(),
+        ],
+        'potentialAction' => [
+          '@' . 'type' => 'SearchAction',
+          'target' => route('opac.index') . '?q={search_term_string}',
+          'query-input' => 'required name=search_term_string',
+        ],
+      ], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) !!}
+    </script>
+  @endpush
+@endif
+
+@if($isPublic && !empty($opacPrefetchUrls))
+  @push('scripts')
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        var urls = @json(array_values($opacPrefetchUrls));
+        if (!Array.isArray(urls) || urls.length === 0) return;
+
+        var run = function () {
+          urls.forEach(function (u) {
+            if (!u) return;
+            try {
+              var link = document.createElement('link');
+              link.rel = 'prefetch';
+              link.href = u;
+              link.as = 'document';
+              document.head.appendChild(link);
+            } catch (_) {}
+            fetch(u, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } }).catch(function(){});
+          });
+        };
+
+        if ('requestIdleCallback' in window) {
+          window.requestIdleCallback(run, { timeout: 1800 });
+        } else {
+          setTimeout(run, 900);
+        }
+      });
+    </script>
+  @endpush
+@endif
 
 <script>
   document.addEventListener('DOMContentLoaded', function () {
@@ -218,10 +400,27 @@
   document.addEventListener('DOMContentLoaded', function () {
     var advToggle = document.getElementById('nbAdvancedToggle');
     var advWrap = document.getElementById('nbAdvancedWrap');
+    var advClose = document.getElementById('nbAdvancedClose');
+    var advBackdrop = advWrap ? advWrap.querySelector('[data-close-advanced]') : null;
     if (!advToggle || !advWrap) return;
+
+    var setAdvancedOpen = function (open) {
+      advWrap.classList.toggle('is-open', open);
+      advWrap.setAttribute('aria-hidden', open ? 'false' : 'true');
+      advToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      document.body.classList.toggle('nb-k-lock', open);
+    };
+
     advToggle.addEventListener('click', function () {
-      var hidden = advWrap.classList.toggle('is-hidden');
-      advToggle.setAttribute('aria-expanded', hidden ? 'false' : 'true');
+      setAdvancedOpen(!advWrap.classList.contains('is-open'));
+    });
+
+    if (advClose) advClose.addEventListener('click', function () { setAdvancedOpen(false); });
+    if (advBackdrop) advBackdrop.addEventListener('click', function () { setAdvancedOpen(false); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && advWrap.classList.contains('is-open')) {
+        setAdvancedOpen(false);
+      }
     });
   });
 
@@ -447,8 +646,22 @@
     var preloadSlider = document.getElementById('nbPreloadSlider');
     var preloadValue = document.getElementById('nbPreloadValue');
     var preloadLabel = document.getElementById('nbPreloadLabel');
+    var facetWrap = document.getElementById('nbFacetRailWrap');
+    var facetUrl = @json($isPublic ? route('opac.facets') : route('katalog.facets'));
     var prefUrl = @json(route('preferences.katalog_ui.set'));
     var csrf = @json(csrf_token());
+    var facetRefreshTimer = null;
+    var facetAbortController = null;
+    var facetRequestSeq = 0;
+    var lastFacetQuery = '';
+    var facetRefreshPendingWhenHidden = false;
+    var explicitApplySubmit = false;
+    var applyBtn = form.querySelector('.nb-k-ibtn.apply');
+    if (applyBtn) {
+      applyBtn.addEventListener('click', function () {
+        explicitApplySubmit = true;
+      });
+    }
 
     if (skeletonToggle) {
       var isOn = skeletonToggle.checked;
@@ -517,6 +730,64 @@
       }
     };
 
+    var refreshFacets = function (force) {
+      if (!facetWrap || !facetUrl) return;
+      if (document.hidden) {
+        facetRefreshPendingWhenHidden = true;
+        return;
+      }
+      var params = new URLSearchParams(new FormData(form));
+      params.set('ajax', '1');
+      params.set('facets_only', '1');
+      var query = params.toString();
+      if (!force && query === lastFacetQuery) return;
+
+      if (facetAbortController && typeof facetAbortController.abort === 'function') {
+        facetAbortController.abort();
+      }
+      facetAbortController = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+      facetRequestSeq += 1;
+      var currentSeq = facetRequestSeq;
+      facetWrap.classList.add('is-loading');
+
+      fetch(facetUrl + '?' + query, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        signal: facetAbortController ? facetAbortController.signal : undefined
+      })
+        .then(function (res) {
+          if (!res.ok) throw new Error('http');
+          return res.json();
+        })
+        .then(function (data) {
+          if (currentSeq !== facetRequestSeq) return;
+          if (data && data.facet_html) {
+            facetWrap.innerHTML = data.facet_html;
+            lastFacetQuery = query;
+            facetRefreshPendingWhenHidden = false;
+          }
+        })
+        .catch(function (err) {
+          if (err && err.name === 'AbortError') return;
+        })
+        .finally(function () {
+          facetWrap.classList.remove('is-loading');
+        });
+    };
+
+    var scheduleFacetRefresh = function () {
+      if (!facetWrap || !facetUrl) return;
+      if (facetRefreshTimer) window.clearTimeout(facetRefreshTimer);
+      facetRefreshTimer = window.setTimeout(function () {
+        refreshFacets();
+      }, 160);
+    };
+
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden && facetRefreshPendingWhenHidden) {
+        scheduleFacetRefresh();
+      }
+    });
+
     var renderSkeleton = function () {
       var cards = [];
       for (var i = 0; i < 6; i++) {
@@ -558,8 +829,49 @@
       if (existing) existing.style.display = 'none';
     };
 
-      var fetchResults = function (urlOverride) {
-        var params = new URLSearchParams(new FormData(form));
+    var buildParams = function (keepFilters) {
+      var params = new URLSearchParams(new FormData(form));
+      if (!keepFilters) {
+          [
+            'title', 'author_name', 'subject_term', 'isbn', 'call_number',
+            'ddc', 'year', 'year_from', 'year_to', 'available',
+            'language', 'language[]', 'material_type', 'material_type[]', 'media_type', 'media_type[]',
+            'publisher', 'publisher[]', 'author', 'author[]', 'subject', 'subject[]', 'branch', 'branch[]',
+            'qf_op', 'qf_exact', 'qf_field', 'qf_field[]', 'qf_value', 'qf_value[]'
+          ].forEach(function (key) { params.delete(key); });
+      }
+      return params;
+    };
+
+    var resetAdvancedControls = function () {
+      // Sinkronkan UI form dengan mode pencarian cepat (tanpa filter lanjutan)
+      form.querySelectorAll('input[name="title"], input[name="author_name"], input[name="subject_term"], input[name="isbn"], input[name="call_number"], input[name="ddc"], input[name="year"], input[name="year_from"], input[name="year_to"]')
+        .forEach(function (el) { el.value = ''; });
+
+      form.querySelectorAll('select[name="language[]"], select[name="material_type[]"], select[name="media_type[]"], select[name="publisher[]"], select[name="author[]"], select[name="subject[]"], select[name="branch[]"]')
+        .forEach(function (sel) {
+          Array.from(sel.options || []).forEach(function (opt) { opt.selected = false; });
+        });
+
+      form.querySelectorAll('select[name="qf_field[]"]').forEach(function (sel) { sel.value = ''; });
+      form.querySelectorAll('input[name="qf_value[]"]').forEach(function (el) { el.value = ''; });
+
+      var qfOp = form.querySelector('select[name="qf_op"]');
+      if (qfOp) qfOp.value = 'AND';
+      var qfExact = form.querySelector('input[name="qf_exact"]');
+      if (qfExact) qfExact.checked = false;
+
+      var available = form.querySelector('input[name="available"]');
+      if (available) available.checked = false;
+    };
+
+      var fetchResults = function (urlOverride, opts) {
+        opts = opts || {};
+        var keepFilters = !!opts.keepFilters;
+        if (!keepFilters && !urlOverride) {
+          resetAdvancedControls();
+        }
+        var params = buildParams(keepFilters);
         params.set('ajax', '1');
         var url = urlOverride || (actionPath + '?' + params.toString());
         url = normalizeUrl(url);
@@ -573,7 +885,7 @@
           if (!res.ok) throw new Error('http');
           var ct = (res.headers && res.headers.get && res.headers.get('content-type')) || '';
           if (ct.indexOf('application/json') === -1) {
-            var cleanParams = new URLSearchParams(new FormData(form));
+            var cleanParams = buildParams(keepFilters);
             window.location.href = actionPath + '?' + cleanParams.toString();
             return null;
           }
@@ -581,23 +893,35 @@
         })
         .then(function (data) {
           if (!data) return;
-            if (data && data.html) {
-              results.innerHTML = data.html;
-              nextUrl = normalizeUrl(data.next_page_url || '');
-              var cleanParams = new URLSearchParams(new FormData(form));
+          if (data && data.html) {
+            results.innerHTML = data.html;
+            nextUrl = normalizeUrl(data.next_page_url || '');
+            hideAjaxError();
+
+            // Post-render hooks tidak boleh menjatuhkan request utama.
+            try {
+              var cleanParams = buildParams(keepFilters);
               var newUrl = actionPath + '?' + cleanParams.toString();
               history.replaceState({}, '', newUrl);
-              hideAjaxError();
+            } catch (err) {}
+
+            try {
               if (window.nbKatalogSetupBatch) window.nbKatalogSetupBatch();
-            }
-            loading = false;
-            var pag = document.getElementById('nbPagination');
-            if (pag && infiniteEnabled && hidePagination) pag.style.display = 'none';
-            preloadIfShort();
+            } catch (err) {}
+
+            try {
+              scheduleFacetRefresh();
+            } catch (err) {}
+          }
         })
         .catch(function () {
-          loading = false;
           showAjaxError();
+        })
+        .finally(function () {
+          loading = false;
+          var pag = document.getElementById('nbPagination');
+          if (pag && infiniteEnabled && hidePagination) pag.style.display = 'none';
+          preloadIfShort();
         });
       };
 
@@ -606,24 +930,26 @@
     input.addEventListener('input', function () {
       if (timer) window.clearTimeout(timer);
       timer = window.setTimeout(function () {
-        fetchResults();
+        fetchResults(null, { keepFilters: false });
       }, debounceMs);
     });
 
     form.addEventListener('submit', function (e) {
       e.preventDefault();
-      fetchResults();
+      var keepFilters = explicitApplySubmit;
+      explicitApplySubmit = false;
+      fetchResults(null, { keepFilters: keepFilters });
     });
 
     form.querySelectorAll('[data-nb-autosubmit="1"]').forEach(function (el) {
       el.addEventListener('input', function () {
         if (timer) window.clearTimeout(timer);
-        timer = window.setTimeout(function () { fetchResults(); }, debounceMs);
+        timer = window.setTimeout(function () { fetchResults(null, { keepFilters: true }); }, debounceMs);
       });
     });
     form.querySelectorAll('[data-nb-autosubmit-change="1"]').forEach(function (el) {
       el.addEventListener('change', function () {
-        fetchResults();
+        fetchResults(null, { keepFilters: true });
       });
     });
 
@@ -652,11 +978,11 @@
         })
         .then(function (data) {
           if (!data) return;
-          if (data && data.html) {
-            var grid = document.getElementById('nbKGrid');
-            if (grid) {
-              var temp = document.createElement('div');
-              temp.innerHTML = data.html;
+            if (data && data.html) {
+              var grid = document.getElementById('nbKGrid');
+              if (grid) {
+                var temp = document.createElement('div');
+                temp.innerHTML = data.html;
               var newGrid = temp.querySelector('#nbKGrid');
               if (newGrid) {
                 while (newGrid.firstChild) {
@@ -665,6 +991,7 @@
               }
             }
             nextUrl = normalizeUrl(data.next_page_url || '');
+            scheduleFacetRefresh();
           }
           loading = false;
           preloadIfShort();
@@ -753,6 +1080,56 @@
     setupAuto('nbPopularRow');
     setupAuto('nbNewRow');
   });
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var form = document.getElementById('nbFilterForm') || document.querySelector('form[action*="katalog"]');
+    var wrappers = Array.prototype.slice.call(document.querySelectorAll('[data-nb-year-range]'));
+    if (!form || wrappers.length === 0) return;
+
+    wrappers.forEach(function (wrap) {
+      var min = parseInt(wrap.getAttribute('data-year-min') || '0', 10);
+      var max = parseInt(wrap.getAttribute('data-year-max') || '0', 10);
+      var fromSlider = wrap.querySelector('[data-year-from-slider]');
+      var toSlider = wrap.querySelector('[data-year-to-slider]');
+      var fromLabel = wrap.querySelector('[data-year-from-label]');
+      var toLabel = wrap.querySelector('[data-year-to-label]');
+      var fromInput = form.querySelector('input[name="year_from"]');
+      var toInput = form.querySelector('input[name="year_to"]');
+      if (!fromSlider || !toSlider || !fromInput || !toInput) return;
+
+      var sync = function () {
+        var fromVal = parseInt(fromSlider.value || String(min), 10);
+        var toVal = parseInt(toSlider.value || String(max), 10);
+        if (fromVal > toVal) {
+          var t = fromVal; fromVal = toVal; toVal = t;
+          fromSlider.value = String(fromVal);
+          toSlider.value = String(toVal);
+        }
+        fromInput.value = String(fromVal);
+        toInput.value = String(toVal);
+        if (fromLabel) fromLabel.textContent = String(fromVal);
+        if (toLabel) toLabel.textContent = String(toVal);
+      };
+
+      var timer;
+      var submitSoon = function () {
+        if (timer) window.clearTimeout(timer);
+        timer = window.setTimeout(function () {
+          if (window.nbKatalogFetchResults) {
+            window.nbKatalogFetchResults();
+          } else {
+            form.requestSubmit();
+          }
+        }, 220);
+      };
+
+      fromSlider.addEventListener('input', function () { sync(); });
+      toSlider.addEventListener('input', function () { sync(); });
+      fromSlider.addEventListener('change', function () { sync(); submitSoon(); });
+      toSlider.addEventListener('change', function () { sync(); submitSoon(); });
+      sync();
+    });
+  });
 </script>
 
 <style>
@@ -808,6 +1185,31 @@
   }
 
   .nb-k-filter .actions{ grid-column: 1 / -1; justify-content:flex-end; }
+  .nb-k-yearRange{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    padding:8px 10px;
+    border:1px solid rgba(148,163,184,.28);
+    border-radius:12px;
+    background:rgba(255,255,255,.72);
+  }
+  .nb-k-yearRange input[type="range"]{
+    width:100%;
+    accent-color:#1e88e5;
+  }
+  .nb-k-yearRangeMeta{
+    display:flex;
+    justify-content:space-between;
+    font-size:12px;
+    font-weight:700;
+    color:rgba(11,37,69,.8);
+  }
+  html.dark .nb-k-yearRange{
+    background:rgba(15,23,42,.4);
+    border-color:rgba(148,163,184,.22);
+  }
+  html.dark .nb-k-yearRangeMeta{ color:rgba(226,232,240,.85); }
   .nb-k-suggestRow{
     display:flex;
     align-items:center;
@@ -935,14 +1337,58 @@
     background: rgba(15,23,42,.45);
     color: rgba(226,232,240,.9);
   }
-  .nb-k-advancedWrap{ margin-top:8px; }
-  .nb-k-advancedWrap.is-hidden{ display:none; }
+  .nb-k-advancedWrap{
+    position:fixed;
+    inset:0;
+    z-index:1200;
+    display:none;
+  }
+  .nb-k-advancedWrap.is-open{ display:block; }
+  .nb-k-advancedBackdrop{
+    position:absolute;
+    inset:0;
+    background:rgba(15,23,42,.36);
+  }
   .nb-k-advancedPanel{
-    margin-top:6px;
-    padding:8px 10px;
-    border-radius:14px;
-    border:1px dashed rgba(148,163,184,.28);
-    background: rgba(248,250,252,.7);
+    position:absolute;
+    top:0;
+    right:0;
+    width:min(780px, 94vw);
+    height:100%;
+    overflow:auto;
+    padding:14px 14px 18px;
+    border-left:1px solid rgba(148,163,184,.28);
+    background: rgba(248,250,252,.98);
+    box-shadow: -18px 0 40px rgba(2,6,23,.2);
+  }
+  .nb-k-advancedHead{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    margin-bottom:10px;
+  }
+  .nb-k-advancedTitle{
+    font-size:14px;
+    font-weight:800;
+    color: rgba(15,23,42,.92);
+  }
+  .nb-k-advancedSub{
+    margin-top:2px;
+    font-size:12px;
+    color: rgba(51,65,85,.75);
+  }
+  .nb-k-advancedClose{
+    width:34px;
+    height:34px;
+    border-radius:10px;
+    border:1px solid rgba(148,163,184,.35);
+    background:#fff;
+    color: rgba(15,23,42,.86);
+    font-weight:700;
+    font-size:18px;
+    line-height:1;
+    cursor:pointer;
   }
   .nb-k-advPrefs{
     margin-top:10px;
@@ -957,8 +1403,17 @@
   }
   html.dark .nb-k-advancedPanel{
     border-color: rgba(148,163,184,.22);
-    background: rgba(15,23,42,.35);
+    background: rgba(15,23,42,.96);
+    box-shadow: -18px 0 40px rgba(0,0,0,.45);
   }
+  html.dark .nb-k-advancedTitle{ color: rgba(248,250,252,.94); }
+  html.dark .nb-k-advancedSub{ color: rgba(226,232,240,.65); }
+  html.dark .nb-k-advancedClose{
+    border-color: rgba(148,163,184,.28);
+    background: rgba(15,23,42,.6);
+    color: rgba(226,232,240,.92);
+  }
+  body.nb-k-lock{ overflow:hidden; }
   .nb-k-advBuilder{
     margin-top:12px;
     padding-top:12px;
@@ -1257,12 +1712,73 @@
 
   .nb-k-helpRow{
     margin-top:8px;
-    font-size:12px;
-    font-weight:500;
-    color: rgba(11,37,69,.56);
-    line-height:1.3;
+    display:flex;
+    justify-content:flex-end;
+    align-items:center;
   }
-  html.dark .nb-k-helpRow{ color: rgba(226,232,240,.58); }
+  .nb-k-tipMini{ position:relative; }
+  .nb-k-tipMini > summary{
+    list-style:none;
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    font-size:12px;
+    font-weight:700;
+    color: rgba(30,64,175,.92);
+    background: rgba(219,234,254,.65);
+    border:1px solid rgba(147,197,253,.7);
+    border-radius:999px;
+    padding:5px 10px;
+    cursor:pointer;
+    user-select:none;
+  }
+  .nb-k-tipMini > summary::-webkit-details-marker{ display:none; }
+  .nb-k-tipMini > summary::before{
+    content:'?';
+    width:16px;
+    height:16px;
+    border-radius:999px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    font-size:11px;
+    font-weight:800;
+    border:1px solid rgba(59,130,246,.35);
+    background:#fff;
+    color: rgba(30,64,175,.95);
+  }
+  .nb-k-tipPanel{
+    position:absolute;
+    right:0;
+    top:calc(100% + 8px);
+    min-width:320px;
+    max-width:min(520px, 78vw);
+    z-index:50;
+    border-radius:12px;
+    border:1px solid rgba(148,163,184,.3);
+    background:#fff;
+    box-shadow: 0 16px 34px rgba(2,6,23,.16);
+    padding:10px 12px;
+    font-size:12.5px;
+    line-height:1.45;
+    color: rgba(51,65,85,.9);
+  }
+  html.dark .nb-k-tipMini > summary{
+    color: rgba(191,219,254,.95);
+    background: rgba(30,58,138,.34);
+    border-color: rgba(96,165,250,.45);
+  }
+  html.dark .nb-k-tipMini > summary::before{
+    background: rgba(15,23,42,.72);
+    color: rgba(191,219,254,.95);
+    border-color: rgba(96,165,250,.35);
+  }
+  html.dark .nb-k-tipPanel{
+    border-color: rgba(148,163,184,.3);
+    background: rgba(15,23,42,.96);
+    color: rgba(226,232,240,.88);
+    box-shadow: 0 16px 34px rgba(0,0,0,.45);
+  }
   .nb-k-muted-sm{
     font-size:11px;
     font-weight:600;
@@ -1463,6 +1979,172 @@
     align-items:center;
     flex-wrap:wrap;
   }
+  .sr-only{
+    position:absolute !important;
+    width:1px !important;
+    height:1px !important;
+    padding:0 !important;
+    margin:-1px !important;
+    overflow:hidden !important;
+    clip:rect(0, 0, 0, 0) !important;
+    white-space:nowrap !important;
+    border:0 !important;
+  }
+  .nb-k-dym{
+    margin-top:10px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    flex-wrap:wrap;
+    padding:10px 12px;
+    border-radius:12px;
+    border:1px solid rgba(14,116,144,.2);
+    background:rgba(103,232,249,.14);
+    color:rgba(12,74,110,.95);
+    font-size:12.5px;
+    font-weight:600;
+  }
+  .nb-k-dym-label{
+    text-transform:uppercase;
+    letter-spacing:.09em;
+    font-size:11px;
+    font-weight:800;
+    color:rgba(8,47,73,.82);
+  }
+  .nb-k-dym-link{
+    display:inline-flex;
+    align-items:center;
+    border-radius:999px;
+    padding:5px 10px;
+    border:1px solid rgba(3,105,161,.3);
+    background:#fff;
+    color:rgba(3,105,161,.95);
+    font-weight:700;
+  }
+  .nb-k-facetRail{
+    margin-top:10px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+  }
+  .nb-k-facetGroup{
+    display:flex;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:6px;
+  }
+  .nb-k-facetTitle{
+    font-size:11.5px;
+    font-weight:800;
+    color:rgba(15,23,42,.72);
+    text-transform:uppercase;
+    letter-spacing:.08em;
+  }
+  .nb-k-facetChip{
+    display:inline-flex;
+    align-items:center;
+    padding:4px 10px;
+    border-radius:999px;
+    border:1px solid rgba(148,163,184,.36);
+    background:rgba(255,255,255,.84);
+    color:rgba(15,23,42,.8);
+    font-size:12px;
+    font-weight:600;
+  }
+  .nb-k-facetChip.is-active{
+    border-color: rgba(30,136,229,.5);
+    background: rgba(30,136,229,.14);
+    color: rgba(11,89,176,.95);
+  }
+  html.dark .nb-k-facetChip.is-active{
+    border-color: rgba(96,165,250,.5);
+    background: rgba(30,64,175,.26);
+    color: rgba(191,219,254,.96);
+  }
+  .nb-k-facetCompact{
+    margin-top:10px;
+    padding:10px 12px;
+    border:1px solid rgba(191,219,254,.8);
+    border-radius:14px;
+    background:rgba(241,245,249,.62);
+    display:grid;
+    gap:10px;
+  }
+  .nb-k-facetMain{ display:grid; gap:8px; }
+  .nb-k-facetRow{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    flex-wrap:wrap;
+  }
+  .nb-k-facetLabel{
+    min-width:96px;
+    font-size:11.5px;
+    font-weight:800;
+    text-transform:uppercase;
+    letter-spacing:.07em;
+    color:rgba(30,41,59,.78);
+  }
+  .nb-k-advFacet{
+    border:1px dashed rgba(148,163,184,.42);
+    border-radius:12px;
+    padding:8px 10px;
+    background:rgba(255,255,255,.6);
+  }
+  .nb-k-advFacet > summary{
+    cursor:pointer;
+    list-style:none;
+    font-weight:700;
+    font-size:12.5px;
+    color:rgba(30,64,175,.95);
+  }
+  .nb-k-advFacet > summary::-webkit-details-marker{ display:none; }
+  .nb-k-facetAdvGrid{
+    display:grid;
+    gap:8px;
+    margin-top:8px;
+  }
+  .nb-k-kpiMini{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+  }
+  .nb-k-kpiPill{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    border-radius:999px;
+    border:1px solid rgba(148,163,184,.35);
+    background:rgba(255,255,255,.82);
+    padding:6px 10px;
+    font-size:12px;
+    color:rgba(30,41,59,.82);
+    font-weight:600;
+  }
+  .nb-k-kpiPill b{ font-weight:800; color:rgba(15,23,42,.95); }
+  #nbFacetRailWrap{
+    transition: opacity .16s ease;
+  }
+  #nbFacetRailWrap.is-loading{
+    opacity:.62;
+    pointer-events:none;
+  }
+  html.dark .nb-k-facetCompact{
+    border-color: rgba(148,163,184,.22);
+    background: rgba(15,23,42,.35);
+  }
+  html.dark .nb-k-facetLabel{ color: rgba(226,232,240,.76); }
+  html.dark .nb-k-advFacet{
+    border-color: rgba(148,163,184,.28);
+    background: rgba(2,6,23,.32);
+  }
+  html.dark .nb-k-advFacet > summary{ color: rgba(147,197,253,.95); }
+  html.dark .nb-k-kpiPill{
+    border-color: rgba(148,163,184,.3);
+    background: rgba(2,6,23,.42);
+    color: rgba(226,232,240,.86);
+  }
+  html.dark .nb-k-kpiPill b{ color: rgba(248,250,252,.95); }
 
   /* ---------- Batch edit (staff) ---------- */
   .nb-k-batchBar{
@@ -1866,38 +2548,18 @@
     box-shadow: 0 14px 34px rgba(0,0,0,.32);
   }
 
-  .nb-k-rankToggle{
-    display:inline-flex;
+  .nb-k-sortForm{
+    display:flex;
+    gap:8px;
     align-items:center;
-    gap:6px;
-    padding:4px;
-    border-radius:999px;
-    border:1px solid rgba(15,23,42,.12);
-    background: rgba(255,255,255,.9);
+    flex-wrap:wrap;
   }
-  .nb-k-rankBtn{
-    display:inline-flex;
-    align-items:center;
-    padding:6px 10px;
-    border-radius:999px;
-    font-size:12px;
-    font-weight:600;
-    color: rgba(11,37,69,.7);
-    text-decoration:none;
-    transition: background .12s ease, color .12s ease;
-  }
-  .nb-k-rankBtn.is-active{
-    background: rgba(30,136,229,.12);
-    color: rgba(30,136,229,.95);
-  }
-  html.dark .nb-k-rankToggle{
-    border-color: rgba(148,163,184,.22);
-    background: rgba(15,23,42,.45);
-  }
-  html.dark .nb-k-rankBtn{ color: rgba(226,232,240,.7); }
-  html.dark .nb-k-rankBtn.is-active{
-    background: rgba(30,136,229,.2);
-    color: rgba(226,232,240,.95);
+  .nb-k-sortSelect{
+    min-width:165px;
+    height:36px;
+    border-radius:10px;
+    font-size:12.5px;
+    padding:0 10px;
   }
 
   /* Stabilize header rendering (avoid blur/overlap) */
@@ -2983,8 +3645,16 @@
 
 
       </div>
-        <div class="nb-k-advancedWrap {{ $hasAdvanced ? '' : 'is-hidden' }}" id="nbAdvancedWrap">
+        <div class="nb-k-advancedWrap" id="nbAdvancedWrap" aria-hidden="true">
+          <button class="nb-k-advancedBackdrop" type="button" data-close-advanced aria-label="Tutup panel filter lanjutan"></button>
           <div class="nb-k-advancedPanel">
+          <div class="nb-k-advancedHead">
+            <div>
+              <div class="nb-k-advancedTitle">Filter Lanjutan</div>
+              <div class="nb-k-advancedSub">Atur filter detail tanpa memenuhi halaman utama.</div>
+            </div>
+            <button type="button" class="nb-k-advancedClose" id="nbAdvancedClose" aria-label="Tutup">×</button>
+          </div>
         <div class="nb-k-filter">
           <div class="nb-k-fieldBlock">
             <label class="nb-k-label">DDC</label>
@@ -2992,13 +3662,38 @@
           </div>
 
           <div class="nb-k-fieldBlock">
-            <label class="nb-k-label">Tahun</label>
+            <label class="nb-k-label">Tahun (tepat)</label>
             <input class="nb-field" type="number" name="year" value="{{ $year }}" placeholder="2024" min="0" max="2100" data-nb-autosubmit="1">
+          </div>
+          <div class="nb-k-fieldBlock">
+            <label class="nb-k-label">Tahun Dari</label>
+            <input class="nb-field" type="number" name="year_from" value="{{ $yearFrom > 0 ? $yearFrom : '' }}" placeholder="2010" min="0" max="2100" data-nb-autosubmit="1">
+          </div>
+          <div class="nb-k-fieldBlock">
+            <label class="nb-k-label">Tahun Sampai</label>
+            <input class="nb-field" type="number" name="year_to" value="{{ $yearTo > 0 ? $yearTo : '' }}" placeholder="2025" min="0" max="2100" data-nb-autosubmit="1">
+          </div>
+          <div class="nb-k-fieldBlock" style="grid-column: 1 / -1;">
+            <label class="nb-k-label">Rentang Tahun Cepat</label>
+            <div class="nb-k-yearRange" data-nb-year-range data-year-min="{{ $yearMinBound }}" data-year-max="{{ $yearMaxBound }}">
+              <input type="range" min="{{ $yearMinBound }}" max="{{ $yearMaxBound }}" value="{{ $yearSliderFrom }}" data-year-from-slider>
+              <input type="range" min="{{ $yearMinBound }}" max="{{ $yearMaxBound }}" value="{{ $yearSliderTo }}" data-year-to-slider>
+              <div class="nb-k-yearRangeMeta">
+                <span data-year-from-label>{{ $yearSliderFrom }}</span>
+                <span data-year-to-label>{{ $yearSliderTo }}</span>
+              </div>
+            </div>
           </div>
 
           <div class="nb-k-fieldBlock">
             <label class="nb-k-label">Penerbit</label>
-            <input class="nb-field" type="text" name="publisher" value="{{ $publisher }}" placeholder="Nama penerbit" list="publisherOptions" data-nb-autosubmit="1">
+            <select class="nb-field" name="publisher[]" multiple size="4" data-nb-autosubmit-change="1">
+              @foreach($publisherFacets as $pub)
+                <option value="{{ $pub->publisher }}" {{ in_array((string) $pub->publisher, array_map('strval', $publisherList), true) ? 'selected' : '' }}>
+                  {{ $pub->publisher }} ({{ $pub->total }})
+                </option>
+              @endforeach
+            </select>
             <datalist id="publisherOptions">
               @foreach($publisherFacets as $pub)
                 <option value="{{ $pub->publisher }}">
@@ -3008,10 +3703,9 @@
 
           <div class="nb-k-fieldBlock">
             <label class="nb-k-label">Pengarang</label>
-            <select class="nb-field" name="author" data-nb-autosubmit-change="1">
-              <option value="">Semua pengarang</option>
+            <select class="nb-field" name="author[]" multiple size="4" data-nb-autosubmit-change="1">
               @foreach($authorFacets as $a)
-                <option value="{{ $a->id }}" {{ (string)$author === (string)$a->id ? 'selected' : '' }}>
+                <option value="{{ $a->id }}" {{ in_array((int) $a->id, array_map('intval', $authorList), true) ? 'selected' : '' }}>
                   {{ $a->name }} ({{ $a->total }})
                 </option>
               @endforeach
@@ -3020,10 +3714,9 @@
 
           <div class="nb-k-fieldBlock">
             <label class="nb-k-label">Subjek</label>
-            <select class="nb-field" name="subject" data-nb-autosubmit-change="1">
-              <option value="">Semua subjek</option>
+            <select class="nb-field" name="subject[]" multiple size="4" data-nb-autosubmit-change="1">
               @foreach($subjectFacets as $s)
-                <option value="{{ $s->id }}" {{ (string)$subject === (string)$s->id ? 'selected' : '' }}>
+                <option value="{{ $s->id }}" {{ in_array((int) $s->id, array_map('intval', $subjectList), true) ? 'selected' : '' }}>
                   {{ $s->term ?? $s->name }} ({{ $s->total }})
                 </option>
               @endforeach
@@ -3075,30 +3768,37 @@
 
           <div class="nb-k-fieldBlock">
             <label class="nb-k-label">Bahasa</label>
-            <select class="nb-field" name="language" data-nb-autosubmit-change="1">
-              <option value="">Semua bahasa</option>
+            <select class="nb-field" name="language[]" multiple size="4" data-nb-autosubmit-change="1">
               @foreach($languageOptions as $opt)
-                <option value="{{ $opt }}" {{ (string) $language === (string) $opt ? 'selected' : '' }}>{{ $opt }}</option>
+                <option value="{{ $opt }}" {{ in_array((string) $opt, array_map('strval', $languageList), true) ? 'selected' : '' }}>{{ $opt }}</option>
               @endforeach
             </select>
           </div>
 
           <div class="nb-k-fieldBlock">
             <label class="nb-k-label">Jenis</label>
-            <select class="nb-field" name="material_type" data-nb-autosubmit-change="1">
-              <option value="">Semua jenis</option>
+            <select class="nb-field" name="material_type[]" multiple size="4" data-nb-autosubmit-change="1">
               @foreach($materialTypeOptions as $opt)
-                <option value="{{ $opt }}" {{ (string) $materialType === (string) $opt ? 'selected' : '' }}>{{ $opt }}</option>
+                <option value="{{ $opt }}" {{ in_array((string) $opt, array_map('strval', $materialTypeList), true) ? 'selected' : '' }}>{{ $opt }}</option>
               @endforeach
             </select>
           </div>
 
           <div class="nb-k-fieldBlock">
             <label class="nb-k-label">Media</label>
-            <select class="nb-field" name="media_type" data-nb-autosubmit-change="1">
-              <option value="">Semua media</option>
+            <select class="nb-field" name="media_type[]" multiple size="4" data-nb-autosubmit-change="1">
               @foreach($mediaTypeOptions as $opt)
-                <option value="{{ $opt }}" {{ (string) $mediaType === (string) $opt ? 'selected' : '' }}>{{ $opt }}</option>
+                <option value="{{ $opt }}" {{ in_array((string) $opt, array_map('strval', $mediaTypeList), true) ? 'selected' : '' }}>{{ $opt }}</option>
+              @endforeach
+            </select>
+          </div>
+          <div class="nb-k-fieldBlock">
+            <label class="nb-k-label">Cabang</label>
+            <select class="nb-field" name="branch[]" multiple size="4" data-nb-autosubmit-change="1">
+              @foreach($branchOptions as $opt)
+                <option value="{{ $opt->id }}" {{ in_array((int) $opt->id, array_map('intval', $branchList), true) ? 'selected' : '' }}>
+                  {{ $opt->name }}
+                </option>
               @endforeach
             </select>
           </div>
@@ -3190,7 +3890,14 @@
         </div>
       </div>
       </div>
-      <div class="nb-k-helpRow">Tips: ketik ISBN / DDC / nomor panggil untuk pencarian cepat. Tekan Ctrl+K untuk fokus pencarian.</div>
+      <div class="nb-k-helpRow">
+        <details class="nb-k-tipMini">
+          <summary>Bantuan cepat</summary>
+          <div class="nb-k-tipPanel">
+            Ketik ISBN, DDC, atau nomor panggil untuk pencarian cepat. Gunakan <b>Ctrl+K</b> untuk fokus ke kolom pencarian.
+          </div>
+        </details>
+      </div>
 
     @if($showFilterBar)
       <div class="nb-k-activeBar">
@@ -3200,7 +3907,7 @@
               <span class="nb-k-chip" title="{{ $f['label'] }}: {{ $f['value'] }}">
                 <b>{{ $f['label'] }}</b> {{ $f['value'] }}
                 @if(!empty($f['key']))
-                  <a class="nb-k-chip-close" href="{{ $filterClearUrl($f['key']) }}" title="Hapus filter {{ $f['label'] }}" aria-label="Hapus filter {{ $f['label'] }}">&times;</a>
+                  <a class="nb-k-chip-close" href="{{ $filterClearUrl($f['key'], $f['item'] ?? null) }}" title="Hapus filter {{ $f['label'] }}" aria-label="Hapus filter {{ $f['label'] }}">&times;</a>
                 @endif
               </span>
             @endforeach
@@ -3229,6 +3936,9 @@
   <div class="nb-k-sectionSpace"></div>
 
   @if($biblios->count() > 0)
+    <div class="sr-only" role="status" aria-live="polite" aria-atomic="true">
+      Menampilkan {{ number_format($fromResult, 0, ',', '.') }} sampai {{ number_format($toResult, 0, ',', '.') }} dari {{ number_format($totalResults, 0, ',', '.') }} hasil katalog.
+    </div>
     <div class="nb-k-summary">
       <div class="left">
         <span>Menampilkan <b>{{ number_format($fromResult, 0, ',', '.') }}</b>-<b>{{ number_format($toResult, 0, ',', '.') }}</b> dari <b>{{ number_format($totalResults, 0, ',', '.') }}</b> hasil</span>
@@ -3237,38 +3947,44 @@
         @endif
       </div>
       <div class="right">
-        <span class="nb-k-muted-md">Urut:</span>
-        <span class="nb-k-chip nb-k-m-0">{{ $sortLabel }}</span>
-        @if($canPersonalRank)
-          <div class="nb-k-rankToggle" title="Mode ranking">
-            <a class="nb-k-rankBtn {{ $rankMode === 'institution' ? 'is-active' : '' }}"
-               href="{{ route($indexRouteName, array_merge(request()->query(), ['rank' => 'institution'])) }}">
-              Institusi
-            </a>
-            <a class="nb-k-rankBtn {{ $rankMode === 'personal' ? 'is-active' : '' }}"
-               href="{{ route($indexRouteName, array_merge(request()->query(), ['rank' => 'personal'])) }}">
-              Personal
-            </a>
-          </div>
-        @endif
+        <form method="GET" action="{{ route($indexRouteName) }}" class="nb-k-sortForm">
+          @foreach(request()->except(['sort', 'rank', 'page']) as $k => $v)
+            @if(is_array($v))
+              @foreach($v as $vv)
+                <input type="hidden" name="{{ $k }}[]" value="{{ $vv }}">
+              @endforeach
+            @else
+              <input type="hidden" name="{{ $k }}" value="{{ $v }}">
+            @endif
+          @endforeach
+          <select class="nb-field nb-k-sortSelect" name="sort" onchange="this.form.submit()">
+            <option value="relevant" {{ $sort === 'relevant' ? 'selected' : '' }}>Urut: Relevan</option>
+            <option value="latest" {{ $sort === 'latest' ? 'selected' : '' }}>Urut: Terbaru</option>
+            <option value="popular" {{ $sort === 'popular' ? 'selected' : '' }}>Urut: Populer</option>
+            <option value="available" {{ $sort === 'available' ? 'selected' : '' }}>Urut: Tersedia dulu</option>
+          </select>
+          @if($canPersonalRank)
+            <select class="nb-field nb-k-sortSelect" name="rank" onchange="this.form.submit()">
+              <option value="institution" {{ $rankMode === 'institution' ? 'selected' : '' }}>Ranking: Institusi</option>
+              <option value="personal" {{ $rankMode === 'personal' ? 'selected' : '' }}>Ranking: Personal</option>
+            </select>
+          @else
+            <input type="hidden" name="rank" value="{{ $rankMode }}">
+          @endif
+        </form>
       </div>
     </div>
-    <div class="nb-k-insights">
-      <div class="nb-k-insight tone-blue">
-        <div class="label">Judul Terindeks</div>
-        <div class="value">{{ number_format($totalResults, 0, ',', '.') }}</div>
-        <div class="meta">Total di katalog</div>
+    @if($didYouMean && trim((string) $didYouMean) !== '')
+      <div class="nb-k-dym" role="status" aria-live="polite">
+        <span class="nb-k-dym-label">Saran pencarian</span>
+        <span class="nb-k-dym-text">Mungkin maksud Anda:</span>
+        <a class="nb-k-dym-link" href="{{ route($indexRouteName, array_merge(request()->query(), ['q' => $didYouMean, 'page' => 1])) }}">
+          {{ $didYouMean }}
+        </a>
       </div>
-      <div class="nb-k-insight tone-green">
-        <div class="label">Eksemplar Tersedia</div>
-        <div class="value">{{ number_format($pageAvailable, 0, ',', '.') }} / {{ number_format($pageItems, 0, ',', '.') }}</div>
-        <div class="meta">Tersedia / total di halaman ini</div>
-      </div>
-      <div class="nb-k-insight tone-indigo">
-        <div class="label">Filter Aktif</div>
-        <div class="value">{{ $activeFilterCount }}</div>
-        <div class="meta">{{ $activeFilterCount > 0 ? 'Klik chip untuk hapus' : 'Belum ada filter' }}</div>
-      </div>
+    @endif
+    <div id="nbFacetRailWrap">
+      @include('katalog.partials.facets')
     </div>
 
     @if($canManage)
@@ -3350,7 +4066,7 @@
         </div>
     @endif
 
-    @if(!$hasFilters && !$hasQuery)
+    @if($showShelves && !$hasFilters && !$hasQuery)
       <div class="nb-k-quickGroup">
       <div class="nb-k-quick">
         <span class="nb-k-quickLabel">Format cepat:</span>
@@ -4292,11 +5008,3 @@
 </script>
 @endif
 @endsection
-
-
-
-
-
-
-
-

@@ -9,11 +9,13 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use App\Services\LoanPolicyService;
 use App\Services\BiblioInteractionService;
+use App\Services\CirculationPolicyEngine;
 
 class LoanTransactionService
 {
     public function __construct(
-        protected ReservationService $reservationService
+        protected ReservationService $reservationService,
+        protected CirculationPolicyEngine $policyEngine
     ) {
     }
 
@@ -118,6 +120,20 @@ class LoanTransactionService
             throw new \RuntimeException('Member tidak aktif. Status: ' . (string)$member->status);
         }
 
+        $policySvc = app(LoanPolicyService::class);
+        $memberType = $policySvc->resolveMemberRole($member);
+        $policy = $policySvc->forContext(
+            $institutionId,
+            $effectiveBranchId > 0 ? $effectiveBranchId : null,
+            $memberType,
+            null
+        );
+        $loanDefaultDays = (int)($policy['default_days'] ?? 7);
+        if ($loanDefaultDays <= 0) $loanDefaultDays = 7;
+
+        $loanMaxItems = (int)($policy['max_items'] ?? 3);
+        if ($loanMaxItems <= 0) $loanMaxItems = 3;
+
         $activeItemsCount = DB::table('loan_items')
             ->join('loans', 'loans.id', '=', 'loan_items.loan_id')
             ->where('loans.institution_id', $institutionId)
@@ -131,16 +147,15 @@ class LoanTransactionService
             );
         }
 
-        $policySvc = app(LoanPolicyService::class);
-        $policy = $policySvc->forRole($policySvc->resolveMemberRole($member));
-        $loanDefaultDays = (int)($policy['default_days'] ?? 7);
-        if ($loanDefaultDays <= 0) $loanDefaultDays = 7;
-
-        $loanMaxItems = (int)($policy['max_items'] ?? 3);
-        if ($loanMaxItems <= 0) $loanMaxItems = 3;
-
         if (trim($dueAt) === '') {
-            $dueAt = date('Y-m-d H:i:s', strtotime('+' . $loanDefaultDays . ' days'));
+            $dueAt = $this->policyEngine
+                ->computeDueAtByBusinessDays(
+                    $institutionId,
+                    $effectiveBranchId > 0 ? $effectiveBranchId : null,
+                    $loanDefaultDays
+                )
+                ->setTime(23, 59, 59)
+                ->format('Y-m-d H:i:s');
         }
 
         // =========================

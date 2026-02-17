@@ -92,24 +92,100 @@
           <option value="{{ $branch->id }}" @selected((string)$branchId === (string)$branch->id)>{{ $branch->name }}</option>
         @endforeach
       </select>
+      <select class="nb-select" name="status">
+        <option value="">Semua status</option>
+        <option value="pending" @selected(($statusFilter ?? '') === 'pending')>Pending</option>
+        <option value="approved" @selected(($statusFilter ?? '') === 'approved')>Approved</option>
+        <option value="rejected" @selected(($statusFilter ?? '') === 'rejected')>Rejected</option>
+      </select>
       <button class="nb-btn" type="submit">Filter</button>
-      @if($q || $branchId)
+      @if($q || $branchId || ($statusFilter ?? ''))
         <a class="nb-btn" href="{{ route('admin.search_synonyms') }}">Reset</a>
       @endif
     </form>
   </div>
 
   <div class="nb-syn-card">
+    <div class="nb-syn-header">
+      <div>
+        <div class="nb-syn-title">Zero-result Resolution Queue</div>
+        <div class="nb-syn-sub">Query tanpa hasil yang perlu ditangani operator.</div>
+      </div>
+    </div>
+    <table class="nb-table">
+      <thead>
+        <tr>
+          <th>Query</th>
+          <th>Frekuensi</th>
+          <th>Terakhir</th>
+          <th>Status</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+        @forelse(($zeroQueue ?? collect()) as $z)
+          <tr>
+            <td>
+              <div><b>{{ $z->query }}</b></div>
+              @if(!empty($z->zero_resolution_note))
+                <div class="nb-syn-sub">{{ $z->zero_resolution_note }}</div>
+              @endif
+              @if(!empty($z->zero_resolution_link))
+                <div><a href="{{ $z->zero_resolution_link }}">Lihat sinonim terkait</a></div>
+              @endif
+            </td>
+            <td>{{ number_format((int) ($z->search_count ?? 0), 0, ',', '.') }}</td>
+            <td>{{ $z->last_searched_at ? \Illuminate\Support\Carbon::parse($z->last_searched_at)->format('d M Y H:i') : '-' }}</td>
+            <td><span class="nb-chip">{{ $z->zero_result_status ?? 'open' }}</span></td>
+            <td>
+              @if(!empty($z->auto_suggestion_query))
+                <div class="nb-syn-sub">Auto suggestion: <b>{{ $z->auto_suggestion_query }}</b> ({{ number_format((float) ($z->auto_suggestion_score ?? 0), 1) }}%)</div>
+                <form method="POST" action="{{ route('admin.search_synonyms.zero_result.resolve', $z->id) }}" class="nb-grid" style="margin:6px 0;">
+                  @csrf
+                  <input type="hidden" name="status" value="resolved">
+                  <input type="hidden" name="use_auto_suggestion" value="1">
+                  <input class="nb-input" name="note" placeholder="catatan (opsional)" value="Resolved via auto-suggestion">
+                  <button class="nb-btn primary" type="submit">Approve Suggestion</button>
+                </form>
+              @endif
+              <form method="POST" action="{{ route('admin.search_synonyms.zero_result.resolve', $z->id) }}" class="nb-grid">
+                @csrf
+                <input type="hidden" name="status" value="resolved">
+                <input class="nb-input" name="term" value="{{ $z->normalized_query ?? $z->query }}" placeholder="term sinonim">
+                <input class="nb-input" name="synonyms" placeholder="contoh: {{ $z->query }}">
+                <input class="nb-input" name="note" placeholder="catatan resolve (opsional)">
+                <button class="nb-btn primary" type="submit">Resolve + Buat Sinonim</button>
+              </form>
+              <form method="POST" action="{{ route('admin.search_synonyms.zero_result.resolve', $z->id) }}" class="nb-grid" style="margin-top:6px;">
+                @csrf
+                <input type="hidden" name="status" value="ignored">
+                <input type="hidden" name="note" value="Diabaikan operator.">
+                <button class="nb-btn" type="submit">Ignore</button>
+              </form>
+            </td>
+          </tr>
+        @empty
+          <tr><td colspan="5" class="nb-empty">Belum ada query zero-result yang perlu ditangani.</td></tr>
+        @endforelse
+      </tbody>
+    </table>
+  </div>
+
+  <div class="nb-syn-card">
     <form method="POST" action="{{ route('admin.search_synonyms.store') }}" class="nb-grid">
       @csrf
-      <input class="nb-input" type="text" name="term" placeholder="Istilah utama (contoh: ilkom)" required>
+      <input class="nb-input" type="text" name="term" placeholder="Istilah utama (contoh: ilkom)" value="{{ old('term', $prefillTerm ?? '') }}" required>
       <select class="nb-select" name="branch_id">
         <option value="">Semua cabang</option>
         @foreach($branches as $branch)
           <option value="{{ $branch->id }}">{{ $branch->name }}</option>
         @endforeach
       </select>
-      <textarea class="nb-textarea" name="synonyms" placeholder="Sinonim (pisahkan dengan koma / baris baru)" required></textarea>
+      <select class="nb-select" name="status">
+        <option value="approved">Simpan sebagai approved</option>
+        <option value="pending">Simpan sebagai pending</option>
+      </select>
+      <textarea class="nb-textarea" name="synonyms" placeholder="Sinonim (pisahkan dengan koma / baris baru)" required>{{ old('synonyms', $prefillSynonyms ?? '') }}</textarea>
       <button class="nb-btn primary" type="submit">Simpan Sinonim</button>
     </form>
     @error('synonyms')
@@ -360,6 +436,7 @@
             <th>Istilah</th>
             <th>Sinonim</th>
             <th>Cabang</th>
+            <th>Status</th>
             <th>Aksi</th>
           </tr>
         </thead>
@@ -374,11 +451,32 @@
               <td>{{ $synList }}</td>
               <td>{{ $branchName }}</td>
               <td>
-                <form method="POST" action="{{ route('admin.search_synonyms.delete', $row->id) }}" onsubmit="return confirm('Hapus sinonim ini?');">
-                  @csrf
-                  @method('DELETE')
-                  <button class="nb-btn" type="submit">Hapus</button>
-                </form>
+                <span class="nb-chip">{{ $row->status ?? 'approved' }}</span>
+                @if(($row->status ?? '') === 'rejected' && !empty($row->rejection_note))
+                  <div class="nb-syn-sub">{{ $row->rejection_note }}</div>
+                @endif
+              </td>
+              <td>
+                <div class="nb-grid">
+                  @if(($row->status ?? 'approved') !== 'approved')
+                    <form method="POST" action="{{ route('admin.search_synonyms.approve', $row->id) }}">
+                      @csrf
+                      <button class="nb-btn primary" type="submit">Approve</button>
+                    </form>
+                  @endif
+                  @if(($row->status ?? '') !== 'rejected')
+                    <form method="POST" action="{{ route('admin.search_synonyms.reject', $row->id) }}">
+                      @csrf
+                      <input type="hidden" name="note" value="Ditolak operator">
+                      <button class="nb-btn" type="submit">Reject</button>
+                    </form>
+                  @endif
+                  <form method="POST" action="{{ route('admin.search_synonyms.delete', $row->id) }}" onsubmit="return confirm('Hapus sinonim ini?');">
+                    @csrf
+                    @method('DELETE')
+                    <button class="nb-btn" type="submit">Hapus</button>
+                  </form>
+                </div>
               </td>
             </tr>
           @endforeach

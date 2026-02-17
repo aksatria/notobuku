@@ -25,13 +25,6 @@
     ['route' => 'katalog.index', 'match' => ['katalog.*'], 'label' => 'Katalog',   'icon' => '#nb-icon-book',  'color' => '#2ecc71'],
   ];
 
-  // Menu khusus staff/admin
-  if ($isStaff) {
-    $items[] = ['route' => 'anggota.index', 'label' => 'Anggota', 'icon' => '#nb-icon-users', 'color' => '#8e24aa'];
-    $items[] = ['route' => 'laporan.index', 'match' => ['laporan.*'], 'label' => 'Laporan', 'icon' => '#nb-icon-chart', 'color' => '#42a5f5'];
-    $items[] = ['route' => 'serial_issues.index', 'match' => ['serial_issues.*'], 'label' => 'Serial Issue', 'icon' => '#nb-icon-clipboard', 'color' => '#26a69a'];
-  }
-
   // Komunitas untuk semua role
   $items[] = ['route' => 'komunitas.feed', 'match' => ['komunitas.*'], 'label' => 'Komunitas', 'icon' => '#nb-icon-chat', 'color' => '#00acc1'];
   $items[] = ['route' => 'docs.index', 'match' => ['docs.*'], 'label' => 'Dokumentasi', 'icon' => '#nb-icon-book', 'color' => '#90caf9'];
@@ -51,76 +44,86 @@
   ];
 
   // =========================
-  // TRANSAKSI (SUBMENU) - STAFF ONLY
+  // OPERASIONAL (SUBMENU) - STAFF ONLY
   // =========================
-  $transaksiActive = request()->routeIs('transaksi.*') || request()->is('transaksi*');
-
-  // ✅ Match dibuat "lebih spesifik" (explicit) biar jelas route mana saja yang dianggap aktif.
-  // Tetap aman kalau nanti kamu nambah route baru: kamu tinggal tambah ke array match.
-  $transaksiItems = [
+  $operasionalActive = request()->routeIs('transaksi.*')
+    || request()->routeIs('anggota.*')
+    || request()->routeIs('laporan.*')
+    || request()->routeIs('serial_issues.*')
+    || request()->routeIs('stock_takes.*')
+    || request()->routeIs('copy_cataloging.*')
+    || request()->routeIs('admin.dashboard');
+  $operasionalItems = [
     [
-      'route' => 'transaksi.pinjam.form',
-      'match' => [
-        'transaksi.pinjam.form',
-        'transaksi.pinjam.cari_member',
-        'transaksi.pinjam.cek_barcode',
-        'transaksi.pinjam.store',
-        'transaksi.pinjam.success',
-      ],
-      'label' => 'Pinjam',
-      'icon'  => '#nb-icon-rotate',
-    ],
-    [
-      'route' => 'transaksi.kembali.form',
-      'match' => [
-        'transaksi.kembali.form',
-        'transaksi.kembali.cek_barcode',
-        'transaksi.kembali.store',
-        'transaksi.kembali.success',
-      ],
-      'label' => 'Kembali',
-      'icon'  => '#nb-icon-rotate',
-    ],
-    [
-      'route' => 'transaksi.perpanjang.form',
-      'match' => [
-        'transaksi.perpanjang.form',
-        'transaksi.perpanjang.cek_barcode',
-        'transaksi.perpanjang.store',
-      ],
-      'label' => 'Perpanjang',
-      'icon'  => '#nb-icon-rotate',
-    ],
-    [
-      'route' => 'transaksi.riwayat',
-      'match' => [
-        'transaksi.riwayat',
-        'transaksi.riwayat.detail',
-        'transaksi.riwayat.print',
-      ],
-      'label' => 'Riwayat',
-      'icon'  => '#nb-icon-rotate',
-    ],
-    [
-      'route' => 'transaksi.denda.index',
-      'match' => [
-        'transaksi.denda.index',
-        'transaksi.denda.recalc',
-        'transaksi.denda.bayar',
-        'transaksi.denda.void',
-      ],
-      'label' => 'Denda',
+      'route' => 'transaksi.index',
+      'match' => ['transaksi.index'],
+      'label' => 'Sirkulasi Terpadu',
       'icon'  => '#nb-icon-rotate',
     ],
     [
       'route' => 'transaksi.dashboard',
-      'match' => [
-        'transaksi.dashboard',
-      ],
-      'label' => 'Dashboard',
+      'match' => ['transaksi.dashboard'],
+      'label' => 'Dashboard Sirkulasi',
+      'icon'  => '#nb-icon-chart',
+    ],
+    [
+      'route' => 'transaksi.riwayat',
+      'match' => ['transaksi.riwayat', 'transaksi.riwayat.*'],
+      'label' => 'Riwayat Transaksi',
       'icon'  => '#nb-icon-rotate',
     ],
+    [
+      'route' => 'transaksi.denda.index',
+      'match' => ['transaksi.denda.*'],
+      'label' => 'Denda',
+      'icon'  => '#nb-icon-rotate',
+    ],
+    [
+      'route' => 'anggota.index',
+      'match' => ['anggota.*'],
+      'label' => 'Anggota',
+      'icon'  => '#nb-icon-users',
+    ],
+    [
+      'route' => 'laporan.index',
+      'match' => ['laporan.*'],
+      'label' => 'Laporan',
+      'icon'  => '#nb-icon-chart',
+    ],
+    [
+      'route' => 'serial_issues.index',
+      'match' => ['serial_issues.*'],
+      'label' => 'Serial',
+      'icon'  => '#nb-icon-clipboard',
+    ],
+    [
+      'route' => 'stock_takes.index',
+      'match' => ['stock_takes.*'],
+      'label' => 'Stock Opname',
+      'icon'  => '#nb-icon-clipboard',
+    ],
+    [
+      'route' => 'copy_cataloging.index',
+      'match' => ['copy_cataloging.*'],
+      'label' => 'Copy Cataloging',
+      'icon'  => '#nb-icon-search',
+    ],
   ];
+  if ($isAdmin) {
+    array_unshift($operasionalItems, [
+      'route' => 'admin.dashboard',
+      'match' => ['admin.dashboard'],
+      'label' => 'Dashboard Admin',
+      'icon'  => '#nb-icon-home',
+    ]);
+
+    $operasionalItems[] = [
+      'route' => 'transaksi.policies.index',
+      'match' => ['transaksi.policies.*'],
+      'label' => 'Kebijakan Sirkulasi',
+      'icon'  => '#nb-icon-chart',
+    ];
+  }
 
   // =========================
   // PENGADAAN (SUBMENU) - STAFF ONLY
@@ -179,6 +182,9 @@
 
   $systemItems = [
     ['route' => 'admin.search_synonyms', 'label' => 'Sinonim Pencarian', 'icon' => '#nb-icon-search', 'color' => '#42a5f5'],
+    ['route' => 'admin.search_tuning', 'label' => 'Query Tuning', 'icon' => '#nb-icon-chart', 'color' => '#42a5f5'],
+    ['route' => 'admin.search_stopwords', 'label' => 'Stopwords', 'icon' => '#nb-icon-book', 'color' => '#90caf9'],
+    ['route' => 'admin.search_analytics', 'label' => 'Search Analytics', 'icon' => '#nb-icon-chart', 'color' => '#1e88e5'],
     ['route' => 'admin.marc.settings', 'label' => 'MARC Settings', 'icon' => '#nb-icon-chart', 'color' => '#42a5f5'],
     ['route' => 'docs.marc-policy', 'label' => 'Dokumentasi MARC', 'icon' => '#nb-icon-book', 'color' => '#90caf9'],
   ];
@@ -529,12 +535,12 @@
       </script>
     @endif
 
-    {{-- TRANSAKSI (STAFF ONLY) --}}
+    {{-- OPERASIONAL (STAFF ONLY) --}}
     @if($isStaff)
       <div style="margin-top:6px;">
-        <details class="nb-sb-group {{ $transaksiActive ? 'nb-sb-group-active' : '' }}" {{ $transaksiActive ? 'open' : '' }}>
+        <details class="nb-sb-group {{ $operasionalActive ? 'nb-sb-group-active' : '' }}" {{ $operasionalActive ? 'open' : '' }}>
           <summary class="nb-sb-group-head">
-            @php $ic = $transaksiActive ? '#fff' : '#fb8c00'; @endphp
+            @php $ic = $operasionalActive ? '#fff' : '#fb8c00'; @endphp
             <span class="nb-sb-ico" style="width:20px;height:20px; display:inline-flex; color:{{ $ic }}; flex-shrink:0;">
               <svg style="width:20px;height:20px" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
                 <use href="#nb-icon-rotate"></use>
@@ -542,8 +548,8 @@
             </span>
 
             <span class="nb-sb-label nb-sb-fw-600"
-                  style="color:{{ $transaksiActive ? '#fff' : 'rgba(255,255,255,.86)' }}; font-size:13px;">
-              Transaksi
+                  style="color:{{ $operasionalActive ? '#fff' : 'rgba(255,255,255,.86)' }}; font-size:13px;">
+              Operasional
             </span>
           </summary>
 
@@ -569,7 +575,7 @@
           @endif
 
           <div class="nb-sb-sub">
-            @foreach($transaksiItems as $ti)
+            @foreach($operasionalItems as $ti)
               @php
                 $subActive = false;
                 if (!empty($ti['match']) && is_array($ti['match'])) {

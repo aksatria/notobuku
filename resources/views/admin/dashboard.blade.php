@@ -28,6 +28,41 @@
   $interopInvalid = (int) ($interopInvalid ?? 0);
   $interopLimited = (int) ($interopLimited ?? 0);
   $interopHealth = (string) ($interopHealth ?? 'Sehat');
+  $opacP95 = (int) ($opacP95 ?? 0);
+  $opacP50 = (int) ($opacP50 ?? 0);
+  $opacRequests = (int) ($opacRequests ?? 0);
+  $opacErrorRate = (float) ($opacErrorRate ?? 0);
+  $opacMetrics = (array) ($opacMetrics ?? []);
+  $opacP95Series24h = array_values((array) ($opacP95Series24h ?? []));
+  $opacP95Min24h = count($opacP95Series24h) > 0 ? min($opacP95Series24h) : 0;
+  $opacP95Max24h = count($opacP95Series24h) > 0 ? max($opacP95Series24h) : 0;
+  $opacP95Now24h = count($opacP95Series24h) > 0 ? (int) end($opacP95Series24h) : 0;
+  $opacSlo = (array) ($opacSlo ?? []);
+  $opacSearchAnalytics = (array) data_get($opacMetrics ?? [], 'search_analytics', []);
+  $opacTopKeywords = collect((array) ($opacSearchAnalytics['top_keywords'] ?? []))->take(6)->values();
+  $opacTopZero = collect((array) ($opacSearchAnalytics['top_zero_result_queries'] ?? []))->take(6)->values();
+  $opacSearchTotal = (int) ($opacSearchAnalytics['total_searches'] ?? 0);
+  $opacSearchSuccessRate = (float) ($opacSearchAnalytics['success_rate_pct'] ?? 0);
+  $opacZeroDistinct = (int) ($opacSearchAnalytics['zero_result_distinct_queries'] ?? 0);
+  $opacSloState = (string) ($opacSlo['state'] ?? 'ok');
+  $opacBurn5 = (float) ($opacSlo['burn_rate_5m'] ?? 0);
+  $opacBurn60 = (float) ($opacSlo['burn_rate_60m'] ?? 0);
+  $opacSloTarget = (float) ($opacSlo['target_pct'] ?? 99.5);
+  $opacSloClass = match ($opacSloState) {
+    'critical' => 'critical',
+    'warning' => 'warning',
+    default => 'good',
+  };
+  $opacSloLabel = match ($opacSloState) {
+    'critical' => 'Kritis',
+    'warning' => 'Waspada',
+    default => 'Sehat',
+  };
+  $opacAlertClass = match ($opacSloState) {
+    'critical' => 'critical',
+    'warning' => 'warn',
+    default => 'ok',
+  };
   $interopMetrics = (array) ($interopMetrics ?? []);
   $interopOaiP95 = (int) data_get($interopMetrics, 'latency.oai.p95_ms', 0);
   $interopSruP95 = (int) data_get($interopMetrics, 'latency.sru.p95_ms', 0);
@@ -47,6 +82,11 @@
     'Waspada' => 'warning',
     default => 'good',
   };
+  $uatSummary = (array) ($uatSummary ?? ['pass' => 0, 'fail' => 0, 'pending' => 0]);
+  $uatRecent = $uatRecent ?? collect();
+  $uatPass = (int) ($uatSummary['pass'] ?? 0);
+  $uatFail = (int) ($uatSummary['fail'] ?? 0);
+  $uatPending = (int) ($uatSummary['pending'] ?? 0);
 
   $quickActions = collect([
     ['label' => 'Tambah Bibliografi', 'desc' => 'Input koleksi baru', 'route' => 'katalog.create', 'icon' => '#nb-icon-plus'],
@@ -525,6 +565,44 @@
     background: rgba(239,68,68,.22);
     border-color: rgba(239,68,68,.45);
   }
+  .nb-admin-opac-spark{
+    margin-top:8px;
+    padding:8px;
+    border-radius:12px;
+    border:1px solid var(--admin-border);
+    background: rgba(248,250,252,.7);
+  }
+  html.dark .nb-admin-opac-spark{
+    background: rgba(15,23,42,.55);
+  }
+  .nb-admin-opac-spark svg{
+    width:100%;
+    height:52px;
+    display:block;
+  }
+  .nb-admin-opac-spark .line{
+    fill:none;
+    stroke:#1f6feb;
+    stroke-width:2;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+  }
+  .nb-admin-opac-spark .area{
+    fill: rgba(31,111,235,.12);
+  }
+  .nb-admin-opac-spark-meta{
+    margin-top:6px;
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    font-size:11px;
+    color: var(--admin-muted);
+  }
+  .nb-admin-opac-analytics{
+    margin-top:10px;
+    padding-top:10px;
+    border-top:1px dashed var(--admin-border);
+  }
 
   .nb-admin-auto-grid{
     margin-top:12px;
@@ -718,6 +796,102 @@
   }
   .nb-admin-panel-title{ font-size:14px; font-weight:700; color: var(--admin-ink); }
   .nb-admin-panel-sub{ font-size:12px; color: var(--admin-muted); margin-top:2px; }
+  .nb-admin-uat-head{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    align-items:center;
+  }
+  .nb-admin-uat-pill{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    border-radius:999px;
+    padding:4px 10px;
+    font-size:11px;
+    font-weight:700;
+    border:1px solid var(--admin-border);
+    background: rgba(248,250,252,.8);
+    color: var(--admin-muted);
+  }
+  .nb-admin-uat-pill.pass{
+    color: rgba(6,95,70,.95);
+    border-color: rgba(16,185,129,.35);
+    background: rgba(16,185,129,.12);
+  }
+  .nb-admin-uat-pill.fail{
+    color: rgba(153,27,27,.95);
+    border-color: rgba(239,68,68,.35);
+    background: rgba(239,68,68,.12);
+  }
+  .nb-admin-uat-pill.pending{
+    color: rgba(146,64,14,.95);
+    border-color: rgba(245,158,11,.35);
+    background: rgba(245,158,11,.15);
+  }
+  .nb-admin-uat-table{
+    margin-top:10px;
+    border:1px solid var(--admin-border);
+    border-radius:12px;
+    overflow:hidden;
+  }
+  .nb-admin-uat-row{
+    display:grid;
+    grid-template-columns: 110px 92px 1fr 145px 1fr;
+    gap:8px;
+    padding:8px 10px;
+    border-top:1px solid var(--admin-border);
+    font-size:12px;
+    align-items:center;
+  }
+  .nb-admin-uat-row:first-child{ border-top:none; }
+  .nb-admin-uat-row.header{
+    background: rgba(248,250,252,.85);
+    font-size:11px;
+    font-weight:700;
+    color: var(--admin-muted);
+    text-transform:uppercase;
+    letter-spacing:.04em;
+  }
+  .nb-admin-uat-status{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:999px;
+    border:1px solid var(--admin-border);
+    padding:2px 8px;
+    font-size:11px;
+    font-weight:700;
+    text-transform:uppercase;
+  }
+  .nb-admin-uat-status.pass{
+    color: rgba(6,95,70,.95);
+    border-color: rgba(16,185,129,.35);
+    background: rgba(16,185,129,.12);
+  }
+  .nb-admin-uat-status.fail{
+    color: rgba(153,27,27,.95);
+    border-color: rgba(239,68,68,.35);
+    background: rgba(239,68,68,.12);
+  }
+  .nb-admin-uat-status.pending{
+    color: rgba(146,64,14,.95);
+    border-color: rgba(245,158,11,.35);
+    background: rgba(245,158,11,.15);
+  }
+  .nb-admin-uat-empty{
+    padding:14px;
+    text-align:center;
+    color: var(--admin-muted);
+    font-size:12px;
+  }
+  @media (max-width: 900px){
+    .nb-admin-uat-row{
+      grid-template-columns: 1fr;
+      gap:4px;
+    }
+    .nb-admin-uat-row.header{ display:none; }
+  }
 
   .nb-admin-field{
     height:34px;
@@ -990,6 +1164,99 @@
           <div id="interop-health-next" class="nb-admin-insight-sub">Refresh berikutnya dalam 30 detik</div>
           <div id="interop-health-updated" class="nb-admin-insight-sub">Last updated baru saja</div>
         </div>
+        <div class="nb-admin-insight">
+          <div class="nb-admin-insight-label">OPAC Performance</div>
+          <div class="nb-admin-insight-value">
+            <span
+              id="opac-health-pill"
+              class="nb-admin-health-pill {{ $opacP95 >= 1500 ? ($opacP95 >= 3000 ? 'critical' : 'warning') : 'good' }}"
+              data-metrics-url="{{ route('opac.metrics') }}"
+            >p95 {{ $opacP95 }} ms</span>
+            <span id="opac-slo-pill" class="nb-admin-health-pill {{ $opacSloClass }}">SLO {{ $opacSloLabel }}</span>
+          </div>
+          <div id="opac-health-sub" class="nb-admin-insight-sub">
+            p50 {{ $opacP50 }} ms, error {{ number_format($opacErrorRate, 2) }}%, req {{ number_format($opacRequests) }}
+          </div>
+          <div id="opac-slo-sub" class="nb-admin-insight-sub">
+            target {{ number_format($opacSloTarget, 2) }}% | burn 5m {{ number_format($opacBurn5, 2) }}x | burn 60m {{ number_format($opacBurn60, 2) }}x
+          </div>
+          <div
+            id="opac-health-alert"
+            class="nb-admin-health-alert {{ $opacAlertClass }}"
+            data-warning-threshold="{{ (float) ($opacSlo['warning_threshold'] ?? 2) }}"
+            data-critical-threshold="{{ (float) ($opacSlo['critical_threshold'] ?? 5) }}"
+          >
+            @if($opacSloState === 'critical')
+              Alert: burn-rate OPAC melewati ambang kritis.
+            @elseif($opacSloState === 'warning')
+              Peringatan: burn-rate OPAC melewati ambang warning.
+            @else
+              Burn-rate OPAC dalam batas aman.
+            @endif
+          </div>
+          <div class="nb-admin-opac-spark" aria-label="Trend p95 OPAC 24 jam">
+            <svg viewBox="0 0 320 52" preserveAspectRatio="none" role="img">
+              <path id="opac-spark-area" class="area" d=""></path>
+              <path id="opac-spark-line" class="line" d=""></path>
+            </svg>
+            <div class="nb-admin-opac-spark-meta">
+              <span id="opac-spark-min">24h min {{ $opacP95Min24h }} ms</span>
+              <span id="opac-spark-max">24h max {{ $opacP95Max24h }} ms</span>
+              <span id="opac-spark-now">now {{ $opacP95Now24h }} ms</span>
+            </div>
+          </div>
+          <div class="nb-admin-health-actions">
+            <span id="opac-health-sync" class="nb-admin-health-sync live">Live</span>
+            <button id="opac-health-refresh" type="button" class="nb-admin-health-refresh">Refresh now</button>
+          </div>
+          <div id="opac-health-next" class="nb-admin-insight-sub">Refresh berikutnya dalam 30 detik</div>
+          <div id="opac-health-trace" class="nb-admin-insight-sub">Trace ID: -</div>
+          <div id="opac-health-updated" class="nb-admin-insight-sub">Last updated baru saja</div>
+          <div class="nb-admin-opac-analytics">
+            <div class="nb-admin-auto-kpi">
+              <div class="nb-admin-auto-kpi-item">
+                <div class="label">Total Search</div>
+                <div class="value" id="opac-ana-total">{{ number_format($opacSearchTotal, 0, ',', '.') }}</div>
+              </div>
+              <div class="nb-admin-auto-kpi-item">
+                <div class="label">Success Rate</div>
+                <div class="value" id="opac-ana-success">{{ number_format($opacSearchSuccessRate, 2) }}%</div>
+              </div>
+              <div class="nb-admin-auto-kpi-item">
+                <div class="label">Zero Distinct</div>
+                <div class="value" id="opac-ana-zero">{{ number_format($opacZeroDistinct, 0, ',', '.') }}</div>
+              </div>
+            </div>
+            <div class="nb-admin-auto-split">
+              <div>
+                <div class="nb-admin-auto-block-title">Top Keyword</div>
+                <div class="nb-admin-auto-list" id="opac-ana-top">
+                  @forelse($opacTopKeywords as $row)
+                    <div class="nb-admin-auto-row">
+                      <span>{{ $row['query'] ?? '-' }}</span>
+                      <b>{{ number_format((int) ($row['search_count'] ?? 0), 0, ',', '.') }}</b>
+                    </div>
+                  @empty
+                    <div class="nb-admin-auto-empty">Belum ada data keyword.</div>
+                  @endforelse
+                </div>
+              </div>
+              <div>
+                <div class="nb-admin-auto-block-title">Zero-result Top</div>
+                <div class="nb-admin-auto-list" id="opac-ana-zero-list">
+                  @forelse($opacTopZero as $row)
+                    <div class="nb-admin-auto-row">
+                      <a href="{{ route('admin.search_synonyms', ['term' => (string) ($row['query'] ?? '')]) }}">{{ $row['query'] ?? '-' }}</a>
+                      <b>{{ number_format((int) ($row['search_count'] ?? 0), 0, ',', '.') }}</b>
+                    </div>
+                  @empty
+                    <div class="nb-admin-auto-empty">Belum ada zero-result dominan.</div>
+                  @endforelse
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -1149,6 +1416,53 @@
       </div>
     </section>
   </div>
+
+  <section class="nb-admin-panel">
+    <div class="nb-admin-panel-head">
+      <div>
+        <div class="nb-admin-panel-title">Audit UAT Sign-off</div>
+        <div class="nb-admin-panel-sub">Riwayat verifikasi operasional terbaru untuk audit cepat.</div>
+      </div>
+      <div class="nb-admin-uat-head">
+        <span class="nb-admin-uat-pill pass">Pass {{ number_format($uatPass, 0, ',', '.') }}</span>
+        <span class="nb-admin-uat-pill fail">Fail {{ number_format($uatFail, 0, ',', '.') }}</span>
+        <span class="nb-admin-uat-pill pending">Pending {{ number_format($uatPending, 0, ',', '.') }}</span>
+        <a class="nb-admin-btn ghost" href="{{ route('docs.uat-checklist') }}">Checklist UAT</a>
+      </div>
+    </div>
+    <div class="nb-admin-uat-table">
+      <div class="nb-admin-uat-row header">
+        <div>Tanggal</div>
+        <div>Status</div>
+        <div>Operator</div>
+        <div>Signed At</div>
+        <div>Catatan</div>
+      </div>
+      @forelse($uatRecent as $row)
+        @php
+          $status = strtolower((string) ($row->status ?? 'pending'));
+          if (!in_array($status, ['pass', 'fail', 'pending'], true)) {
+            $status = 'pending';
+          }
+          $statusLabel = $status === 'pass' ? 'Lulus' : ($status === 'fail' ? 'Gagal' : 'Pending');
+          $signedAt = $row->signed_at ? \Illuminate\Support\Carbon::parse($row->signed_at)->format('d M Y H:i') : '-';
+          $notes = trim((string) ($row->notes ?? ''));
+          $notes = $notes !== '' ? $notes : '-';
+          $operator = trim((string) ($row->operator_name ?? ''));
+          $operator = $operator !== '' ? $operator : '-';
+        @endphp
+        <div class="nb-admin-uat-row">
+          <div>{{ \Illuminate\Support\Carbon::parse($row->check_date)->format('d M Y') }}</div>
+          <div><span class="nb-admin-uat-status {{ $status }}">{{ $statusLabel }}</span></div>
+          <div>{{ $operator }}</div>
+          <div>{{ $signedAt }}</div>
+          <div title="{{ $notes }}">{{ \Illuminate\Support\Str::limit($notes, 80) }}</div>
+        </div>
+      @empty
+        <div class="nb-admin-uat-empty">Belum ada riwayat sign-off UAT untuk institusi ini.</div>
+      @endforelse
+    </div>
+  </section>
 
   <section class="nb-admin-panel">
     <div class="nb-admin-panel-head">
@@ -1539,4 +1853,251 @@
     }
   })();
 </script>
+<script>
+  (function () {
+    const pill = document.getElementById('opac-health-pill');
+    const sloPill = document.getElementById('opac-slo-pill');
+    const sub = document.getElementById('opac-health-sub');
+    const sloSub = document.getElementById('opac-slo-sub');
+    const alertEl = document.getElementById('opac-health-alert');
+    const updated = document.getElementById('opac-health-updated');
+    const trace = document.getElementById('opac-health-trace');
+    const sync = document.getElementById('opac-health-sync');
+    const refreshBtn = document.getElementById('opac-health-refresh');
+    const nextEl = document.getElementById('opac-health-next');
+    const sparkLine = document.getElementById('opac-spark-line');
+    const sparkArea = document.getElementById('opac-spark-area');
+    const sparkMin = document.getElementById('opac-spark-min');
+    const sparkMax = document.getElementById('opac-spark-max');
+    const sparkNow = document.getElementById('opac-spark-now');
+    const anaTotal = document.getElementById('opac-ana-total');
+    const anaSuccess = document.getElementById('opac-ana-success');
+    const anaZero = document.getElementById('opac-ana-zero');
+    const anaTop = document.getElementById('opac-ana-top');
+    const anaZeroList = document.getElementById('opac-ana-zero-list');
+    if (!pill || !sub || !updated || !nextEl) return;
+    const url = pill.dataset.metricsUrl || '';
+    if (!url) return;
+
+    let timer = null;
+    let tick = null;
+    let lastUpdatedAt = Date.now();
+    let nextRefreshAt = Date.now() + 30000;
+    let p95Series = @json($opacP95Series24h ?? []);
+
+    function applyBadge(p95) {
+      pill.classList.remove('good', 'warning', 'critical');
+      if (p95 >= 3000) {
+        pill.classList.add('critical');
+      } else if (p95 >= 1500) {
+        pill.classList.add('warning');
+      } else {
+        pill.classList.add('good');
+      }
+    }
+
+    function applySloBadge(state) {
+      if (!sloPill) return;
+      sloPill.classList.remove('good', 'warning', 'critical');
+      const normalized = String(state || 'ok').toLowerCase();
+      const cls = normalized === 'critical' ? 'critical' : (normalized === 'warning' ? 'warning' : 'good');
+      const label = normalized === 'critical' ? 'Kritis' : (normalized === 'warning' ? 'Waspada' : 'Sehat');
+      sloPill.classList.add(cls);
+      sloPill.textContent = `SLO ${label}`;
+    }
+
+    function renderSloAlert(state, burn5, burn60) {
+      if (!alertEl) return;
+      const normalized = String(state || 'ok').toLowerCase();
+      const warn = Number(alertEl.dataset.warningThreshold || 2);
+      const crit = Number(alertEl.dataset.criticalThreshold || 5);
+      alertEl.classList.remove('ok', 'warn', 'critical');
+      if (normalized === 'critical') {
+        alertEl.classList.add('critical');
+        alertEl.textContent = `Alert: burn-rate OPAC kritis (5m ${burn5.toFixed(2)}x, 60m ${burn60.toFixed(2)}x, threshold ${crit}x).`;
+        return;
+      }
+      if (normalized === 'warning') {
+        alertEl.classList.add('warn');
+        alertEl.textContent = `Peringatan: burn-rate OPAC naik (5m ${burn5.toFixed(2)}x, 60m ${burn60.toFixed(2)}x, warning ${warn}x).`;
+        return;
+      }
+      alertEl.classList.add('ok');
+      alertEl.textContent = 'Burn-rate OPAC dalam batas aman.';
+    }
+
+    function renderUpdated() {
+      const sec = Math.max(0, Math.floor((Date.now() - lastUpdatedAt) / 1000));
+      updated.textContent = `Last updated ${sec} detik lalu`;
+    }
+
+    function renderNextRefresh() {
+      if (document.visibilityState !== 'visible') {
+        nextEl.textContent = 'Refresh dijeda (tab tidak aktif)';
+        if (sync) sync.classList.remove('live');
+        return;
+      }
+      if (!timer) {
+        nextEl.textContent = 'Refresh dijeda';
+        if (sync) sync.classList.remove('live');
+        return;
+      }
+      if (sync) sync.classList.add('live');
+      const sec = Math.max(1, Math.ceil((nextRefreshAt - Date.now()) / 1000));
+      nextEl.textContent = `Refresh berikutnya dalam ${sec} detik`;
+    }
+
+    function renderSparkline(series) {
+      if (!sparkLine || !sparkArea) return;
+      if (!Array.isArray(series) || series.length === 0) {
+        sparkLine.setAttribute('d', '');
+        sparkArea.setAttribute('d', '');
+        return;
+      }
+
+      const values = series.map((v) => Number(v || 0)).filter((v) => !Number.isNaN(v));
+      if (values.length === 0) return;
+      const w = 320;
+      const h = 52;
+      const max = Math.max(...values, 1);
+      const min = Math.min(...values);
+      const span = Math.max(1, max - min);
+      const step = values.length > 1 ? (w / (values.length - 1)) : w;
+      const points = values.map((v, i) => {
+        const x = i * step;
+        const y = h - (((v - min) / span) * (h - 4)) - 2;
+        return [x, y];
+      });
+      const line = points.map((p, i) => (i === 0 ? `M ${p[0]} ${p[1]}` : `L ${p[0]} ${p[1]}`)).join(' ');
+      const area = `${line} L ${w} ${h} L 0 ${h} Z`;
+      sparkLine.setAttribute('d', line);
+      sparkArea.setAttribute('d', area);
+
+      if (sparkMin) sparkMin.textContent = `24h min ${min} ms`;
+      if (sparkMax) sparkMax.textContent = `24h max ${max} ms`;
+      if (sparkNow) sparkNow.textContent = `now ${values[values.length - 1] || 0} ms`;
+    }
+
+    function renderOpacSearchAnalytics(searchAnalytics) {
+      const analytics = searchAnalytics || {};
+      const totalSearches = Number(analytics.total_searches || 0);
+      const successRate = Number(analytics.success_rate_pct || 0);
+      const zeroDistinct = Number(analytics.zero_result_distinct_queries || 0);
+      if (anaTotal) anaTotal.textContent = totalSearches.toLocaleString('id-ID');
+      if (anaSuccess) anaSuccess.textContent = `${successRate.toFixed(2)}%`;
+      if (anaZero) anaZero.textContent = zeroDistinct.toLocaleString('id-ID');
+
+      const renderRows = function (el, rows, emptyLabel) {
+        if (!el) return;
+        const list = Array.isArray(rows) ? rows : [];
+        if (list.length === 0) {
+          el.innerHTML = `<div class="nb-admin-auto-empty">${emptyLabel}</div>`;
+          return;
+        }
+          const html = list.slice(0, 6).map(function (row) {
+            const q = String((row && row.query) || '-');
+            const cnt = Number((row && row.search_count) || 0).toLocaleString('id-ID');
+            if (el.id === 'opac-ana-zero-list') {
+              const synBase = @json(route('admin.search_synonyms'));
+              const link = `${synBase}?term=${encodeURIComponent(q)}`;
+              return `<div class="nb-admin-auto-row"><a href="${link}">${q}</a><b>${cnt}</b></div>`;
+            }
+            return `<div class="nb-admin-auto-row"><span>${q}</span><b>${cnt}</b></div>`;
+          }).join('');
+        el.innerHTML = html;
+      };
+
+      renderRows(anaTop, analytics.top_keywords, 'Belum ada data keyword.');
+      renderRows(anaZeroList, analytics.top_zero_result_queries, 'Belum ada zero-result dominan.');
+    }
+
+    async function refreshOpac() {
+      try {
+        const resp = await fetch(url, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const m = (data && data.metrics) || {};
+        const lat = m.latency || {};
+        const slo = m.slo || {};
+        const p95 = Number(lat.p95_ms || 0);
+        const p50 = Number(lat.p50_ms || 0);
+        const req = Number(m.requests || 0);
+        const err = Number(m.error_rate_pct || 0);
+        const hist = (m.history && Array.isArray(m.history.last_24h)) ? m.history.last_24h : [];
+        const burn5 = Number(slo.burn_rate_5m || 0);
+        const burn60 = Number(slo.burn_rate_60m || 0);
+        const targetPct = Number(slo.target_pct || 99.5);
+        const sloState = String(slo.state || 'ok').toLowerCase();
+        p95Series = hist.map((r) => Number((r && r.p95_ms) || 0)).filter((v) => !Number.isNaN(v));
+        pill.textContent = `p95 ${p95} ms`;
+        sub.textContent = `p50 ${p50} ms, error ${err.toFixed(2)}%, req ${req.toLocaleString('id-ID')}`;
+        if (sloSub) {
+          sloSub.textContent = `target ${targetPct.toFixed(2)}% | burn 5m ${burn5.toFixed(2)}x | burn 60m ${burn60.toFixed(2)}x`;
+        }
+        applySloBadge(sloState);
+        renderSloAlert(sloState, burn5, burn60);
+        applyBadge(p95);
+        renderSparkline(p95Series);
+        renderOpacSearchAnalytics(m.search_analytics || {});
+        if (trace) {
+          const traceId = String((data && data.trace_id) || resp.headers.get('X-Trace-Id') || '-');
+          trace.textContent = `Trace ID: ${traceId}`;
+        }
+        lastUpdatedAt = Date.now();
+        nextRefreshAt = Date.now() + 30000;
+        renderUpdated();
+        renderNextRefresh();
+      } catch (_) {
+        // keep last state
+      }
+    }
+
+    function start() {
+      if (timer) return;
+      timer = setInterval(function () {
+        if (document.visibilityState === 'visible') {
+          refreshOpac();
+        }
+      }, 30000);
+      nextRefreshAt = Date.now() + 30000;
+    }
+
+    function stop() {
+      if (!timer) return;
+      clearInterval(timer);
+      timer = null;
+    }
+
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', function () {
+        refreshOpac();
+      });
+    }
+
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible') {
+        start();
+        refreshOpac();
+      } else {
+        stop();
+      }
+    });
+
+    tick = setInterval(function () {
+      renderUpdated();
+      renderNextRefresh();
+    }, 1000);
+    renderSparkline(p95Series);
+    renderOpacSearchAnalytics(@json($opacSearchAnalytics ?? []));
+    applySloBadge(@json($opacSloState ?? 'ok'));
+    renderSloAlert(@json($opacSloState ?? 'ok'), Number(@json($opacBurn5 ?? 0)), Number(@json($opacBurn60 ?? 0)));
+    renderUpdated();
+    renderNextRefresh();
+    if (document.visibilityState === 'visible') {
+      start();
+    }
+  })();
+</script>
 @endsection
+
+

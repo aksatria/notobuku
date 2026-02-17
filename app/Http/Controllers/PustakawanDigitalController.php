@@ -113,21 +113,22 @@ class PustakawanDigitalController extends Controller
 
     public function handleQuestion(Request $request)
     {
-        $data = $request->validate([
-            'question' => ['required', 'string', 'max:2000'],
-            'conversation_id' => ['nullable'],
-            'page' => ['nullable', 'integer', 'min:1'],
-            'available_only' => ['nullable', 'boolean'],
-            'sort' => ['nullable', 'string'],
-        ]);
+        try {
+            $data = $request->validate([
+                'question' => ['required', 'string', 'max:2000'],
+                'conversation_id' => ['nullable'],
+                'page' => ['nullable', 'integer', 'min:1'],
+                'available_only' => ['nullable', 'boolean'],
+                'sort' => ['nullable', 'string'],
+            ]);
 
-        $user = Auth::user();
-        $question = trim((string) ($data['question'] ?? ''));
-        $conversationId = (int) ($data['conversation_id'] ?? 0);
+            $user = Auth::user();
+            $question = trim((string) ($data['question'] ?? ''));
+            $conversationId = (int) ($data['conversation_id'] ?? 0);
 
-        if ($question === '') {
-            return response()->json(['success' => false, 'message' => 'Pertanyaan kosong.'], 422);
-        }
+            if ($question === '') {
+                return response()->json(['success' => false, 'message' => 'Pertanyaan kosong.'], 422);
+            }
 
         $conversation = AiConversation::where('user_id', $user->id)
             ->when($conversationId > 0, fn($q) => $q->where('id', $conversationId))
@@ -197,22 +198,56 @@ class PustakawanDigitalController extends Controller
 
         $this->updateConversationTitle((string) $conversation->id, $question);
 
-        return response()->json([
-            'success' => true,
-            'response' => [
-                'message' => $message,
-                'data' => [
-                    'books' => $catalogResults['books'] ?? [],
-                    'total' => $catalogResults['total'] ?? 0,
-                    'page' => $page,
-                    'per_page' => $perPage,
-                    'query' => $question,
-                    'source' => 'local',
+            return response()->json([
+                'success' => true,
+                'response' => [
+                    'message' => $message,
+                    'data' => [
+                        'books' => $catalogResults['books'] ?? [],
+                        'total' => $catalogResults['total'] ?? 0,
+                        'page' => $page,
+                        'per_page' => $perPage,
+                        'query' => $question,
+                        'source' => 'local',
+                    ],
+                    'mode' => $aiResponse['mode'] ?? 'free',
+                    'keywords' => $aiResponse['keywords'] ?? [],
                 ],
-                'mode' => $aiResponse['mode'] ?? 'free',
-                'keywords' => $aiResponse['keywords'] ?? [],
-            ],
-        ]);
+            ]);
+        } catch (\Throwable $e) {
+            $msg = strtolower((string) $e->getMessage());
+            $isQuota = str_contains($msg, 'usage limit')
+                || str_contains($msg, 'quota')
+                || str_contains($msg, 'rate limit')
+                || str_contains($msg, '429');
+
+            Log::warning('PustakawanDigital degraded response', [
+                'error' => $e->getMessage(),
+                'is_quota' => $isQuota,
+                'user_id' => Auth::id(),
+            ]);
+
+            $fallback = $isQuota
+                ? "Layanan AI sedang mencapai batas kuota. Fitur tetap bisa dipakai: cari buku di katalog, cek pinjaman, dan reservasi."
+                : "Layanan AI sedang sibuk. Coba beberapa saat lagi, atau lanjut gunakan pencarian katalog.";
+
+            return response()->json([
+                'success' => true,
+                'response' => [
+                    'message' => $fallback,
+                    'data' => [
+                        'books' => [],
+                        'total' => 0,
+                        'page' => 1,
+                        'per_page' => 6,
+                        'query' => '',
+                        'source' => 'degraded',
+                    ],
+                    'mode' => 'degraded',
+                    'keywords' => [],
+                ],
+            ]);
+        }
     }
 
     public function startNewConversation(Request $request)

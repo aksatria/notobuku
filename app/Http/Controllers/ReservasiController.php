@@ -146,13 +146,17 @@ class ReservasiController extends Controller
         if ($institutionId <= 0) $institutionId = $this->currentInstitutionId();
 
         $validated = $request->validate([
-            'barcode'        => ['required', 'string', 'min:1', 'max:80'],
+            'barcode'        => ['nullable', 'string', 'min:1', 'max:80'],
+            'biblio_id'      => ['nullable', 'string', 'min:1', 'max:80'],
             'institution_id' => ['nullable', 'integer', 'min:1'],
             'member_id'      => ['nullable', 'integer', 'min:1'],
             'notes'          => ['nullable', 'string', 'max:255'],
         ]);
 
         $barcode = trim((string)($validated['barcode'] ?? ''));
+        if ($barcode === '') {
+            $barcode = trim((string)($validated['biblio_id'] ?? ''));
+        }
         $notes = $validated['notes'] ?? null;
 
         if ($barcode === '') {

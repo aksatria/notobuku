@@ -176,5 +176,27 @@ class AuthorizationMatrixTest extends TestCase
             'claim_reference' => 'CLM-BLOCK',
             'claim_notes' => 'Blocked',
         ])->assertRedirect(route('app'));
+
+        $this->actingAs($member)->get(route('stock_takes.index'))
+            ->assertRedirect(route('app'));
+        $this->actingAs($member)->get(route('copy_cataloging.index'))
+            ->assertRedirect(route('app'));
+
+        $this->actingAs($member)->get(route('transaksi.policies.index'))
+            ->assertRedirect(route('app'));
+    }
+
+    public function test_policy_matrix_endpoint_only_accessible_by_admin_and_super_admin(): void
+    {
+        [$institutionId, $branchId] = $this->seedInstitutionAndBranch();
+
+        $admin = $this->makeUser('admin', $institutionId, $branchId, 'admin-policy@test.local');
+        $staff = $this->makeUser('staff', $institutionId, $branchId, 'staff-policy@test.local');
+
+        $this->actingAs($admin)->get(route('transaksi.policies.index'))
+            ->assertOk();
+
+        $this->actingAs($staff)->get(route('transaksi.policies.index'))
+            ->assertRedirect(route('app'));
     }
 }

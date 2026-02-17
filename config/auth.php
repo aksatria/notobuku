@@ -40,6 +40,12 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+        // Fallback guard for routes protected by auth:sanctum.
+        // Uses session driver unless Sanctum package is installed/configured.
+        'sanctum' => [
+            'driver' => 'session',
+            'provider' => 'users',
+        ],
     ],
 
     /*

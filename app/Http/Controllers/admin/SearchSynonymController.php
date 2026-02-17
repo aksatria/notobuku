@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schema;
 
 class SearchSynonymController extends Controller
 {
@@ -28,11 +29,13 @@ class SearchSynonymController extends Controller
         $institutionId = $this->currentInstitutionId();
         $branchId = $request->query('branch_id');
         $q = trim((string) $request->query('q', ''));
+        $status = trim((string) $request->query('status', ''));
 
         $rows = DB::table('search_synonyms')
             ->where('institution_id', $institutionId)
             ->when($branchId !== null && $branchId !== '', fn($query) => $query->where('branch_id', $branchId))
             ->when($q !== '', fn($query) => $query->where('term', 'like', '%' . $q . '%'))
+            ->when($status !== '' && in_array($status, ['pending', 'approved', 'rejected'], true), fn($query) => $query->where('status', $status))
             ->orderBy('term')
             ->paginate(20)
             ->withQueryString();
@@ -43,11 +46,27 @@ class SearchSynonymController extends Controller
             ->orderBy('name')
             ->get();
 
+        $zeroQueue = collect();
+        if (Schema::hasTable('search_queries')) {
+            $zeroQueue = DB::table('search_queries')
+                ->where('institution_id', $institutionId)
+                ->where('last_hits', '<=', 0)
+                ->whereIn('zero_result_status', ['open', 'ignored'])
+                ->orderByDesc('search_count')
+                ->orderByDesc('last_searched_at')
+                ->limit(20)
+                ->get();
+        }
+
         return view('admin.search-synonyms', [
             'rows' => $rows,
             'branches' => $branches,
             'q' => $q,
             'branchId' => $branchId,
+            'statusFilter' => $status,
+            'prefillTerm' => trim((string) $request->query('term', '')),
+            'prefillSynonyms' => trim((string) $request->query('synonyms', '')),
+            'zeroQueue' => $zeroQueue,
         ]);
     }
 
@@ -61,11 +80,13 @@ class SearchSynonymController extends Controller
             'term' => ['required', 'string', 'max:120'],
             'synonyms' => ['required', 'string'],
             'branch_id' => ['nullable', 'integer'],
+            'status' => ['nullable', 'in:pending,approved'],
         ]);
 
         $term = trim($data['term']);
         $synonyms = array_values(array_unique(array_filter(array_map('trim', preg_split('/[;,\\n]+/', $data['synonyms'])))));
         $branchId = $data['branch_id'] ?? null;
+        $status = (string) ($data['status'] ?? 'approved');
 
         if (empty($synonyms)) {
             return back()->withErrors(['synonyms' => 'Sinonim tidak boleh kosong.']);
@@ -91,6 +112,13 @@ class SearchSynonymController extends Controller
                 ->where('id', $existing->id)
                 ->update([
                     'synonyms' => json_encode($merged),
+                    'status' => $status,
+                    'source' => 'manual',
+                    'submitted_by' => auth()->id(),
+                    'approved_by' => $status === 'approved' ? auth()->id() : null,
+                    'approved_at' => $status === 'approved' ? $now : null,
+                    'rejected_at' => null,
+                    'rejection_note' => null,
                     'updated_at' => $now,
                 ]);
         } else {
@@ -99,12 +127,17 @@ class SearchSynonymController extends Controller
                 'branch_id' => $branchId,
                 'term' => $term,
                 'synonyms' => json_encode($synonyms),
+                'status' => $status,
+                'source' => 'manual',
+                'submitted_by' => auth()->id(),
+                'approved_by' => $status === 'approved' ? auth()->id() : null,
+                'approved_at' => $status === 'approved' ? $now : null,
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
         }
 
-        return back()->with('status', 'Sinonim tersimpan.');
+        return back()->with('status', $status === 'approved' ? 'Sinonim tersimpan dan aktif.' : 'Sinonim tersimpan sebagai pending.');
     }
 
     public function destroy(int $id)
@@ -190,6 +223,13 @@ class SearchSynonymController extends Controller
                 }
                 DB::table('search_synonyms')->where('id', $existing->id)->update([
                     'synonyms' => json_encode($merged),
+                    'status' => 'approved',
+                    'source' => 'csv',
+                    'submitted_by' => auth()->id(),
+                    'approved_by' => auth()->id(),
+                    'approved_at' => $now,
+                    'rejected_at' => null,
+                    'rejection_note' => null,
                     'updated_at' => $now,
                 ]);
             } else {
@@ -198,6 +238,11 @@ class SearchSynonymController extends Controller
                     'branch_id' => $branchId,
                     'term' => $term,
                     'synonyms' => json_encode($synonyms),
+                    'status' => 'approved',
+                    'source' => 'csv',
+                    'submitted_by' => auth()->id(),
+                    'approved_by' => auth()->id(),
+                    'approved_at' => $now,
                     'created_at' => $now,
                     'updated_at' => $now,
                 ]);
@@ -382,6 +427,13 @@ class SearchSynonymController extends Controller
                     $newSyn = $max > 0 ? array_slice($synonyms, 0, $max) : $synonyms;
                     DB::table('search_synonyms')->where('id', $existing->id)->update([
                         'synonyms' => json_encode($newSyn),
+                        'status' => 'approved',
+                        'source' => 'csv',
+                        'submitted_by' => auth()->id(),
+                        'approved_by' => auth()->id(),
+                        'approved_at' => $now,
+                        'rejected_at' => null,
+                        'rejection_note' => null,
                         'updated_at' => $now,
                     ]);
                 } else {
@@ -395,6 +447,13 @@ class SearchSynonymController extends Controller
                     } else {
                         DB::table('search_synonyms')->where('id', $existing->id)->update([
                             'synonyms' => json_encode($merged),
+                            'status' => 'approved',
+                            'source' => 'csv',
+                            'submitted_by' => auth()->id(),
+                            'approved_by' => auth()->id(),
+                            'approved_at' => $now,
+                            'rejected_at' => null,
+                            'rejection_note' => null,
                             'updated_at' => $now,
                         ]);
                     }
@@ -405,6 +464,11 @@ class SearchSynonymController extends Controller
                     'branch_id' => $branchId,
                     'term' => $term,
                     'synonyms' => json_encode($synonyms),
+                    'status' => 'approved',
+                    'source' => 'csv',
+                    'submitted_by' => auth()->id(),
+                    'approved_by' => auth()->id(),
+                    'approved_at' => $now,
                     'created_at' => $now,
                     'updated_at' => $now,
                 ]);
@@ -529,5 +593,143 @@ class SearchSynonymController extends Controller
             'Content-Type' => 'text/csv; charset=UTF-8',
             'Content-Disposition' => 'attachment; filename=\"preview-sinonim.csv\"',
         ]);
+    }
+
+    public function resolveZeroResult(Request $request, int $id)
+    {
+        abort_unless($this->canManage(), 403);
+        $institutionId = $this->currentInstitutionId();
+
+        $data = $request->validate([
+            'note' => ['nullable', 'string', 'max:255'],
+            'status' => ['nullable', 'in:resolved,ignored,open'],
+            'term' => ['nullable', 'string', 'max:120'],
+            'synonyms' => ['nullable', 'string'],
+            'branch_id' => ['nullable', 'integer'],
+            'use_auto_suggestion' => ['nullable', 'boolean'],
+        ]);
+
+        $row = DB::table('search_queries')
+            ->where('institution_id', $institutionId)
+            ->where('id', $id)
+            ->first();
+        if (!$row) {
+            return back()->withErrors(['status' => 'Query zero-result tidak ditemukan.']);
+        }
+
+        $status = (string) ($data['status'] ?? 'resolved');
+        $note = trim((string) ($data['note'] ?? ''));
+        $link = null;
+
+        $term = trim((string) ($data['term'] ?? ''));
+        $synonymsRaw = trim((string) ($data['synonyms'] ?? ''));
+        $useAutoSuggestion = (bool) ($data['use_auto_suggestion'] ?? false);
+        if ($useAutoSuggestion && $term === '' && $synonymsRaw === '') {
+            $term = (string) ($row->normalized_query ?: $row->query);
+            $synonymsRaw = trim((string) ($row->auto_suggestion_query ?? ''));
+        }
+        if ($term !== '' && $synonymsRaw !== '') {
+            $synonyms = array_values(array_unique(array_filter(array_map('trim', preg_split('/[;,\n]+/', $synonymsRaw)))));
+            if (!empty($synonyms)) {
+                $branchId = $data['branch_id'] ?? null;
+                $existing = DB::table('search_synonyms')
+                    ->where('institution_id', $institutionId)
+                    ->where('branch_id', $branchId)
+                    ->where('term', $term)
+                    ->first();
+                $now = now();
+                if ($existing) {
+                    $current = (array) json_decode((string) $existing->synonyms, true);
+                    $merged = array_values(array_unique(array_merge($current, $synonyms)));
+                    DB::table('search_synonyms')->where('id', $existing->id)->update([
+                        'synonyms' => json_encode($merged),
+                        'status' => 'approved',
+                        'source' => 'zero_result',
+                        'submitted_by' => auth()->id(),
+                        'approved_by' => auth()->id(),
+                        'approved_at' => $now,
+                        'rejected_at' => null,
+                        'rejection_note' => null,
+                        'updated_at' => $now,
+                    ]);
+                } else {
+                    DB::table('search_synonyms')->insert([
+                        'institution_id' => $institutionId,
+                        'branch_id' => $branchId,
+                        'term' => $term,
+                        'synonyms' => json_encode($synonyms),
+                        'status' => 'approved',
+                        'source' => 'zero_result',
+                        'submitted_by' => auth()->id(),
+                        'approved_by' => auth()->id(),
+                        'approved_at' => $now,
+                        'created_at' => $now,
+                        'updated_at' => $now,
+                    ]);
+                }
+                $link = route('admin.search_synonyms', ['term' => $term]);
+                if ($note === '') {
+                    $note = 'Resolved via sinonim: ' . $term;
+                }
+            }
+        }
+
+        DB::table('search_queries')
+            ->where('institution_id', $institutionId)
+            ->where('id', $id)
+            ->update([
+                'zero_result_status' => $status,
+                'zero_resolved_at' => in_array($status, ['resolved', 'ignored', 'resolved_auto'], true) ? now() : null,
+                'zero_resolved_by' => in_array($status, ['resolved', 'ignored', 'resolved_auto'], true) ? auth()->id() : null,
+                'zero_resolution_note' => $note !== '' ? $note : null,
+                'zero_resolution_link' => $link,
+                'auto_suggestion_status' => $status === 'resolved' ? 'approved' : ($status === 'ignored' ? 'rejected' : 'open'),
+                'updated_at' => now(),
+            ]);
+
+        return back()->with('status', 'Zero-result queue diperbarui.');
+    }
+
+    public function approve(int $id)
+    {
+        abort_unless($this->canManage(), 403);
+        $institutionId = $this->currentInstitutionId();
+
+        DB::table('search_synonyms')
+            ->where('institution_id', $institutionId)
+            ->where('id', $id)
+            ->update([
+                'status' => 'approved',
+                'approved_by' => auth()->id(),
+                'approved_at' => now(),
+                'rejected_at' => null,
+                'rejection_note' => null,
+                'updated_at' => now(),
+            ]);
+
+        return back()->with('status', 'Sinonim disetujui.');
+    }
+
+    public function reject(Request $request, int $id)
+    {
+        abort_unless($this->canManage(), 403);
+        $institutionId = $this->currentInstitutionId();
+        $data = $request->validate([
+            'note' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        DB::table('search_synonyms')
+            ->where('institution_id', $institutionId)
+            ->where('id', $id)
+            ->update([
+                'status' => 'rejected',
+                'rejected_at' => now(),
+                'rejection_note' => trim((string) ($data['note'] ?? '')) ?: 'Ditolak operator',
+                'approved_by' => null,
+                'approved_at' => null,
+                'updated_at' => now(),
+            ]);
+
+        return back()->with('status', 'Sinonim ditolak.');
     }
 }

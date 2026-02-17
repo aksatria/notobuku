@@ -4,8 +4,13 @@ namespace App\Http\Controllers;
 use App\Models\Item;
 use App\Services\ReservationService;
 use App\Services\LoanPolicyService;
+use App\Services\CirculationPolicyEngine;
+use App\Support\CirculationMetrics;
+use App\Support\CirculationSlaClock;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -18,6 +23,37 @@ class TransaksiController extends Controller
     |--------------------------------------------------------------------------
     */
     public function index(Request $request)
+    {
+        $this->ensureStaff();
+        $this->requireStaffBranch($request);
+        if (!$this->isUnifiedCirculationEnabled()) {
+            return redirect()->route('transaksi.pinjam.form');
+        }
+
+        return view('transaksi.index', [
+            'title' => 'Sirkulasi Terpadu',
+            'legacyUrls' => [
+                'pinjam' => route('transaksi.pinjam.form'),
+                'kembali' => route('transaksi.kembali.form'),
+                'perpanjang' => route('transaksi.perpanjang.form'),
+            ],
+            'apiUrls' => [
+                'member_search' => route('transaksi.pinjam.cari_member'),
+                'member_info' => route('transaksi.pinjam.member_info', ['id' => '__ID__']),
+                'cek_pinjam' => route('transaksi.pinjam.cek_barcode'),
+                'cek_kembali' => route('transaksi.kembali.cek_barcode'),
+                'cek_perpanjang' => route('transaksi.perpanjang.cek_barcode'),
+                'commit' => route('transaksi.unified.commit'),
+                'sync' => route('transaksi.unified.sync'),
+            ],
+            'featureFlags' => [
+                'offline_queue_enabled' => $this->isUnifiedOfflineQueueEnabled(),
+                'shortcuts_enabled' => $this->isUnifiedShortcutsEnabled(),
+            ],
+        ]);
+    }
+
+    public function pinjamForm(Request $request)
     {
         $this->ensureStaff();
         $this->requireStaffBranch($request); // cabang wajib utk admin/staff (super_admin bebas)
@@ -47,6 +83,89 @@ class TransaksiController extends Controller
         return view('transaksi.pinjam', [
             'title' => 'Transaksi Pinjam',
             'sampleBarcodes' => $sampleBarcodes,
+        ]);
+    }
+
+    public function unifiedCommit(Request $request): JsonResponse
+    {
+        $this->ensureStaff();
+        $this->requireStaffBranch($request);
+        if (!$this->isUnifiedCirculationEnabled()) {
+            return response()->json(['ok' => false, 'message' => 'Unified circulation dinonaktifkan.'], 404);
+        }
+
+        $data = $request->validate([
+            'action' => ['required', 'in:checkout,return,renew'],
+            'payload' => ['required', 'array'],
+            'client_event_id' => ['nullable', 'string', 'max:160'],
+        ]);
+
+        $eventId = trim((string) ($data['client_event_id'] ?? ''));
+        if ($eventId !== '') {
+            $cached = $this->getUnifiedCommitCache((string) $data['action'], $eventId);
+            if ($cached !== null) {
+                return response()->json($cached);
+            }
+        }
+
+        $result = $this->executeUnifiedAction((string) $data['action'], (array) $data['payload']);
+
+        if ($eventId !== '') {
+            $this->putUnifiedCommitCache((string) $data['action'], $eventId, $result);
+        }
+
+        return response()->json($result, !empty($result['ok']) ? 200 : 422);
+    }
+
+    public function unifiedSync(Request $request): JsonResponse
+    {
+        $this->ensureStaff();
+        $this->requireStaffBranch($request);
+        if (!$this->isUnifiedCirculationEnabled() || !$this->isUnifiedOfflineQueueEnabled()) {
+            return response()->json(['ok' => false, 'message' => 'Sinkronisasi offline queue dinonaktifkan.'], 404);
+        }
+
+        $data = $request->validate([
+            'events' => ['required', 'array', 'min:1', 'max:50'],
+            'events.*.action' => ['required', 'in:checkout,return,renew'],
+            'events.*.payload' => ['required', 'array'],
+            'events.*.client_event_id' => ['nullable', 'string', 'max:160'],
+        ]);
+
+        $results = [];
+        foreach ((array) $data['events'] as $idx => $event) {
+            $action = (string) ($event['action'] ?? '');
+            $payload = (array) ($event['payload'] ?? []);
+            $eventId = trim((string) ($event['client_event_id'] ?? ''));
+
+            if ($eventId !== '') {
+                $cached = $this->getUnifiedCommitCache($action, $eventId);
+                if ($cached !== null) {
+                    $results[] = ['index' => $idx, 'cached' => true] + $cached;
+                    continue;
+                }
+            }
+
+            $result = $this->executeUnifiedAction($action, $payload);
+            if ($eventId !== '') {
+                $this->putUnifiedCommitCache($action, $eventId, $result);
+            }
+
+            $results[] = ['index' => $idx, 'cached' => false] + $result;
+        }
+
+        $okCount = collect($results)->where('ok', true)->count();
+        $failCount = count($results) - $okCount;
+
+        return response()->json([
+            'ok' => $failCount === 0,
+            'message' => "Sync selesai. sukses={$okCount}, gagal={$failCount}",
+            'results' => $results,
+            'summary' => [
+                'total' => count($results),
+                'success' => $okCount,
+                'failed' => $failCount,
+            ],
         ]);
     }
 
@@ -541,6 +660,9 @@ class TransaksiController extends Controller
 
         // cabang WAJIB dari user login, tidak boleh dari request
         if ($request->has('branch_id')) {
+            if ($request->expectsJson()) {
+                return response()->json(['ok' => false, 'message' => 'Request tidak valid (branch_id tidak boleh dikirim).'], 422);
+            }
             return back()->withInput()->with('error', 'Request tidak valid (branch_id tidak boleh dikirim).');
         }
 
@@ -580,6 +702,9 @@ class TransaksiController extends Controller
             ->values();
 
         if ($barcodes->isEmpty()) {
+            if ($request->expectsJson()) {
+                return response()->json(['ok' => false, 'message' => 'Minimal 1 barcode harus diisi.'], 422);
+            }
             return back()->withInput()->with('error', 'Minimal 1 barcode harus diisi.');
         }
 
@@ -594,17 +719,33 @@ class TransaksiController extends Controller
             ->first();
 
         if (!$member) {
+            if ($request->expectsJson()) {
+                return response()->json(['ok' => false, 'message' => 'Member tidak ditemukan.'], 422);
+            }
             return back()->withInput()->with('error', 'Member tidak ditemukan.');
         }
         if ((int)$member->institution_id !== (int)$institutionId) {
+            if ($request->expectsJson()) {
+                return response()->json(['ok' => false, 'message' => 'Member bukan dari institusi yang sama.'], 422);
+            }
             return back()->withInput()->with('error', 'Member bukan dari institusi yang sama.');
         }
         if (!in_array((string)$member->status, ['active'], true)) {
+            if ($request->expectsJson()) {
+                return response()->json(['ok' => false, 'message' => 'Member tidak aktif. Status: ' . (string)$member->status], 422);
+            }
             return back()->withInput()->with('error', 'Member tidak aktif. Status: ' . (string)$member->status);
         }
 
         $policySvc = app(LoanPolicyService::class);
-        $policy = $policySvc->forRole($policySvc->resolveMemberRole($member));
+        $policyEngine = app(CirculationPolicyEngine::class);
+        $memberType = $policySvc->resolveMemberRole($member);
+        $policy = $policySvc->forContext(
+            $institutionId,
+            $staffBranchId > 0 ? $staffBranchId : null,
+            $memberType,
+            null
+        );
         $loanDefaultDays = (int)($policy['default_days'] ?? 7);
         if ($loanDefaultDays <= 0) $loanDefaultDays = 7;
 
@@ -619,18 +760,42 @@ class TransaksiController extends Controller
             ->count();
 
         if (($activeItemsCount + $barcodes->count()) > $loanMaxItems) {
+            $msg = "Batas pinjam aktif tercapai. Maksimal {$loanMaxItems} buku per orang. Saat ini aktif: {$activeItemsCount}.";
+            if ($request->expectsJson()) {
+                return response()->json(['ok' => false, 'message' => $msg], 422);
+            }
             return back()->withInput()->with(
                 'error',
-                "Batas pinjam aktif tercapai. Maksimal {$loanMaxItems} buku per orang. Saat ini aktif: {$activeItemsCount}."
+                $msg
             );
         }
 
         $dueAt = !empty($data['due_at'])
             ? date('Y-m-d H:i:s', strtotime((string)$data['due_at']))
-            : date('Y-m-d H:i:s', strtotime('+' . $loanDefaultDays . ' days'));
+            : $policyEngine
+                ->computeDueAtByBusinessDays($institutionId, $staffBranchId > 0 ? $staffBranchId : null, $loanDefaultDays)
+                ->setTime(23, 59, 59)
+                ->format('Y-m-d H:i:s');
 
         $notes = isset($data['notes']) ? trim((string)$data['notes']) : null;
         $notes = ($notes !== '' ? $notes : null);
+
+        $idempotencyKey = $this->acquireIdempotencyGuard('loan.checkout', [
+            'member_id' => $memberId,
+            'barcodes' => $barcodes->all(),
+            'due_at' => (string)($data['due_at'] ?? ''),
+        ]);
+
+        if ($idempotencyKey === null) {
+            CirculationMetrics::recordBusinessOutcome('checkout', false);
+            CirculationMetrics::incrementFailureReason('checkout', 'Permintaan duplikat terdeteksi.');
+            if ($request->expectsJson()) {
+                return response()->json(['ok' => false, 'message' => 'Permintaan duplikat terdeteksi. Tunggu sebentar lalu coba lagi.'], 422);
+            }
+            return back()->withInput()->with('error', 'Permintaan duplikat terdeteksi. Tunggu sebentar lalu coba lagi.');
+        }
+
+        $idempotencySuccess = false;
 
         try {
             $result = DB::transaction(function () use (
@@ -647,7 +812,6 @@ class TransaksiController extends Controller
                     ->whereIn('barcode', $barcodes->all())
                     ->lockForUpdate()
                     ->get();
-        $policySvc = app(LoanPolicyService::class);
 
                 if ($items->count() !== $barcodes->count()) {
                     $found = $items->pluck('barcode')->all();
@@ -797,12 +961,32 @@ class TransaksiController extends Controller
                 ];
             }, 3);
 
+            $idempotencySuccess = true;
+            CirculationMetrics::recordBusinessOutcome('checkout', true);
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'ok' => true,
+                    'message' => 'Transaksi pinjam berhasil dibuat.',
+                    'loan_id' => (int) $result['loan_id'],
+                    'loan_code' => (string) $result['loan_code'],
+                    'redirect' => route('transaksi.pinjam.success', ['id' => $result['loan_id']]),
+                ]);
+            }
+
             return redirect()
                 ->route('transaksi.pinjam.success', ['id' => $result['loan_id']])
                 ->with('success', 'Transaksi pinjam berhasil dibuat. Kode: ' . $result['loan_code']);
 
         } catch (\Throwable $e) {
+            CirculationMetrics::recordBusinessOutcome('checkout', false);
+            CirculationMetrics::incrementFailureReason('checkout', (string) $e->getMessage());
+            if ($request->expectsJson()) {
+                return response()->json(['ok' => false, 'message' => $e->getMessage()], 422);
+            }
             return back()->withInput()->with('error', $e->getMessage());
+        } finally {
+            $this->releaseIdempotencyGuard($idempotencyKey, $idempotencySuccess);
         }
     }
 
@@ -936,6 +1120,22 @@ class TransaksiController extends Controller
         $user = Auth::user();
         $institutionId = $this->currentInstitutionId();
         $branchId = $this->staffBranchId();
+
+        $loanItemIds = array_values(array_unique(array_map('intval', $data['loan_item_ids'])));
+        $idempotencyKey = $this->acquireIdempotencyGuard('loan.return', [
+            'loan_item_ids' => $loanItemIds,
+        ]);
+
+        if ($idempotencyKey === null) {
+            CirculationMetrics::recordBusinessOutcome('return', false);
+            CirculationMetrics::incrementFailureReason('return', 'Permintaan duplikat terdeteksi.');
+            if ($request->expectsJson()) {
+                return response()->json(['ok' => false, 'message' => 'Permintaan duplikat terdeteksi. Tunggu sebentar lalu coba lagi.'], 422);
+            }
+            return back()->withInput()->with('error', 'Permintaan duplikat terdeteksi. Tunggu sebentar lalu coba lagi.');
+        }
+
+        $idempotencySuccess = false;
 
         try {
             $result = DB::transaction(function () use ($data, $user, $institutionId, $branchId) {
@@ -1071,6 +1271,22 @@ class TransaksiController extends Controller
                 ];
             });
 
+            $idempotencySuccess = true;
+            CirculationMetrics::recordBusinessOutcome('return', true);
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'ok' => true,
+                    'message' => 'Pengembalian berhasil disimpan.',
+                    'primary_loan_id' => (int) ($result['primary_loan_id'] ?? 0),
+                    'loan_ids' => (array) ($result['loan_ids'] ?? []),
+                    'loan_item_ids' => (array) ($result['loan_item_ids'] ?? []),
+                    'redirect' => !empty($result['primary_loan_id'])
+                        ? route('transaksi.kembali.success', ['id' => $result['primary_loan_id']])
+                        : route('transaksi.kembali.form'),
+                ]);
+            }
+
             if (empty($result['primary_loan_id'])) {
                 return redirect()
                     ->route('transaksi.kembali.form')
@@ -1086,7 +1302,14 @@ class TransaksiController extends Controller
                     'loan_item_ids' => $result['loan_item_ids'],
                 ]);
         } catch (\Throwable $e) {
+            CirculationMetrics::recordBusinessOutcome('return', false);
+            CirculationMetrics::incrementFailureReason('return', (string) $e->getMessage());
+            if ($request->expectsJson()) {
+                return response()->json(['ok' => false, 'message' => $e->getMessage()], 422);
+            }
             return back()->withInput()->with('error', $e->getMessage());
+        } finally {
+            $this->releaseIdempotencyGuard($idempotencyKey, $idempotencySuccess);
         }
     }
 
@@ -1250,19 +1473,35 @@ class TransaksiController extends Controller
             $overrideNewDueAt = date('Y-m-d H:i:s', strtotime((string)$data['new_due_at']));
         }
 
-        $extendDays = (int)config('notobuku.loans.extend_days', 7);
-        if ($extendDays <= 0) $extendDays = 7;
-        $maxRenewals = (int)config('notobuku.loans.max_renewals', 2);
-        if ($maxRenewals <= 0) $maxRenewals = 2;
         $liHasRenewCount = Schema::hasColumn('loan_items', 'renew_count');
+        $policySvc = app(LoanPolicyService::class);
+        $policyEngine = app(CirculationPolicyEngine::class);
+
+        $loanItemIds = array_values(array_unique(array_map('intval', $data['loan_item_ids'])));
+        $idempotencyKey = $this->acquireIdempotencyGuard('loan.extend', [
+            'loan_item_ids' => $loanItemIds,
+            'new_due_at' => (string)($data['new_due_at'] ?? ''),
+        ]);
+
+        if ($idempotencyKey === null) {
+            CirculationMetrics::recordBusinessOutcome('extend', false);
+            CirculationMetrics::incrementFailureReason('extend', 'Permintaan duplikat terdeteksi.');
+            if ($request->expectsJson()) {
+                return response()->json(['ok' => false, 'message' => 'Permintaan duplikat terdeteksi. Tunggu sebentar lalu coba lagi.'], 422);
+            }
+            return back()->withInput()->with('error', 'Permintaan duplikat terdeteksi. Tunggu sebentar lalu coba lagi.');
+        }
+
+        $idempotencySuccess = false;
 
         try {
-            DB::transaction(function () use ($data, $institutionId, $overrideNewDueAt, $user, $notes, $branchId, $liHasRenewCount, $maxRenewals, $extendDays) {
+            DB::transaction(function () use ($data, $institutionId, $overrideNewDueAt, $user, $notes, $branchId, $liHasRenewCount, $policySvc, $policyEngine) {
                 $loanItemIds = array_values(array_unique(array_map('intval', $data['loan_item_ids'])));
 
                 $loanItemsQ = DB::table('loan_items')
                     ->join('loans', 'loans.id', '=', 'loan_items.loan_id')
                     ->join('items', 'items.id', '=', 'loan_items.item_id')
+                    ->join('members', 'members.id', '=', 'loans.member_id')
                     ->whereIn('loan_items.id', $loanItemIds)
                     ->where('loans.institution_id', $institutionId)
                     ->select([
@@ -1279,6 +1518,7 @@ class TransaksiController extends Controller
                         'loans.due_at as loan_due_at',
                         'loans.status as loan_status',
                         'loans.branch_id as loan_branch_id',
+                        'members.member_type as member_type',
                         'items.branch_id as item_branch_id',
                     ])
                     ->lockForUpdate();
@@ -1317,6 +1557,16 @@ class TransaksiController extends Controller
                 }
 
                 foreach ($loanItems as $li) {
+                    $memberType = $policySvc->resolveMemberRole((object) ['member_type' => $li->member_type ?? 'member']);
+                    $policy = $policySvc->forContext(
+                        $institutionId,
+                        (int) ($li->loan_branch_id ?? 0) > 0 ? (int) $li->loan_branch_id : null,
+                        $memberType,
+                        null
+                    );
+                    $maxRenewals = max(0, (int) ($policy['max_renewals'] ?? 2));
+                    $extendDays = max(1, (int) ($policy['extend_days'] ?? 7));
+
                     if (!empty($li->returned_at)) {
                         throw new \RuntimeException('Ada item yang sudah dikembalikan. Tidak bisa diperpanjang.');
                     }
@@ -1333,8 +1583,15 @@ class TransaksiController extends Controller
                         } catch (\Throwable $e) {
                             $base = new \DateTime();
                         }
-                        $base->modify('+' . $extendDays . ' days');
-                        $newDueAt = $base->format('Y-m-d H:i:s');
+                        $newDueAt = $policyEngine
+                            ->computeDueAtByBusinessDays(
+                                $institutionId,
+                                (int) ($li->loan_branch_id ?? 0) > 0 ? (int) $li->loan_branch_id : null,
+                                $extendDays,
+                                \Carbon\Carbon::instance($base)
+                            )
+                            ->setTime(23, 59, 59)
+                            ->format('Y-m-d H:i:s');
                     }
 
                     $newDueDate = null;
@@ -1388,11 +1645,29 @@ class TransaksiController extends Controller
                 );
             });
 
+            $idempotencySuccess = true;
+            CirculationMetrics::recordBusinessOutcome('extend', true);
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'ok' => true,
+                    'message' => 'Perpanjangan berhasil disimpan.',
+                    'redirect' => route('transaksi.perpanjang.form'),
+                ]);
+            }
+
             return redirect()
                 ->route('transaksi.perpanjang.form')
                 ->with('success', 'Perpanjangan berhasil disimpan.');
         } catch (\Throwable $e) {
+            CirculationMetrics::recordBusinessOutcome('extend', false);
+            CirculationMetrics::incrementFailureReason('extend', (string) $e->getMessage());
+            if ($request->expectsJson()) {
+                return response()->json(['ok' => false, 'message' => $e->getMessage()], 422);
+            }
             return back()->withInput()->with('error', $e->getMessage());
+        } finally {
+            $this->releaseIdempotencyGuard($idempotencyKey, $idempotencySuccess);
         }
     }
 
@@ -1561,9 +1836,11 @@ class TransaksiController extends Controller
                     'loan_items.id as loan_item_id',
                     'loans.id as loan_id',
                     'loans.loan_code',
+                    'loans.branch_id',
                     'members.id as member_id',
                     'members.full_name as member_name',
                     'members.member_code as member_code',
+                    'members.member_type',
                     'items.barcode',
                     'loan_items.due_at',
                     'loan_items.returned_at',
@@ -1604,9 +1881,25 @@ class TransaksiController extends Controller
             $fines = $qb
                 ->orderByDesc('loan_items.due_at')
                 ->paginate($finePerPage)
-                ->through(function ($r) use ($fineRate) {
-                    $daysLate = $this->calcDaysLate($r->due_at, $r->returned_at);
-                    $amount = $daysLate * (int)$fineRate;
+                ->through(function ($r) use ($fineRate, $institutionId) {
+                    $policySvc = app(LoanPolicyService::class);
+                    $memberType = $policySvc->resolveMemberRole((object) ['member_type' => $r->member_type ?? 'member']);
+                    $policy = $policySvc->forContext(
+                        $institutionId,
+                        (int) ($r->branch_id ?? 0) > 0 ? (int) $r->branch_id : null,
+                        $memberType,
+                        null
+                    );
+                    $effRate = max(0, (int) ($policy['fine_rate_per_day'] ?? $fineRate));
+                    $graceDays = max(0, (int) ($policy['grace_days'] ?? 0));
+                    $daysLate = $this->calcDaysLate(
+                        $r->due_at,
+                        $r->returned_at,
+                        $institutionId,
+                        (int) ($r->branch_id ?? 0) > 0 ? (int) $r->branch_id : null,
+                        $graceDays
+                    );
+                    $amount = $daysLate * $effRate;
 
                     $status = $r->fine_status ?? 'unpaid';
                     if (!in_array($status, ['unpaid', 'paid', 'void'], true)) $status = 'unpaid';
@@ -1622,7 +1915,7 @@ class TransaksiController extends Controller
                         'due_at' => $r->due_at,
                         'returned_at' => $r->returned_at,
                         'days_late' => $daysLate,
-                        'rate' => (int)$fineRate,
+                        'rate' => $effRate,
                         'amount' => (int)$amount,
                         'fine_status' => $status,
                         'paid_amount' => (int)($r->fine_paid_amount ?? 0),
@@ -2141,6 +2434,7 @@ class TransaksiController extends Controller
 
         $institutionId = $this->currentInstitutionId();
         $staffBranchId = $this->staffBranchId();
+        $viewMode = $this->resolveFinesViewMode($request);
 
         // Pastikan snapshot denda up-to-date agar jumlah baris konsisten
         try {
@@ -2373,6 +2667,7 @@ class TransaksiController extends Controller
                     'date_from' => $dateFrom,
                     'date_to' => $dateTo,
                 ],
+                'view_mode' => $viewMode,
             ]);
         }
 
@@ -2387,6 +2682,7 @@ class TransaksiController extends Controller
             'branch_id' => $branchId,
             'date_from' => $dateFrom,
             'date_to' => $dateTo,
+            'viewMode' => $viewMode,
         ]);
     }
 
@@ -2743,6 +3039,57 @@ class TransaksiController extends Controller
         $role = Auth::user()->role ?? 'member';
         if (!in_array($role, ['super_admin', 'admin', 'staff'], true)) abort(403);
     }
+
+    private function acquireIdempotencyGuard(string $action, array $payload, int $ttlSeconds = 15): ?string
+    {
+        $userId = (int)(Auth::id() ?? 0);
+        $institutionId = $this->currentInstitutionId();
+        $normalized = $this->normalizeIdempotencyPayload($payload);
+        $json = json_encode($normalized, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}';
+
+        $key = sprintf(
+            'transaksi:idempotency:%s:i%d:u%d:%s',
+            $action,
+            $institutionId,
+            $userId,
+            sha1($json)
+        );
+
+        $acquired = Cache::add($key, now()->timestamp, max(5, $ttlSeconds));
+        if (!$acquired) {
+            return null;
+        }
+
+        return $key;
+    }
+
+    private function releaseIdempotencyGuard(?string $key, bool $success): void
+    {
+        if (!$key) {
+            return;
+        }
+
+        if (!$success) {
+            Cache::forget($key);
+        }
+    }
+
+    private function normalizeIdempotencyPayload(array $payload): array
+    {
+        $normalized = [];
+
+        foreach ($payload as $key => $value) {
+            if (is_array($value)) {
+                $normalized[$key] = $this->normalizeIdempotencyPayload($value);
+            } else {
+                $normalized[$key] = $value;
+            }
+        }
+
+        ksort($normalized);
+
+        return $normalized;
+    }
     
     private function isSuperAdmin(): bool
     {
@@ -2813,6 +3160,13 @@ class TransaksiController extends Controller
         return $id > 0 ? $id : 1;
     }
 
+    private function resolveFinesViewMode(Request $request): string
+    {
+        $sessionKey = 'ui.transaksi.denda.mode';
+        $request->session()->put($sessionKey, 'compact');
+        return 'compact';
+    }
+
     private function generateLoanCode(): string
     {
         do {
@@ -2873,20 +3227,16 @@ class TransaksiController extends Controller
         return $rate;
     }
 
-    private function calcDaysLate($dueAt, $returnedAt): int
+    private function calcDaysLate($dueAt, $returnedAt, int $institutionId, ?int $branchId = null, int $graceDays = 0): int
     {
-        if (empty($dueAt)) return 0;
-
-        $due = strtotime((string)$dueAt);
-        if ($due === false) return 0;
-
-        $end = $returnedAt ? strtotime((string)$returnedAt) : time();
-        if ($end === false) $end = time();
-
-        $diff = $end - $due;
-        if ($diff <= 0) return 0;
-
-        return (int)floor($diff / 86400);
+        return CirculationSlaClock::elapsedLateDays(
+            empty($dueAt) ? null : (string) $dueAt,
+            empty($returnedAt) ? null : (string) $returnedAt,
+            null,
+            $institutionId,
+            $branchId,
+            $graceDays
+        );
     }
 
     private function syncFinesSnapshot(int $institutionId, int $rate): void
@@ -2895,6 +3245,7 @@ class TransaksiController extends Controller
 
         $rows = DB::table('loan_items')
             ->join('loans', 'loans.id', '=', 'loan_items.loan_id')
+            ->join('members', 'members.id', '=', 'loans.member_id')
             ->where('loans.institution_id', $institutionId)
             ->whereNotNull('loan_items.due_at')
             ->where(function ($w) {
@@ -2911,13 +3262,32 @@ class TransaksiController extends Controller
                 'loan_items.due_at',
                 'loan_items.returned_at',
                 'loans.member_id as member_id',
+                'loans.branch_id as branch_id',
+                'members.member_type as member_type',
             ])
             ->limit(500)
             ->get();
 
+        $policySvc = app(LoanPolicyService::class);
         foreach ($rows as $r) {
-            $days = $this->calcDaysLate($r->due_at, $r->returned_at);
-            $amount = $days * $rate;
+            $memberType = $policySvc->resolveMemberRole((object) ['member_type' => $r->member_type ?? 'member']);
+            $policy = $policySvc->forContext(
+                $institutionId,
+                (int) ($r->branch_id ?? 0) > 0 ? (int) $r->branch_id : null,
+                $memberType,
+                null
+            );
+            $effRate = max(0, (int) ($policy['fine_rate_per_day'] ?? $rate));
+            $graceDays = max(0, (int) ($policy['grace_days'] ?? 0));
+
+            $days = $this->calcDaysLate(
+                $r->due_at,
+                $r->returned_at,
+                $institutionId,
+                (int) ($r->branch_id ?? 0) > 0 ? (int) $r->branch_id : null,
+                $graceDays
+            );
+            $amount = $days * $effRate;
             $memberId = (int)($r->member_id ?? 0);
 
             $exists = DB::table('fines')
@@ -2938,7 +3308,7 @@ class TransaksiController extends Controller
                     'member_id' => (int)($memberId ?? 0),
                     'status' => 'unpaid',
                     'days_late' => $days,
-                    'rate' => $rate,
+                    'rate' => $effRate,
                     'amount' => $amount,
                     'updated_at' => now(),
                     'created_at' => $exists ? ($exists->created_at ?? now()) : now(),
@@ -2962,7 +3332,9 @@ class TransaksiController extends Controller
                 'members.id as member_id',
                 'members.full_name as member_name',
                 'members.member_code as member_code',
+                'members.member_type as member_type',
                 'items.barcode',
+                'loans.branch_id as branch_id',
                 'loan_items.due_at',
                 'loan_items.returned_at',
             ])
@@ -2970,8 +3342,24 @@ class TransaksiController extends Controller
 
         if (!$r) return null;
 
-        $daysLate = $this->calcDaysLate($r->due_at, $r->returned_at);
-        $amount = $daysLate * $rate;
+        $policySvc = app(LoanPolicyService::class);
+        $memberType = $policySvc->resolveMemberRole((object) ['member_type' => $r->member_type ?? 'member']);
+        $policy = $policySvc->forContext(
+            $institutionId,
+            (int) ($r->branch_id ?? 0) > 0 ? (int) $r->branch_id : null,
+            $memberType,
+            null
+        );
+        $effRate = max(0, (int) ($policy['fine_rate_per_day'] ?? $rate));
+        $graceDays = max(0, (int) ($policy['grace_days'] ?? 0));
+        $daysLate = $this->calcDaysLate(
+            $r->due_at,
+            $r->returned_at,
+            $institutionId,
+            (int) ($r->branch_id ?? 0) > 0 ? (int) $r->branch_id : null,
+            $graceDays
+        );
+        $amount = $daysLate * $effRate;
 
         return [
             'loan_item_id' => (int)$r->loan_item_id,
@@ -2984,7 +3372,7 @@ class TransaksiController extends Controller
             'due_at' => $r->due_at,
             'returned_at' => $r->returned_at,
             'days_late' => (int)$daysLate,
-            'rate' => (int)$rate,
+            'rate' => (int)$effRate,
             'amount' => (int)$amount,
         ];
     }
@@ -3017,6 +3405,118 @@ class TransaksiController extends Controller
                 'created_at' => $exists ? ($exists->created_at ?? now()) : now(),
             ]
         );
+    }
+
+    private function executeUnifiedAction(string $action, array $payload): array
+    {
+        try {
+            $action = trim($action);
+            if ($action === 'checkout') {
+                $proxy = Request::create('/transaksi/pinjam', 'POST', [
+                    'member_id' => (int) ($payload['member_id'] ?? 0),
+                    'barcodes' => array_values(array_filter(array_map('strval', (array) ($payload['barcodes'] ?? [])))),
+                    'due_at' => $payload['due_at'] ?? null,
+                    'notes' => $payload['notes'] ?? null,
+                ]);
+                $proxy->headers->set('Accept', 'application/json');
+                $proxy->setUserResolver(fn () => Auth::user());
+                return $this->extractUnifiedJson($this->storePinjam($proxy));
+            }
+
+            if ($action === 'return') {
+                $proxy = Request::create('/transaksi/kembali', 'POST', [
+                    'loan_item_ids' => array_values(array_map('intval', (array) ($payload['loan_item_ids'] ?? []))),
+                ]);
+                $proxy->headers->set('Accept', 'application/json');
+                $proxy->setUserResolver(fn () => Auth::user());
+                return $this->extractUnifiedJson($this->storeKembali($proxy));
+            }
+
+            if ($action === 'renew') {
+                $proxy = Request::create('/transaksi/perpanjang', 'POST', [
+                    'loan_item_ids' => array_values(array_map('intval', (array) ($payload['loan_item_ids'] ?? []))),
+                    'new_due_at' => $payload['new_due_at'] ?? null,
+                    'notes' => $payload['notes'] ?? null,
+                ]);
+                $proxy->headers->set('Accept', 'application/json');
+                $proxy->setUserResolver(fn () => Auth::user());
+                return $this->extractUnifiedJson($this->storePerpanjang($proxy));
+            }
+
+            return [
+                'ok' => false,
+                'message' => 'Action tidak valid.',
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'ok' => false,
+                'message' => $e->getMessage() !== '' ? $e->getMessage() : 'Gagal mengeksekusi action unified.',
+            ];
+        }
+    }
+
+    private function extractUnifiedJson(mixed $response): array
+    {
+        if ($response instanceof JsonResponse) {
+            /** @var array<string, mixed> $data */
+            $data = $response->getData(true);
+            return $data;
+        }
+
+        if (is_object($response) && method_exists($response, 'getStatusCode') && method_exists($response, 'getContent')) {
+            try {
+                $content = (string) $response->getContent();
+                $decoded = json_decode($content, true);
+                if (is_array($decoded)) {
+                    return $decoded;
+                }
+            } catch (\Throwable) {
+                // noop
+            }
+        }
+
+        return [
+            'ok' => false,
+            'message' => 'Respons tidak dikenali dari action sirkulasi.',
+        ];
+    }
+
+    private function getUnifiedCommitCache(string $action, string $eventId): ?array
+    {
+        $key = $this->unifiedCommitCacheKey($action, $eventId);
+        $cached = Cache::get($key);
+        if (is_array($cached)) {
+            return $cached;
+        }
+        return null;
+    }
+
+    private function putUnifiedCommitCache(string $action, string $eventId, array $result): void
+    {
+        $key = $this->unifiedCommitCacheKey($action, $eventId);
+        Cache::put($key, $result, now()->addDay());
+    }
+
+    private function unifiedCommitCacheKey(string $action, string $eventId): string
+    {
+        $institutionId = $this->currentInstitutionId();
+        $userId = (int) (Auth::id() ?? 0);
+        return 'tx:unified:commit:' . md5($institutionId . '|' . $userId . '|' . $action . '|' . trim($eventId));
+    }
+
+    private function isUnifiedCirculationEnabled(): bool
+    {
+        return (bool) config('notobuku.circulation.unified.enabled', true);
+    }
+
+    private function isUnifiedOfflineQueueEnabled(): bool
+    {
+        return (bool) config('notobuku.circulation.unified.offline_queue_enabled', true);
+    }
+
+    private function isUnifiedShortcutsEnabled(): bool
+    {
+        return (bool) config('notobuku.circulation.unified.shortcuts_enabled', true);
     }
 }
 

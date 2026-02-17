@@ -181,6 +181,8 @@
     <div class="nb-collection-actions">
       <a class="nb-btn" href="{{ route('katalog.index') }}">Buka Katalog Lengkap</a>
       <a class="nb-btn" href="{{ route('admin.search_synonyms') }}">Kelola Sinonim</a>
+      <a class="nb-btn" href="{{ route('admin.search_tuning') }}">Query Tuning</a>
+      <a class="nb-btn" href="{{ route('admin.search_analytics') }}">Search Analytics</a>
       <a class="nb-btn primary" href="{{ route('katalog.create') }}">Tambah Koleksi</a>
     </div>
   </div>

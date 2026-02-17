@@ -48,6 +48,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->guardDangerousDatabaseCommands();
         $this->configureInteropRateLimiters();
+        $this->configurePublicRateLimiters();
 
         Gate::policy(Biblio::class, KatalogPolicy::class);
         Gate::policy(AcquisitionRequest::class, AcquisitionsPolicy::class);
@@ -137,6 +138,53 @@ class AppServiceProvider extends ServiceProvider
                     InteropMetrics::incrementRateLimited('sru');
                     return response('Too Many Requests', Response::HTTP_TOO_MANY_REQUESTS);
                 }),
+            ];
+        });
+    }
+
+    private function configurePublicRateLimiters(): void
+    {
+        RateLimiter::for('opac-public-search', function (Request $request) {
+            $ip = (string) ($request->ip() ?? 'unknown');
+            $perMinute = (int) config('notobuku.opac.rate_limit.search.per_minute', 120);
+            $perSecond = (int) config('notobuku.opac.rate_limit.search.per_second', 8);
+
+            return [
+                Limit::perMinute(max(1, $perMinute))->by($ip),
+                Limit::perSecond(max(1, $perSecond))->by($ip),
+            ];
+        });
+
+        RateLimiter::for('opac-public-detail', function (Request $request) {
+            $ip = (string) ($request->ip() ?? 'unknown');
+            $perMinute = (int) config('notobuku.opac.rate_limit.detail.per_minute', 180);
+            $perSecond = (int) config('notobuku.opac.rate_limit.detail.per_second', 12);
+
+            return [
+                Limit::perMinute(max(1, $perMinute))->by($ip),
+                Limit::perSecond(max(1, $perSecond))->by($ip),
+            ];
+        });
+
+        RateLimiter::for('opac-public-seo', function (Request $request) {
+            $ip = (string) ($request->ip() ?? 'unknown');
+            $perMinute = (int) config('notobuku.opac.rate_limit.seo.per_minute', 30);
+            $perSecond = (int) config('notobuku.opac.rate_limit.seo.per_second', 2);
+
+            return [
+                Limit::perMinute(max(1, $perMinute))->by($ip),
+                Limit::perSecond(max(1, $perSecond))->by($ip),
+            ];
+        });
+
+        RateLimiter::for('opac-public-write', function (Request $request) {
+            $ip = (string) ($request->ip() ?? 'unknown');
+            $perMinute = (int) config('notobuku.opac.rate_limit.write.per_minute', 20);
+            $perSecond = (int) config('notobuku.opac.rate_limit.write.per_second', 2);
+
+            return [
+                Limit::perMinute(max(1, $perMinute))->by($ip),
+                Limit::perSecond(max(1, $perSecond))->by($ip),
             ];
         });
     }

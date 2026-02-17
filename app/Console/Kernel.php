@@ -20,6 +20,18 @@ class Kernel extends ConsoleKernel
             ->withoutOverlapping()
             ->runInBackground();
 
+        $schedule->command('reservations:dispatch-notifications --limit=300')
+            ->everyMinute()
+            ->timezone($tz)
+            ->withoutOverlapping()
+            ->runInBackground();
+
+        $schedule->command('notobuku:reservation-kpi-alert')
+            ->everyFiveMinutes()
+            ->timezone($tz)
+            ->withoutOverlapping()
+            ->runInBackground();
+
         $schedule->command('notobuku:sync-item-loan-status')
             ->dailyAt('02:10')
             ->timezone($tz)

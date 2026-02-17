@@ -45,5 +45,36 @@
       </div>
     </form>
   </div>
+
+  <div class="rounded-3xl border border-[var(--nb-border)] bg-[var(--nb-surface)] p-6 mt-4">
+    <h3 class="text-base font-bold text-[var(--nb-ink)] mb-2">Kontrol Akun</h3>
+    <p class="text-sm text-[rgba(0,0,0,.6)] mb-4">Gunakan bila akun perlu dibekukan sementara atau butuh reset kredensial via email.</p>
+
+    <div class="flex flex-wrap gap-2">
+      <form method="POST" action="{{ route('member.security.freeze') }}">
+        @csrf
+        <button type="submit"
+                class="px-4 py-2 rounded-xl border border-amber-300 bg-amber-50 text-amber-800 font-semibold">
+          Bekukan Akun
+        </button>
+      </form>
+
+      <form method="POST" action="{{ route('member.security.unfreeze') }}">
+        @csrf
+        <button type="submit"
+                class="px-4 py-2 rounded-xl border border-emerald-300 bg-emerald-50 text-emerald-800 font-semibold">
+          Aktifkan Kembali
+        </button>
+      </form>
+
+      <form method="POST" action="{{ route('member.security.reset_credential') }}">
+        @csrf
+        <button type="submit"
+                class="px-4 py-2 rounded-xl border border-sky-300 bg-sky-50 text-sky-800 font-semibold">
+          Kirim Link Reset Kredensial
+        </button>
+      </form>
+    </div>
+  </div>
 </div>
 @endsection

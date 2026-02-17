@@ -7,6 +7,7 @@
 @php
   $kpi = $kpi ?? [];
   $health = $health ?? [];
+  $observability = $observability ?? [];
   $trend = $trend ?? [];
   $top_titles = $top_titles ?? [];
   $top_overdue_members = $top_overdue_members ?? [];
@@ -42,6 +43,16 @@
   $return_rate   = (float) ($health['return_rate'] ?? 0);
   $overdue_ratio = (float) ($health['overdue_ratio'] ?? 0);
   $on_time_rate  = (float) ($health['on_time_rate'] ?? 0);
+  $obsHealth = (array) ($observability['health'] ?? []);
+  $obsTotals = (array) ($observability['totals'] ?? []);
+  $obsTopReasons = (array) ($observability['top_failure_reasons'] ?? []);
+  $obsLabel = (string) ($obsHealth['label'] ?? 'Sehat');
+  $obsClass = (string) ($obsHealth['class'] ?? 'good');
+  $obsP95 = (int) ($obsTotals['latency_p95_ms'] ?? 0);
+  $obsFailureRate = (float) ($obsTotals['business_failure_rate_pct'] ?? 0);
+  $obsTopReason = count($obsTopReasons) > 0 ? (string) (($obsTopReasons[0]['reason'] ?? 'n/a')) : 'n/a';
+  $obsTopReasonCount = count($obsTopReasons) > 0 ? (int) (($obsTopReasons[0]['count'] ?? 0)) : 0;
+  $obsMetricsUrl = route('transaksi.metrics');
 
   $trendLabels = [];
   $trendLoans = [];
@@ -207,6 +218,7 @@
       <a href="{{ $mkRangeUrl(7) }}" class="{{ $range_days===7 ? 'active' : '' }}">7 hari</a>
       <a href="{{ $mkRangeUrl(14) }}" class="{{ $range_days===14 ? 'active' : '' }}">14 hari</a>
       <a href="{{ $mkRangeUrl(30) }}" class="{{ $range_days===30 ? 'active' : '' }}">30 hari</a>
+      <a href="{{ route('transaksi.exceptions.index') }}">Exception Ops</a>
     </div>
   </div>
 
@@ -284,6 +296,26 @@
           </tr>
         </tbody>
       </table>
+
+      <div style="margin-top:14px; border-top:1px dashed #e5e7eb; padding-top:12px;">
+        <div class="nb-db-card-title" style="font-size:13px;">Observability Alert</div>
+        <div class="nb-db-card-sub">p95 latency + failure reason top-N endpoint sirkulasi.</div>
+        <div style="margin-top:10px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+          <span
+            id="circ-obs-pill"
+            class="nb-db-pill {{ $obsClass === 'critical' ? 'bad' : ($obsClass === 'warning' ? 'warn' : 'ok') }}"
+            data-metrics-url="{{ $obsMetricsUrl }}"
+          >{{ $obsLabel }}</span>
+          <button id="circ-obs-refresh" type="button" class="nb-db-pill ok" style="cursor:pointer;">Refresh now</button>
+        </div>
+        <div id="circ-obs-sub" class="nb-db-card-sub" style="margin-top:8px;">
+          p95 {{ $fmt($obsP95) }} ms, failure {{ $fmt2($obsFailureRate) }}%
+        </div>
+        <div id="circ-obs-reason" class="nb-db-card-sub" style="margin-top:4px;">
+          Top failure: {{ $obsTopReason }} ({{ $fmt($obsTopReasonCount) }})
+        </div>
+        <div id="circ-obs-updated" class="nb-db-card-sub" style="margin-top:4px;">Last updated baru saja</div>
+      </div>
     </div>
   </div>
 
@@ -504,6 +536,98 @@
       }
     }
   });
+})();
+
+(function(){
+  const pill = document.getElementById('circ-obs-pill');
+  const sub = document.getElementById('circ-obs-sub');
+  const reasonEl = document.getElementById('circ-obs-reason');
+  const updated = document.getElementById('circ-obs-updated');
+  const refreshBtn = document.getElementById('circ-obs-refresh');
+  if(!pill || !sub || !reasonEl || !updated) return;
+
+  const url = pill.dataset.metricsUrl || '';
+  if(!url) return;
+
+  let lastUpdatedAt = Date.now();
+  let intervalId = null;
+
+  function setPillClass(cls, label){
+    pill.classList.remove('ok', 'warn', 'bad');
+    if(cls === 'critical') pill.classList.add('bad');
+    else if(cls === 'warning') pill.classList.add('warn');
+    else pill.classList.add('ok');
+    pill.textContent = label || 'Sehat';
+  }
+
+  function refreshRelativeTime(){
+    const sec = Math.max(0, Math.floor((Date.now() - lastUpdatedAt) / 1000));
+    updated.textContent = `Last updated ${sec} detik lalu`;
+  }
+
+  async function refreshObservability(){
+    try {
+      const resp = await fetch(url, {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: { 'Accept': 'application/json' },
+        cache: 'no-store',
+      });
+      if(!resp.ok) return;
+      const data = await resp.json();
+      if(!data || data.ok !== true || !data.metrics) return;
+
+      const metrics = data.metrics || {};
+      const health = metrics.health || {};
+      const totals = metrics.totals || {};
+      const reasons = Array.isArray(metrics.top_failure_reasons) ? metrics.top_failure_reasons : [];
+
+      const p95 = Number(totals.latency_p95_ms || 0);
+      const failureRate = Number(totals.business_failure_rate_pct || 0);
+      const topReason = reasons.length > 0 ? String((reasons[0] && reasons[0].reason) || 'n/a') : 'n/a';
+      const topReasonCount = reasons.length > 0 ? Number((reasons[0] && reasons[0].count) || 0) : 0;
+
+      setPillClass(String(health.class || 'good'), String(health.label || 'Sehat'));
+      sub.textContent = `p95 ${p95.toLocaleString('id-ID')} ms, failure ${failureRate.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
+      reasonEl.textContent = `Top failure: ${topReason} (${topReasonCount.toLocaleString('id-ID')})`;
+      lastUpdatedAt = Date.now();
+      refreshRelativeTime();
+    } catch (e) {
+      // no-op
+    }
+  }
+
+  function startRefreshLoop(){
+    if(intervalId) return;
+    intervalId = setInterval(() => {
+      if(document.hidden) return;
+      refreshObservability();
+      refreshRelativeTime();
+    }, 30000);
+  }
+
+  function stopRefreshLoop(){
+    if(!intervalId) return;
+    clearInterval(intervalId);
+    intervalId = null;
+  }
+
+  if(refreshBtn){
+    refreshBtn.addEventListener('click', refreshObservability);
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if(document.hidden){
+      stopRefreshLoop();
+      return;
+    }
+    refreshRelativeTime();
+    refreshObservability();
+    startRefreshLoop();
+  });
+
+  refreshRelativeTime();
+  startRefreshLoop();
 })();
 </script>
 @endsection

@@ -69,6 +69,11 @@ return [
             'cooldown_minutes' => env('NB_CIRC_PIC_REMINDER_COOLDOWN_MINUTES', 120),
             'fallback_email_to' => env('NB_CIRC_PIC_REMINDER_FALLBACK_EMAIL_TO', ''),
         ],
+        'unified' => [
+            'enabled' => env('NB_CIRC_UNIFIED_ENABLED', true),
+            'offline_queue_enabled' => env('NB_CIRC_UNIFIED_OFFLINE_QUEUE_ENABLED', true),
+            'shortcuts_enabled' => env('NB_CIRC_UNIFIED_SHORTCUTS_ENABLED', true),
+        ],
     ],
     'loans' => [
         'default_days' => env('NB_LOAN_DEFAULT_DAYS', 7),
@@ -103,6 +108,39 @@ return [
                 'fine_rate_per_day' => env('NB_LOAN_STAFF_FINE_RATE_PER_DAY', 1000),
                 'grace_days' => env('NB_LOAN_STAFF_GRACE_DAYS', 0),
             ],
+        ],
+    ],
+    'reservations' => [
+        'default_hold_hours' => env('NB_RESERVATION_DEFAULT_HOLD_HOURS', 48),
+        'rule_default' => [
+            'max_active_reservations' => env('NB_RESERVATION_MAX_ACTIVE', 5),
+            'max_queue_per_biblio' => env('NB_RESERVATION_MAX_QUEUE_PER_BIBLIO', 30),
+            'hold_hours' => env('NB_RESERVATION_HOLD_HOURS', 48),
+        ],
+        'auto_priority' => [
+            'member_type_weights' => [
+                'disabilitas' => (int) env('NB_RESERVATION_PRIORITY_DISABILITAS', 60),
+                'dosen' => (int) env('NB_RESERVATION_PRIORITY_DOSEN', 30),
+                'staff' => (int) env('NB_RESERVATION_PRIORITY_STAFF', 20),
+                'member' => (int) env('NB_RESERVATION_PRIORITY_MEMBER', 0),
+            ],
+        ],
+        'notification' => [
+            'channels' => array_values(array_filter(array_map('trim', explode(',', (string) env('NB_RESERVATION_NOTIFY_CHANNELS', 'inapp,email'))))),
+            'max_attempts' => (int) env('NB_RESERVATION_NOTIFY_MAX_ATTEMPTS', 5),
+            'retry_base_minutes' => (int) env('NB_RESERVATION_NOTIFY_RETRY_BASE_MINUTES', 3),
+            'whatsapp_webhook' => env('NB_RESERVATION_NOTIFY_WA_WEBHOOK', ''),
+            'push_webhook' => env('NB_RESERVATION_NOTIFY_PUSH_WEBHOOK', ''),
+            'fallback_email_to' => env('NB_RESERVATION_NOTIFY_FALLBACK_EMAIL', ''),
+        ],
+        'kpi' => [
+            'window_days' => (int) env('NB_RESERVATION_KPI_WINDOW_DAYS', 30),
+            'alert_fulfillment_min_pct' => (float) env('NB_RESERVATION_ALERT_FULFILLMENT_MIN_PCT', 70),
+            'alert_backlog_max' => (int) env('NB_RESERVATION_ALERT_BACKLOG_MAX', 100),
+            'alert_expiry_max_pct' => (float) env('NB_RESERVATION_ALERT_EXPIRY_MAX_PCT', 20),
+            'alert_cooldown_minutes' => (int) env('NB_RESERVATION_ALERT_COOLDOWN_MINUTES', 30),
+            'alert_email_to' => env('NB_RESERVATION_ALERT_EMAIL_TO', ''),
+            'alert_webhook_url' => env('NB_RESERVATION_ALERT_WEBHOOK_URL', ''),
         ],
     ],
     'opac' => [

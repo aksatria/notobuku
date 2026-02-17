@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Support\CirculationMetrics;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -22,6 +23,7 @@ class DashboardService
         return [
             'kpi' => $kpi,
             'health' => $health,
+            'observability' => CirculationMetrics::snapshot(),
             'range_days' => $rangeDays,
             'trend' => $this->trendLoansReturns($institutionId, $activeBranchId, $now, $rangeDays),
             'aging_overdue' => $this->agingOverdue($institutionId, $activeBranchId, $now),

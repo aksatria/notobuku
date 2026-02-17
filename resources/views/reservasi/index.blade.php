@@ -605,8 +605,8 @@
           <div class="nb-field-label">Barcode Buku</div>
           <div class="nb-input nb-input-strong" style="height:52px;display:flex;align-items:center;">
             <input
-              name="biblio_id"
-              value="{{ old('biblio_id') }}"
+              name="barcode"
+              value="{{ old('barcode', old('biblio_id')) }}"
               placeholder="scan / ketik barcode…"
               required
               inputmode="numeric"
@@ -630,7 +630,7 @@
         <button class="nb-btn nb-btn-primary" type="submit" style="height:52px;">Buat Reservasi</button>
       </form>
 
-      @error('biblio_id') <div class="nb-muted" style="color:#b91c1c;margin-top:8px;">{{ $message }}</div> @enderror
+      @error('barcode') <div class="nb-muted" style="color:#b91c1c;margin-top:8px;">{{ $message }}</div> @enderror
       @error('notes') <div class="nb-muted" style="color:#b91c1c;margin-top:6px;">{{ $message }}</div> @enderror
       @error('member_id') <div class="nb-muted" style="color:#b91c1c;margin-top:6px;">{{ $message }}</div> @enderror
     </div>
@@ -714,6 +714,13 @@
                       onsubmit="return confirm('Batalkan reservasi ini?')">
                   @csrf
                   <button class="nb-btn nb-btn-soft" type="submit" style="height:42px;padding:10px 12px;">Batal</button>
+                </form>
+              @endif
+
+              @if($mode==='member' && in_array($status, ['cancelled','expired'], true))
+                <form method="POST" action="{{ route('member.reservasi.requeue', $r->id) }}">
+                  @csrf
+                  <button class="nb-btn nb-btn-soft" type="submit" style="height:42px;padding:10px 12px;">Antre Ulang</button>
                 </form>
               @endif
 
@@ -822,6 +829,13 @@
                               onsubmit="return confirm('Batalkan reservasi ini?')">
                           @csrf
                           <button class="nb-btn nb-btn-soft" type="submit">Batal</button>
+                        </form>
+                      @endif
+
+                      @if($mode==='member' && in_array($status, ['cancelled','expired'], true))
+                        <form method="POST" action="{{ route('member.reservasi.requeue', $r->id) }}">
+                          @csrf
+                          <button class="nb-btn nb-btn-soft" type="submit">Antre Ulang</button>
                         </form>
                       @endif
 

@@ -1,7 +1,7 @@
 {{-- resources/views/katalog/show.blade.php --}}
 @extends('layouts.notobuku')
 
-@section('title', ($biblio->display_title ?? $biblio->title ?? 'Detail Katalog') . ' • NOTOBUKU')
+@section('title', ($biblio->display_title ?? $biblio->title ?? 'Detail Katalog') . ' - NOTOBUKU')
 
 @section('content')
 @php
@@ -81,6 +81,108 @@
   // Notes (HTML from editor)
   $notesHtml = trim((string)($biblio->notes ?? ''));
 @endphp
+
+@if($isPublic ?? false)
+  @php
+    $seoTitle = trim((string)($biblio->display_title ?? $biblio->title ?? 'Detail Katalog'));
+    $seoDesc = trim(strip_tags((string)($biblio->notes ?? '')));
+    if ($seoDesc === '') {
+      $seoDesc = 'Detail bibliografi, ketersediaan eksemplar, dan informasi klasifikasi koleksi di OPAC NOTOBUKU.';
+    }
+    $seoDesc = \Illuminate\Support\Str::limit($seoDesc, 160);
+    $canonicalUrl = request()->url();
+    $coverPath = $biblio->cover_path ?? null;
+    $coverImage = $coverPath ? asset('storage/' . ltrim($coverPath, '/')) : null;
+    $authorNames = collect($biblio->authors ?? [])->pluck('name')->filter()->values()->all();
+    $offerAvailability = ((int)($biblio->available_items_count ?? 0)) > 0
+      ? 'https://schema.org/InStock'
+      : 'https://schema.org/OutOfStock';
+    $bookIdentifiers = collect([
+      trim((string)($biblio->isbn ?? '')),
+      trim((string)($biblio->issn ?? '')),
+      trim((string)($biblio->call_number ?? '')),
+    ])->filter()->values()->all();
+  @endphp
+  @push('head')
+    <meta name="description" content="{{ $seoDesc }}">
+    <meta name="robots" content="index,follow,max-image-preview:large">
+    <link rel="canonical" href="{{ $canonicalUrl }}">
+    <link rel="alternate" hreflang="id-ID" href="{{ $canonicalUrl }}">
+    <link rel="alternate" hreflang="x-default" href="{{ $canonicalUrl }}">
+    <meta property="og:type" content="book">
+    <meta property="og:title" content="{{ $seoTitle }}">
+    <meta property="og:description" content="{{ $seoDesc }}">
+    <meta property="og:url" content="{{ $canonicalUrl }}">
+    @if($coverImage)
+      <meta property="og:image" content="{{ $coverImage }}">
+    @endif
+    <script type="application/ld+json">
+      {!! json_encode([
+        '@' . 'context' => 'https://schema.org',
+        '@' . 'graph' => [
+          [
+            '@' . 'type' => 'WebPage',
+            '@' . 'id' => $canonicalUrl . '#webpage',
+            'url' => $canonicalUrl,
+            'name' => $seoTitle,
+            'description' => $seoDesc,
+            'inLanguage' => 'id-ID',
+            'isPartOf' => [
+              '@' . 'type' => 'WebSite',
+              'name' => 'NOTOBUKU OPAC',
+              'url' => route('opac.index'),
+            ],
+            'breadcrumb' => [
+              '@' . 'id' => $canonicalUrl . '#breadcrumb',
+            ],
+          ],
+          [
+            '@' . 'type' => 'BreadcrumbList',
+            '@' . 'id' => $canonicalUrl . '#breadcrumb',
+            'itemListElement' => [
+              [
+                '@' . 'type' => 'ListItem',
+                'position' => 1,
+                'name' => 'OPAC',
+                'item' => route('opac.index'),
+              ],
+              [
+                '@' . 'type' => 'ListItem',
+                'position' => 2,
+                'name' => $seoTitle,
+                'item' => $canonicalUrl,
+              ],
+            ],
+          ],
+          [
+            '@' . 'type' => 'Book',
+            '@' . 'id' => $canonicalUrl . '#book',
+            'name' => $seoTitle,
+            'author' => collect($authorNames)->map(fn($n) => ['@' . 'type' => 'Person', 'name' => $n])->values()->all(),
+            'inLanguage' => (string)($biblio->language ?? 'id'),
+            'isbn' => (string)($biblio->isbn ?? ''),
+            'datePublished' => (string)($biblio->publish_year ?? ''),
+            'publisher' => !empty($biblio->publisher) ? ['@' . 'type' => 'Organization', 'name' => (string)$biblio->publisher] : null,
+            'bookFormat' => trim((string)($biblio->media_type ?? '')) !== '' ? 'https://schema.org/EBook' : 'https://schema.org/Book',
+            'identifier' => $bookIdentifiers,
+            'description' => $seoDesc,
+            'url' => $canonicalUrl,
+            'image' => $coverImage,
+            'offers' => [
+              '@' . 'type' => 'AggregateOffer',
+              'availability' => $offerAvailability,
+              'offerCount' => (int)($biblio->items_count ?? 0),
+              'inventoryLevel' => [
+                '@' . 'type' => 'QuantitativeValue',
+                'value' => (int)($biblio->available_items_count ?? 0),
+              ],
+            ],
+          ],
+        ],
+      ], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES) !!}
+    </script>
+  @endpush
+@endif
 
 <style>
   /* =========================================================
@@ -1050,13 +1152,13 @@
             <div class="nb-ks-metaRow">
               <span><b>Pengarang:</b> {{ $authors }}</span>
               @if(!empty($biblio->publisher))
-                <span>• <b>Penerbit:</b> {{ $biblio->publisher }}</span>
+                <span>- <b>Penerbit:</b> {{ $biblio->publisher }}</span>
               @endif
               @if(!empty($biblio->publish_year))
-                <span>• <b>Tahun:</b> {{ $biblio->publish_year }}</span>
+                <span>- <b>Tahun:</b> {{ $biblio->publish_year }}</span>
               @endif
               @if(!empty($biblio->language))
-                <span>• <b>Bahasa:</b> {{ $biblio->language }}</span>
+                <span>- <b>Bahasa:</b> {{ $biblio->language }}</span>
               @endif
             </div>
 
@@ -1201,8 +1303,8 @@
               <div style="font-weight:700;">{{ $att->title }}</div>
               <div class="nb-muted-2" style="font-size:12px;">
                 {{ strtoupper((string)($att->visibility ?? 'staff')) }}
-                @if(!empty($att->file_name)) • {{ $att->file_name }} @endif
-                @if(!empty($att->file_size)) • {{ $formatSize($att->file_size) }} @endif
+                @if(!empty($att->file_name)) - {{ $att->file_name }} @endif
+                @if(!empty($att->file_size)) - {{ $formatSize($att->file_size) }} @endif
               </div>
             </div>
             <div>
@@ -1320,7 +1422,7 @@
             </div>
             <div class="nb-ks-itemMeta">
               {{ $branchName !== '' ? $branchName : '-' }}
-              @if($shelfName !== '') • {{ $shelfName }} @endif
+              @if($shelfName !== '') - {{ $shelfName }} @endif
             </div>
             @if($isMemberViewer)
               <form method="POST" action="{{ route('reservasi.store') }}">
@@ -1716,6 +1818,7 @@
   });
 </script>
 @endsection
+
 
 
 

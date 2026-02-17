@@ -43,6 +43,7 @@ class TransaksiDashboardController extends Controller
             'range_days' => (int) ($data['range_days'] ?? $rangeDays),
             'kpi' => $data['kpi'] ?? [],
             'health' => $data['health'] ?? [],
+            'observability' => $data['observability'] ?? [],
             'trend' => $data['trend'] ?? [],
             'aging_overdue' => $data['aging_overdue'] ?? [],
             'top_titles' => $data['top_titles'] ?? [],

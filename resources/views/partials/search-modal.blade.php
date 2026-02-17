@@ -3,6 +3,7 @@
   $user = auth()->user();
   $role = $user->role ?? 'member';
   $isStaff = in_array($role, ['super_admin','admin','staff'], true);
+  $isAdmin = in_array($role, ['super_admin','admin'], true);
   $isMember = !$isStaff;
 
   $menu = [];
@@ -24,6 +25,9 @@
 
   // ===== Staff/Admin shortcuts
   if ($isStaff) {
+    if ($isAdmin) {
+      $menu[] = ['label'=>'Dashboard Admin', 'hint'=>'Ringkasan operasional admin', 'route'=>'admin.dashboard', 'group'=>'Admin', 'icon'=>'#nb-icon-home'];
+    }
     $menu[] = ['label'=>'Transaksi', 'hint'=>'Pinjam / kembali / perpanjang', 'route'=>'transaksi.index', 'group'=>'Operasional', 'icon'=>'#nb-icon-rotate'];
     $menu[] = ['label'=>'Dashboard Sirkulasi', 'hint'=>'Ringkasan aktivitas sirkulasi', 'route'=>'transaksi.dashboard', 'group'=>'Operasional', 'icon'=>'#nb-icon-rotate'];
     $menu[] = ['label'=>'Anggota', 'hint'=>'Data member & aktivitas', 'route'=>'anggota.index', 'group'=>'Admin', 'icon'=>'#nb-icon-users'];
@@ -53,8 +57,17 @@
     display:none;
     background:rgba(2,6,23,.55);
     backdrop-filter: blur(6px);
+    pointer-events:none;
   }
-  .nb-search-overlay.show{ display:block; }
+  .nb-search-overlay.show{
+    display:block;
+    pointer-events:auto;
+  }
+  body:not(.nb-search-open) .nb-search-overlay,
+  body:not(.nb-search-open) .nb-search-overlay.show{
+    display:none !important;
+    pointer-events:none !important;
+  }
 
   .nb-search{
     width:min(860px, calc(100% - 24px));
@@ -133,7 +146,7 @@
 </style>
 
 <div class="nb-search-overlay" data-nb-search-overlay>
-  <div class="nb-search" role="dialog" aria-modal="true" aria-label="Pencarian">
+  <div class="nb-search" data-nb-search-modal role="dialog" aria-modal="true" aria-label="Pencarian">
     <div class="nb-search-head">
       <svg style="width:18px;height:18px;color:var(--nb-muted)"><use href="#nb-icon-search"/></svg>
       <input class="nb-search-input" data-nb-search-input placeholder="Cari menu / halaman…" autocomplete="off">
@@ -158,6 +171,7 @@
   };
 
   const open = () => {
+    document.body.classList.add('nb-search-open');
     overlay.classList.add('show');
     setTimeout(() => input.focus(), 10);
     render('');
@@ -165,6 +179,7 @@
 
   const close = () => {
     overlay.classList.remove('show');
+    document.body.classList.remove('nb-search-open');
     input.value = '';
   };
 

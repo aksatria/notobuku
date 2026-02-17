@@ -7,6 +7,10 @@ use Illuminate\Foundation\Configuration\Middleware;
 use App\Http\Middleware\RoleMiddleware;
 use App\Http\Middleware\RoleAnyMiddleware;
 use App\Http\Middleware\EnsureMemberRole;
+use App\Http\Middleware\TrackCirculationMetrics;
+use App\Http\Middleware\TrackOpacMetrics;
+use App\Http\Middleware\OpacConditionalGet;
+use App\Http\Middleware\RequestTraceMiddleware;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -26,6 +30,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'role'        => RoleMiddleware::class,
             'role.any'    => RoleAnyMiddleware::class,
             'role.member' => EnsureMemberRole::class,
+            'track.circulation.metrics' => TrackCirculationMetrics::class,
+            'track.opac.metrics' => TrackOpacMetrics::class,
+            'opac.conditional' => OpacConditionalGet::class,
+            'trace.request' => RequestTraceMiddleware::class,
         ]);
 
     })

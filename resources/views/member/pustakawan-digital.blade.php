@@ -1115,14 +1115,31 @@
         })
       });
 
-      const data = await response.json();
-      if (data.success) {
+      let data = null;
+      if (response.headers.get('content-type')?.includes('application/json')) {
+        data = await response.json();
+      } else {
+        const raw = await response.text();
+        if ((raw || '').toLowerCase().includes('usage limit')) {
+          addMessageToChat('Kuota layanan AI sedang habis. Anda tetap bisa gunakan katalog, pinjaman, dan reservasi.', 'ai');
+          return;
+        }
+        throw new Error('invalid_response');
+      }
+
+      if (response.ok && data && data.success) {
         addMessageToChat(data.response.message, 'ai', data.response);
         if (showUser && currentConversationTitle.textContent === 'Percakapan Baru') {
           currentConversationTitle.textContent = message.substring(0, 30) + (message.length > 30 ? '...' : '');
         }
       } else {
-        addMessageToChat('Maaf, sistem sedang sibuk. Coba lagi sebentar ya.', 'ai');
+        const serverMsg = data?.response?.message || data?.message || '';
+        const lowered = (serverMsg || '').toLowerCase();
+        if (lowered.includes('usage limit') || lowered.includes('quota') || lowered.includes('rate limit')) {
+          addMessageToChat('Kuota layanan AI sedang habis. Anda tetap bisa gunakan katalog, pinjaman, dan reservasi.', 'ai');
+        } else {
+          addMessageToChat(serverMsg || 'Maaf, sistem sedang sibuk. Coba lagi sebentar ya.', 'ai');
+        }
       }
     } catch (error) {
       if (error?.name === 'AbortError') {
@@ -1135,11 +1152,9 @@
       if (stopButton) {
         stopButton.style.display = 'none';
       }
-      if (showUser) {
-        sendButton.disabled = false;
-        messageInput.disabled = false;
-        messageInput.focus();
-      }
+      sendButton.disabled = false;
+      messageInput.disabled = false;
+      if (showUser) messageInput.focus();
     }
   }
 

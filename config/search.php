@@ -65,6 +65,11 @@ return [
     'synonym_max' => (int) env('SEARCH_SYNONYM_MAX', 10),
     'ranking' => [
         'half_life_days' => (int) env('SEARCH_RANK_HALF_LIFE_DAYS', 30),
+        'availability' => [
+            'available_weight' => (float) env('SEARCH_AVAIL_WEIGHT', 10),
+            'borrowed_penalty' => (float) env('SEARCH_BORROWED_PENALTY', 3),
+            'reserved_penalty' => (float) env('SEARCH_RESERVED_PENALTY', 2),
+        ],
     ],
     'synonyms' => [
         'perpustakaan' => ['perpus', 'pustaka', 'library'],

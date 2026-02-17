@@ -7,6 +7,7 @@
   <meta name="theme-color" content="#1e88e5">
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>@yield('title', config('app.name','NOTOBUKU'))</title>
+  @stack('head')
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -72,6 +73,39 @@
     }
 
     a{ color:inherit; text-decoration:none; }
+    .nb-skip-link{
+      position:absolute;
+      left:16px;
+      top:-42px;
+      z-index:2000;
+      background:#0f172a;
+      color:#fff;
+      border-radius:10px;
+      padding:8px 12px;
+      font-weight:600;
+      border:1px solid rgba(255,255,255,.25);
+    }
+    .nb-skip-link:focus{
+      top:12px;
+      outline:2px solid #38bdf8;
+      outline-offset:2px;
+    }
+    .nb-unlock-btn{
+      position:fixed;
+      right:14px;
+      bottom:14px;
+      z-index:2147483647;
+      border:1px solid rgba(239,68,68,.45);
+      background:rgba(127,29,29,.94);
+      color:#fff;
+      border-radius:999px;
+      padding:8px 12px;
+      font-size:12px;
+      font-weight:600;
+      cursor:pointer;
+      display:none;
+      pointer-events:auto;
+    }
     .nb-container{ max-width:1300px; margin:0 auto; padding:0 22px; }
 
     /* =====================================================
@@ -145,6 +179,7 @@
       background:rgba(2,6,23,.60);
       z-index:80;
       display:none;
+      pointer-events:none;
     }
     .nb-sidebar-mobile{
       position:fixed;
@@ -158,7 +193,10 @@
     }
     .nb-sidebar-mobile .nb-sidebar-wrap{ height:calc(100vh - 28px); }
 
-    body.nb-sidebar-open .nb-sidebar-overlay{ display:block; }
+    body.nb-sidebar-open .nb-sidebar-overlay{
+      display:block;
+      pointer-events:auto;
+    }
     body.nb-sidebar-open .nb-sidebar-mobile{ transform: translateX(0); }
     body.nb-sidebar-open{ overflow:hidden; }
 
@@ -215,6 +253,14 @@
       line-height:1.2;
       transition:none !important;
     }
+    a:focus-visible,
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible,
+    textarea:focus-visible{
+      outline:2px solid #38bdf8;
+      outline-offset:2px;
+    }
 
     .nb-btn-primary{
       background:linear-gradient(90deg,#1e88e5,#1565c0);
@@ -265,8 +311,12 @@
       align-items:flex-start;
       justify-content:center;
       padding:84px 12px 12px;
+      pointer-events:none;
     }
-    .nb-modal-overlay.show{ display:flex; }
+    .nb-modal-overlay.show{
+      display:flex;
+      pointer-events:auto;
+    }
     .nb-modal{
       width:min(860px, 100%);
       border-radius:20px;
@@ -438,6 +488,18 @@
 </head>
 
 <body>
+  <script>
+    (function () {
+      try {
+        document.body.classList.remove('nb-search-open', 'nb-sidebar-open', 'modal-open', 'overflow-hidden');
+        document.documentElement.classList.remove('overflow-hidden');
+        document.body.style.overflow = '';
+        document.documentElement.style.overflow = '';
+      } catch (_) {}
+    })();
+  </script>
+  <a class="nb-skip-link" href="#nb-main-content">Lewati ke konten utama</a>
+  <button type="button" class="nb-unlock-btn" data-nb-unlock-ui>Unlock UI</button>
   @include('partials.flash')
 
   {{-- Desktop sidebar --}}
@@ -453,7 +515,7 @@
         @include('partials.topbar')
       </header>
 
-      <div class="nb-content">
+      <div class="nb-content" id="nb-main-content">
         <div class="nb-container">
           @yield('content')
         </div>
@@ -482,6 +544,29 @@
         sidebarCollapsed: false,
       };
 
+      function clearGlobalUiLocks(){
+        // Clear body/html lock state
+        document.body.classList.remove('nb-sidebar-open', 'modal-open', 'overflow-hidden');
+        document.body.classList.remove('nb-search-open');
+        document.documentElement.classList.remove('overflow-hidden');
+        document.body.style.overflow = '';
+        document.documentElement.style.overflow = '';
+        document.body.style.pointerEvents = '';
+        state.modalOpen = false;
+        state.sidebarOpen = false;
+
+        // Close common overlays/modals if they got stuck
+        document.querySelectorAll(
+          '[data-nb-search-overlay], [data-nb-sidebar-overlay], .nb-modal-overlay, .nb-search-overlay, .nb-sidebar-overlay'
+        ).forEach((el) => {
+          el.classList.remove('show', 'open', 'is-open');
+          if (el.hasAttribute('data-open')) el.setAttribute('data-open', '0');
+          if (el.hasAttribute('aria-hidden')) el.setAttribute('aria-hidden', 'true');
+          el.style.removeProperty('display');
+          el.style.removeProperty('pointer-events');
+        });
+      }
+
       function applyTheme(theme){
         state.theme = theme === 'dark' ? 'dark' : 'light';
         const root = document.documentElement;
@@ -503,7 +588,18 @@
 
       function openSearch(){
         const overlay = document.querySelector('[data-nb-search-overlay]');
-        if(!overlay) return;
+        if(!overlay){
+          const fallbackInput =
+            document.querySelector('#nbSearchInput') ||
+            document.querySelector('input[name="q"]') ||
+            document.querySelector('input[type="search"]');
+          if (fallbackInput) {
+            fallbackInput.focus();
+            if (typeof fallbackInput.select === 'function') fallbackInput.select();
+          }
+          return;
+        }
+        document.body.classList.add('nb-search-open');
         overlay.classList.add('show');
         state.modalOpen = true;
         const input = overlay.querySelector('input[data-nb-search-input]');
@@ -514,6 +610,7 @@
         const overlay = document.querySelector('[data-nb-search-overlay]');
         if(!overlay) return;
         overlay.classList.remove('show');
+        document.body.classList.remove('nb-search-open');
         state.modalOpen = false;
       }
 
@@ -549,6 +646,12 @@
       }
 
       function bind(){
+        // Failsafe: pastikan overlay tidak nyangkut setelah navigasi/error JS sebelumnya.
+        clearGlobalUiLocks();
+        setTimeout(clearGlobalUiLocks, 120);
+        setTimeout(clearGlobalUiLocks, 450);
+        setTimeout(clearGlobalUiLocks, 1200);
+
         // init theme
         applyTheme(localStorage.getItem('nb-theme') === 'dark' ? 'dark' : 'light');
 
@@ -565,6 +668,14 @@
           if(e.target.closest('[data-nb-sidebar-close]')){ e.preventDefault(); closeSidebar(); }
 
           if(e.target.closest('[data-nb-sidebar-overlay]')){ e.preventDefault(); closeSidebar(); }
+
+          // Emergency close if user clicks dimmed backdrop from unknown stuck overlay.
+          if (e.target.classList && (e.target.classList.contains('nb-search-overlay') || e.target.classList.contains('nb-sidebar-overlay') || e.target.classList.contains('nb-modal-overlay'))) {
+            e.preventDefault();
+            closeSearch();
+            closeSidebar();
+            clearGlobalUiLocks();
+          }
         });
 
         // click outside search modal closes it
@@ -598,12 +709,76 @@
             document.body.style.overflow = '';
           }
         });
+
+        // Guard: jika ada overlay tidak valid, otomatis nonaktifkan agar klik halaman tetap hidup.
+        const guardOverlayInteraction = () => {
+          document.querySelectorAll('.nb-search-overlay, .nb-sidebar-overlay, .nb-modal-overlay').forEach((el) => {
+            const isSidebar = el.classList.contains('nb-sidebar-overlay');
+            const shouldBeOpen = isSidebar
+              ? document.body.classList.contains('nb-sidebar-open')
+              : el.classList.contains('show');
+            el.style.pointerEvents = shouldBeOpen ? 'auto' : 'none';
+          });
+        };
+        const isAllowedBlockingLayer = (el) => {
+          if (!el || !(el instanceof HTMLElement)) return false;
+          if (el.matches('.nb-search-overlay.show')) return true;
+          if (el.matches('.nb-modal-overlay.show')) return true;
+          if (el.matches('.nb-modal[data-open="1"]')) return true;
+          if (el.matches('.nb-modal.open')) return true;
+          if (el.matches('.nb-sidebar-overlay') && document.body.classList.contains('nb-sidebar-open')) return true;
+          return false;
+        };
+        const neutralizeStuckBlockers = () => {
+          const vw = window.innerWidth || document.documentElement.clientWidth || 0;
+          const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+          let foundBlocker = false;
+          document.querySelectorAll('body *').forEach((el) => {
+            if (!(el instanceof HTMLElement)) return;
+            const cs = window.getComputedStyle(el);
+            if (cs.display === 'none' || cs.visibility === 'hidden') return;
+            if (cs.pointerEvents === 'none') return;
+            const pos = cs.position;
+            if (pos !== 'fixed' && pos !== 'absolute') return;
+            const rect = el.getBoundingClientRect();
+            const covers = rect.width >= (vw * 0.9) && rect.height >= (vh * 0.9);
+            if (!covers) return;
+            if (isAllowedBlockingLayer(el)) return;
+            foundBlocker = true;
+            // Matikan layer fullscreen yang tidak dikenal agar halaman bisa diklik lagi.
+            el.style.pointerEvents = 'none';
+            el.style.display = 'none';
+          });
+          const btn = document.querySelector('[data-nb-unlock-ui]');
+          if (btn) btn.style.display = foundBlocker ? 'inline-flex' : 'none';
+        };
+        guardOverlayInteraction();
+        setTimeout(guardOverlayInteraction, 300);
+        setTimeout(guardOverlayInteraction, 1000);
+        setTimeout(neutralizeStuckBlockers, 250);
+        setTimeout(neutralizeStuckBlockers, 800);
+        setTimeout(neutralizeStuckBlockers, 1600);
+        window.setInterval(() => {
+          guardOverlayInteraction();
+          neutralizeStuckBlockers();
+        }, 2000);
+
+        document.addEventListener('click', (e) => {
+          if (!e.target.closest('[data-nb-unlock-ui]')) return;
+          e.preventDefault();
+          clearGlobalUiLocks();
+          neutralizeStuckBlockers();
+        });
       }
 
-      return { bind, closeSearch, openSidebar, closeSidebar, toggleCollapsed };
+      return { bind, closeSearch, openSidebar, closeSidebar, toggleCollapsed, clearGlobalUiLocks };
     })();
 
     document.addEventListener('DOMContentLoaded', () => window.nbApp?.bind?.());
+    window.addEventListener('pageshow', () => {
+      window.nbApp?.clearGlobalUiLocks?.();
+    });
   </script>
+  @stack('scripts')
 </body>
 </html>

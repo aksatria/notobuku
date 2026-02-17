@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Biblio;
 use App\Support\InteropMetrics;
+use App\Support\OpacMetrics;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -275,6 +276,44 @@ class AdminDashboardController extends Controller
         $interopInvalid = (int) ($health['invalid_token_total'] ?? 0);
         $interopLimited = (int) ($health['rate_limited_total'] ?? 0);
         $interopHealth = (string) ($health['label'] ?? 'Sehat');
+        $opac = OpacMetrics::snapshot();
+        $opacP95 = (int) data_get($opac, 'latency.p95_ms', 0);
+        $opacP50 = (int) data_get($opac, 'latency.p50_ms', 0);
+        $opacReq = (int) data_get($opac, 'requests', 0);
+        $opacErrRate = (float) data_get($opac, 'error_rate_pct', 0);
+        $opacHistory24h = (array) data_get($opac, 'history.last_24h', []);
+        $opacP95Series24h = array_values(array_map(fn($r) => (int) ($r['p95_ms'] ?? 0), $opacHistory24h));
+        $opacSlo = (array) data_get($opac, 'slo', []);
+        $uatSummary = [
+            'pass' => 0,
+            'fail' => 0,
+            'pending' => 0,
+        ];
+        $uatRecent = collect();
+        if (Schema::hasTable('uat_signoffs')) {
+            $uatBase = DB::table('uat_signoffs')
+                ->where(function ($q) use ($institutionId) {
+                    $q->where('institution_id', $institutionId)
+                        ->orWhereNull('institution_id');
+                });
+
+            $uatSummary['pass'] = (int) (clone $uatBase)->where('status', 'pass')->count();
+            $uatSummary['fail'] = (int) (clone $uatBase)->where('status', 'fail')->count();
+            $uatSummary['pending'] = (int) (clone $uatBase)->where('status', 'pending')->count();
+
+            $uatRecent = (clone $uatBase)
+                ->orderByDesc('check_date')
+                ->orderByDesc('signed_at')
+                ->limit(12)
+                ->get([
+                    'check_date',
+                    'status',
+                    'operator_name',
+                    'signed_at',
+                    'notes',
+                    'checklist_file',
+                ]);
+        }
 
         return view('admin.dashboard', [
             'totals' => $data['totals'],
@@ -305,6 +344,15 @@ class AdminDashboardController extends Controller
             'interopInvalid' => $interopInvalid,
             'interopLimited' => $interopLimited,
             'interopHealth' => $interopHealth,
+            'opacMetrics' => $opac,
+            'opacP95' => $opacP95,
+            'opacP50' => $opacP50,
+            'opacRequests' => $opacReq,
+            'opacErrorRate' => $opacErrRate,
+            'opacP95Series24h' => $opacP95Series24h,
+            'opacSlo' => $opacSlo,
+            'uatSummary' => $uatSummary,
+            'uatRecent' => $uatRecent,
         ]);
     }
 }

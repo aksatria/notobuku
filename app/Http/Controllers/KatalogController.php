@@ -182,6 +182,21 @@ class KatalogController extends Controller
     private function tokenizeQuery(string $query, ?int $institutionId = null): array
     {
         $tokens = preg_split('/\s+/', $this->normalizeLoose($query));
+        $stopWords = array_values(array_unique(array_filter((array) config('search.stop_words', []))));
+        if ($institutionId !== null) {
+            try {
+                /** @var \App\Services\Search\SearchStopWordService $svc */
+                $svc = app(\App\Services\Search\SearchStopWordService::class);
+                $stopWords = $svc->listForInstitution($institutionId, null);
+            } catch (\Throwable) {
+                // fallback ke config saja
+            }
+        }
+        $stopMap = array_fill_keys(array_map(fn ($w) => mb_strtolower((string) $w), $stopWords), true);
+        $tokens = array_values(array_filter((array) $tokens, function ($t) use ($stopMap) {
+            $k = mb_strtolower(trim((string) $t));
+            return $k !== '' && !isset($stopMap[$k]);
+        }));
         $tokens = $this->expandTokens($tokens, $institutionId);
         return collect($tokens)
             ->filter(fn($t) => $t !== '' && mb_strlen($t) >= 3)
@@ -195,6 +210,9 @@ class KatalogController extends Controller
     {
         $map = (array) config('search.synonyms', []);
         $typoMap = (array) config('search.typos', []);
+        if ($institutionId !== null) {
+            $typoMap = array_merge($typoMap, $this->getInstitutionTypoMap($institutionId));
+        }
         $dictionary = $this->buildSearchDictionary($map, $institutionId);
 
         $expanded = [];
@@ -260,6 +278,120 @@ class KatalogController extends Controller
         }
 
         return array_values(array_unique($flat));
+    }
+
+    private function getInstitutionTypoMap(int $institutionId): array
+    {
+        $cacheKey = 'nbk:search:typo:' . $institutionId;
+
+        return Cache::remember($cacheKey, now()->addMinutes(10), function () use ($institutionId) {
+            if (!Schema::hasTable('search_queries')) {
+                return [];
+            }
+
+            $rows = DB::table('search_queries')
+                ->where('institution_id', $institutionId)
+                ->orderByDesc('search_count')
+                ->orderByDesc('last_searched_at')
+                ->limit(400)
+                ->get(['query', 'normalized_query', 'last_hits', 'search_count']);
+
+            $knownTokens = [];
+            $missTokens = [];
+
+            foreach ($rows as $row) {
+                $normalized = $this->normalizeLoose((string) ($row->normalized_query ?: $row->query));
+                if ($normalized === '') {
+                    continue;
+                }
+
+                $parts = array_values(array_filter(
+                    preg_split('/\s+/', $normalized),
+                    fn ($p) => $p !== '' && mb_strlen($p) >= 4
+                ));
+
+                if ((int) $row->last_hits > 0 && (int) $row->search_count >= 2) {
+                    foreach ($parts as $part) {
+                        $knownTokens[$part] = true;
+                    }
+                }
+
+                if ((int) $row->last_hits === 0 && (int) $row->search_count >= 2) {
+                    foreach ($parts as $part) {
+                        $missTokens[$part] = true;
+                    }
+                }
+            }
+
+            $known = array_keys($knownTokens);
+            $miss = array_keys($missTokens);
+            if (empty($known) || empty($miss)) {
+                return [];
+            }
+
+            $typoMap = [];
+            foreach ($miss as $token) {
+                $best = null;
+                $bestDist = 99;
+                foreach ($known as $candidate) {
+                    if ($candidate === $token) {
+                        continue;
+                    }
+                    if (mb_substr($candidate, 0, 1) !== mb_substr($token, 0, 1)) {
+                        continue;
+                    }
+                    $lenDiff = abs(mb_strlen($candidate) - mb_strlen($token));
+                    if ($lenDiff > 2) {
+                        continue;
+                    }
+                    $dist = levenshtein($token, $candidate);
+                    if ($dist < $bestDist) {
+                        $bestDist = $dist;
+                        $best = $candidate;
+                    }
+                }
+
+                $limit = mb_strlen($token) <= 6 ? 1 : 2;
+                if ($best !== null && $bestDist <= $limit) {
+                    $typoMap[$token] = $best;
+                }
+            }
+
+            return $typoMap;
+        });
+    }
+
+    private function getOpacPrefetchUrls(int $institutionId): array
+    {
+        if (!Schema::hasTable('search_queries')) {
+            return [];
+        }
+        if (!(bool) config('notobuku.opac.prefetch.enabled', true)) {
+            return [];
+        }
+
+        $limit = max(0, (int) config('notobuku.opac.prefetch.top_queries', 6));
+        if ($limit === 0) {
+            return [];
+        }
+
+        $rows = DB::table('search_queries')
+            ->where('institution_id', $institutionId)
+            ->where('last_hits', '>', 0)
+            ->where('search_count', '>', 1)
+            ->orderByDesc('search_count')
+            ->orderByDesc('last_searched_at')
+            ->limit($limit)
+            ->pluck('query');
+
+        return $rows
+            ->map(fn ($q) => trim((string) $q))
+            ->filter(fn ($q) => $q !== '' && mb_strlen($q) >= 3)
+            ->unique()
+            ->take($limit)
+            ->map(fn ($q) => route('opac.index', ['q' => $q]))
+            ->values()
+            ->all();
     }
 
     private function fuzzyGuessToken(string $token, array $dictionary): ?string
@@ -333,21 +465,66 @@ class KatalogController extends Controller
             return;
         }
 
+        $hasAutoSuggestionCols = Schema::hasColumn('search_queries', 'auto_suggestion_query')
+            && Schema::hasColumn('search_queries', 'auto_suggestion_score')
+            && Schema::hasColumn('search_queries', 'auto_suggestion_status');
+        $hasZeroWorkflowCols = Schema::hasColumn('search_queries', 'zero_result_status')
+            && Schema::hasColumn('search_queries', 'zero_resolved_at')
+            && Schema::hasColumn('search_queries', 'zero_resolved_by')
+            && Schema::hasColumn('search_queries', 'zero_resolution_note')
+            && Schema::hasColumn('search_queries', 'zero_resolution_link');
+
         $now = now();
+        $autoSuggestion = null;
+        $autoScore = null;
+        if ($hits <= 0) {
+            $suggest = $this->suggestQueryWithScore($query, $institutionId);
+            if ($suggest !== null) {
+                $autoSuggestion = (string) ($suggest['text'] ?? '');
+                $autoScore = (float) ($suggest['score'] ?? 0);
+            }
+        }
+
+        $updatePayload = [
+            'query' => $query,
+            'user_id' => $userId,
+            'last_hits' => max(0, $hits),
+            'last_searched_at' => $now,
+            'search_count' => DB::raw('search_count + 1'),
+            'updated_at' => $now,
+        ];
+        if ($hasZeroWorkflowCols) {
+            $updatePayload = array_merge($updatePayload, [
+                'zero_result_status' => $hits > 0 ? 'resolved_auto' : 'open',
+                'zero_resolved_at' => $hits > 0 ? $now : null,
+                'zero_resolved_by' => $hits > 0 ? $userId : null,
+                'zero_resolution_note' => $hits > 0 ? 'Resolved otomatis: query sekarang punya hasil.' : null,
+                'zero_resolution_link' => null,
+            ]);
+        }
+        if ($hasAutoSuggestionCols) {
+            $updatePayload = array_merge($updatePayload, [
+                'auto_suggestion_query' => $hits > 0 ? null : $autoSuggestion,
+                'auto_suggestion_score' => $hits > 0 ? null : $autoScore,
+                'auto_suggestion_status' => $hits > 0 ? 'resolved_auto' : ($autoSuggestion ? 'open' : 'none'),
+            ]);
+        }
+
         $affected = DB::table('search_queries')
             ->where('institution_id', $institutionId)
             ->where('normalized_query', $normalized)
-            ->update([
-                'query' => $query,
-                'user_id' => $userId,
-                'last_hits' => max(0, $hits),
-                'last_searched_at' => $now,
-                'search_count' => DB::raw('search_count + 1'),
-                'updated_at' => $now,
-            ]);
+            ->update($updatePayload);
+
+        $searchQueryId = null;
+        if ($affected > 0) {
+            $searchQueryId = (int) DB::table('search_queries')
+                ->where('institution_id', $institutionId)
+                ->where('normalized_query', $normalized)
+                ->value('id');
+        }
 
         if ($affected === 0) {
-            DB::table('search_queries')->insert([
+            $insertPayload = [
                 'institution_id' => $institutionId,
                 'normalized_query' => $normalized,
                 'query' => $query,
@@ -357,11 +534,52 @@ class KatalogController extends Controller
                 'search_count' => 1,
                 'created_at' => $now,
                 'updated_at' => $now,
+            ];
+            if ($hasZeroWorkflowCols) {
+                $insertPayload = array_merge($insertPayload, [
+                    'zero_result_status' => $hits > 0 ? 'resolved_auto' : 'open',
+                    'zero_resolved_at' => $hits > 0 ? $now : null,
+                    'zero_resolved_by' => $hits > 0 ? $userId : null,
+                    'zero_resolution_note' => null,
+                    'zero_resolution_link' => null,
+                ]);
+            }
+            if ($hasAutoSuggestionCols) {
+                $insertPayload = array_merge($insertPayload, [
+                    'auto_suggestion_query' => $hits > 0 ? null : $autoSuggestion,
+                    'auto_suggestion_score' => $hits > 0 ? null : $autoScore,
+                    'auto_suggestion_status' => $hits > 0 ? 'resolved_auto' : ($autoSuggestion ? 'open' : 'none'),
+                ]);
+            }
+
+            $searchQueryId = (int) DB::table('search_queries')->insertGetId($insertPayload);
+        }
+
+        if (Schema::hasTable('search_query_events')) {
+            DB::table('search_query_events')->insert([
+                'institution_id' => $institutionId,
+                'user_id' => $userId,
+                'search_query_id' => $searchQueryId ?: null,
+                'query' => $query,
+                'normalized_query' => $normalized,
+                'hits' => max(0, $hits),
+                'is_zero_result' => $hits <= 0 ? 1 : 0,
+                'suggestion' => $autoSuggestion,
+                'suggestion_score' => $autoScore,
+                'searched_at' => $now,
+                'created_at' => $now,
+                'updated_at' => $now,
             ]);
         }
     }
 
     private function suggestQuery(string $query, int $institutionId): ?string
+    {
+        $best = $this->suggestQueryWithScore($query, $institutionId);
+        return $best['text'] ?? null;
+    }
+
+    private function suggestQueryWithScore(string $query, int $institutionId): ?array
     {
         $normalized = $this->normalizeLoose($query);
         if ($normalized === '') return null;
@@ -386,6 +604,17 @@ class KatalogController extends Controller
                     ->limit(200)
                     ->pluck('term')
             )
+            ->merge(
+                Schema::hasTable('search_queries')
+                    ? DB::table('search_queries')
+                        ->where('institution_id', $institutionId)
+                        ->where('last_hits', '>', 0)
+                        ->orderByDesc('search_count')
+                        ->orderByDesc('last_searched_at')
+                        ->limit(200)
+                        ->pluck('query')
+                    : collect()
+            )
             ->filter()
             ->unique()
             ->values();
@@ -403,7 +632,14 @@ class KatalogController extends Controller
             }
         }
 
-        return ($bestScore >= 55 && $best) ? $best : null;
+        if ($bestScore >= 55 && $best) {
+            return [
+                'text' => (string) $best,
+                'score' => (float) round($bestScore, 2),
+            ];
+        }
+
+        return null;
     }
 
     private function applyCatalogFilters($query, array $filters)
@@ -417,12 +653,21 @@ class KatalogController extends Controller
         $language = $filters['language'] ?? '';
         $materialType = $filters['material_type'] ?? '';
         $mediaType = $filters['media_type'] ?? '';
+        $languageList = $this->normalizeQueryArray($filters['language_list'] ?? []);
+        $materialTypeList = $this->normalizeQueryArray($filters['material_type_list'] ?? []);
+        $mediaTypeList = $this->normalizeQueryArray($filters['media_type_list'] ?? []);
         $ddc = $filters['ddc'] ?? '';
         $year = $filters['year'] ?? '';
+        $yearFrom = (int) ($filters['year_from'] ?? 0);
+        $yearTo = (int) ($filters['year_to'] ?? 0);
         $onlyAvailable = $filters['onlyAvailable'] ?? false;
         $author = $filters['author'] ?? '';
         $subject = $filters['subject'] ?? '';
         $publisher = $filters['publisher'] ?? '';
+        $authorList = $this->normalizeQueryArray($filters['author_list'] ?? [], true);
+        $subjectList = $this->normalizeQueryArray($filters['subject_list'] ?? [], true);
+        $publisherList = $this->normalizeQueryArray($filters['publisher_list'] ?? []);
+        $branchList = $this->normalizeQueryArray($filters['branch_list'] ?? [], true);
 
         if ($title !== '') {
             $query->where(function ($qq) use ($title) {
@@ -440,15 +685,21 @@ class KatalogController extends Controller
             $query->where('call_number', 'like', "%{$callNumber}%");
         }
 
-        if ($language !== '') {
+        if (!empty($languageList)) {
+            $query->whereIn('language', $languageList);
+        } elseif ($language !== '') {
             $query->where('language', $language);
         }
 
-        if ($materialType !== '') {
+        if (!empty($materialTypeList)) {
+            $query->whereIn('material_type', $materialTypeList);
+        } elseif ($materialType !== '') {
             $query->where('material_type', $materialType);
         }
 
-        if ($mediaType !== '') {
+        if (!empty($mediaTypeList)) {
+            $query->whereIn('media_type', $mediaTypeList);
+        } elseif ($mediaType !== '') {
             $query->where('media_type', $mediaType);
         }
 
@@ -512,21 +763,39 @@ class KatalogController extends Controller
             $query->where('ddc', 'like', "%{$ddc}%");
         }
 
-        if ($year !== '') {
+        if ($yearFrom > 0 && $yearTo > 0) {
+            $from = min($yearFrom, $yearTo);
+            $to = max($yearFrom, $yearTo);
+            $query->whereBetween('publish_year', [$from, $to]);
+        } elseif ($yearFrom > 0) {
+            $query->where('publish_year', '>=', $yearFrom);
+        } elseif ($yearTo > 0) {
+            $query->where('publish_year', '<=', $yearTo);
+        } elseif ($year !== '') {
             $query->where('publish_year', (int) $year);
         }
 
-        if ($publisher !== '') {
+        if (!empty($publisherList)) {
+            $query->whereIn('publisher', $publisherList);
+        } elseif ($publisher !== '') {
             $query->where('publisher', 'like', "%{$publisher}%");
         }
 
-        if ($author !== '') {
+        if (!empty($authorList)) {
+            $query->whereHas('authors', function ($a) use ($authorList) {
+                $a->whereIn('authors.id', $authorList);
+            });
+        } elseif ($author !== '') {
             $query->whereHas('authors', function ($a) use ($author) {
                 $a->where('authors.id', $author);
             });
         }
 
-        if ($subject !== '') {
+        if (!empty($subjectList)) {
+            $query->whereHas('subjects', function ($s) use ($subjectList) {
+                $s->whereIn('subjects.id', $subjectList);
+            });
+        } elseif ($subject !== '') {
             $query->whereHas('subjects', function ($s) use ($subject) {
                 $s->where('subjects.id', $subject);
             });
@@ -538,7 +807,94 @@ class KatalogController extends Controller
             });
         }
 
+        if (!empty($branchList)) {
+            $query->whereHas('items', function ($itemQuery) use ($branchList) {
+                $itemQuery->whereIn('branch_id', $branchList);
+            });
+        }
+
         return $query;
+    }
+
+    private function normalizeQueryArray($value, bool $numeric = false): array
+    {
+        if (!is_array($value)) {
+            if ($value === null || $value === '') {
+                return [];
+            }
+            $value = [$value];
+        }
+
+        $clean = [];
+        foreach ($value as $item) {
+            $item = trim((string) $item);
+            if ($item === '') {
+                continue;
+            }
+            if ($numeric) {
+                $int = (int) $item;
+                if ($int <= 0) {
+                    continue;
+                }
+                $clean[] = $int;
+            } else {
+                $clean[] = $item;
+            }
+        }
+
+        return array_values(array_unique($clean));
+    }
+
+    private function normalizedFacetCacheSignature(
+        int $institutionId,
+        array $filters,
+        array $fieldFilters,
+        string $qfOp,
+        bool $qfExact,
+        ?int $activeBranchId
+    ): array {
+        $normalizeList = function ($value, bool $numeric = false): array {
+            $list = $this->normalizeQueryArray($value, $numeric);
+            sort($list);
+            return $list;
+        };
+
+        $fieldFiltersNorm = collect($fieldFilters)
+            ->map(function (array $row) {
+                return [
+                    'field' => trim((string) ($row['field'] ?? '')),
+                    'value' => trim((string) ($row['value'] ?? '')),
+                ];
+            })
+            ->filter(fn ($row) => $row['field'] !== '' && $row['value'] !== '')
+            ->values()
+            ->all();
+
+        return [
+            'institution_id' => $institutionId,
+            'active_branch_id' => (int) ($activeBranchId ?? 0),
+            'q' => trim((string) ($filters['q'] ?? '')),
+            'title' => trim((string) ($filters['title'] ?? '')),
+            'author_name' => trim((string) ($filters['author_name'] ?? '')),
+            'subject_term' => trim((string) ($filters['subject_term'] ?? '')),
+            'isbn' => trim((string) ($filters['isbn'] ?? '')),
+            'call_number' => trim((string) ($filters['call_number'] ?? '')),
+            'ddc' => trim((string) ($filters['ddc'] ?? '')),
+            'year' => trim((string) ($filters['year'] ?? '')),
+            'year_from' => (int) ($filters['year_from'] ?? 0),
+            'year_to' => (int) ($filters['year_to'] ?? 0),
+            'available' => (bool) ($filters['onlyAvailable'] ?? false),
+            'author_list' => $normalizeList($filters['author_list'] ?? [], true),
+            'subject_list' => $normalizeList($filters['subject_list'] ?? [], true),
+            'publisher_list' => $normalizeList($filters['publisher_list'] ?? []),
+            'language_list' => $normalizeList($filters['language_list'] ?? []),
+            'material_type_list' => $normalizeList($filters['material_type_list'] ?? []),
+            'media_type_list' => $normalizeList($filters['media_type_list'] ?? []),
+            'branch_list' => $normalizeList($filters['branch_list'] ?? [], true),
+            'qf_op' => strtoupper(trim($qfOp)),
+            'qf_exact' => (bool) $qfExact,
+            'field_filters' => $fieldFiltersNorm,
+        ];
     }
 
     private function applyFieldedFilters($query, array $fieldFilters, string $operator, bool $exact)
@@ -745,15 +1101,53 @@ class KatalogController extends Controller
         $subjectTerm = trim((string) $request->query('subject_term', ''));
         $isbn = trim((string) $request->query('isbn', ''));
         $callNumber = trim((string) $request->query('call_number', ''));
-        $language = trim((string) $request->query('language', ''));
-        $materialType = trim((string) $request->query('material_type', ''));
-        $mediaType = trim((string) $request->query('media_type', ''));
+        $languageRaw = $request->query('language', '');
+        $materialTypeRaw = $request->query('material_type', '');
+        $mediaTypeRaw = $request->query('media_type', '');
+        $language = is_array($languageRaw) ? '' : trim((string) $languageRaw);
+        $materialType = is_array($materialTypeRaw) ? '' : trim((string) $materialTypeRaw);
+        $mediaType = is_array($mediaTypeRaw) ? '' : trim((string) $mediaTypeRaw);
+        $languageList = $this->normalizeQueryArray($request->query('language', []));
+        $materialTypeList = $this->normalizeQueryArray($request->query('material_type', []));
+        $mediaTypeList = $this->normalizeQueryArray($request->query('media_type', []));
+        if (empty($languageList) && $language !== '') {
+            $languageList = [$language];
+        }
+        if (empty($materialTypeList) && $materialType !== '') {
+            $materialTypeList = [$materialType];
+        }
+        if (empty($mediaTypeList) && $mediaType !== '') {
+            $mediaTypeList = [$mediaType];
+        }
         $ddc = trim((string) $request->query('ddc', ''));
         $year = trim((string) $request->query('year', ''));
+        $yearFrom = max(0, (int) $request->query('year_from', 0));
+        $yearTo = max(0, (int) $request->query('year_to', 0));
         $onlyAvailable = (string) $request->query('available', '') === '1';
-        $author = trim((string) $request->query('author', ''));
-        $subject = trim((string) $request->query('subject', ''));
-        $publisher = trim((string) $request->query('publisher', ''));
+        $authorRaw = $request->query('author', '');
+        $subjectRaw = $request->query('subject', '');
+        $publisherRaw = $request->query('publisher', '');
+        $author = is_array($authorRaw) ? '' : trim((string) $authorRaw);
+        $subject = is_array($subjectRaw) ? '' : trim((string) $subjectRaw);
+        $publisher = is_array($publisherRaw) ? '' : trim((string) $publisherRaw);
+        $authorList = $this->normalizeQueryArray($request->query('author', []), true);
+        $subjectList = $this->normalizeQueryArray($request->query('subject', []), true);
+        $publisherList = $this->normalizeQueryArray($request->query('publisher', []));
+        if (empty($authorList) && $author !== '') {
+            $authorList = $this->normalizeQueryArray([$author], true);
+        }
+        if (empty($subjectList) && $subject !== '') {
+            $subjectList = $this->normalizeQueryArray([$subject], true);
+        }
+        if (empty($publisherList) && $publisher !== '') {
+            $publisherList = [$publisher];
+        }
+        $branchRaw = $request->query('branch', '');
+        $branch = is_array($branchRaw) ? '' : trim((string) $branchRaw);
+        $branchList = $this->normalizeQueryArray($request->query('branch', []), true);
+        if (empty($branchList) && $branch !== '') {
+            $branchList = $this->normalizeQueryArray([$branch], true);
+        }
         $sort = trim((string) $request->query('sort', 'relevant'));
         $aiSearch = !$isPublic && (string) $request->query('ai', '') === '1'; // NEW: Flag AI search
         $forceShelves = false;
@@ -797,12 +1191,21 @@ class KatalogController extends Controller
             'language' => $language,
             'material_type' => $materialType,
             'media_type' => $mediaType,
+            'language_list' => $languageList,
+            'material_type_list' => $materialTypeList,
+            'media_type_list' => $mediaTypeList,
             'ddc' => $ddc,
             'year' => $year,
+            'year_from' => $yearFrom,
+            'year_to' => $yearTo,
             'onlyAvailable' => $onlyAvailable,
             'author' => $author,
             'subject' => $subject,
             'publisher' => $publisher,
+            'author_list' => $authorList,
+            'subject_list' => $subjectList,
+            'publisher_list' => $publisherList,
+            'branch_list' => $branchList,
             'qf_field' => $qfFields,
             'qf_value' => $qfValues,
             'qf_op' => $qfOp,
@@ -823,6 +1226,12 @@ class KatalogController extends Controller
         $page = (int) $request->query('page', 1);
         $searchService = app(BiblioSearchService::class);
         $searchResult = null;
+        $languageFacets = collect();
+        $materialTypeFacets = collect();
+        $mediaTypeFacets = collect();
+        $yearFacets = collect();
+        $branchFacets = collect();
+        $availabilityFacets = ['available' => 0, 'unavailable' => 0];
         $shouldUseMeili = empty($fieldFilters);
         if ($q === '') {
             $shouldUseMeili = false; // Browse default wajib stabil walau index search belum sinkron.
@@ -842,15 +1251,24 @@ class KatalogController extends Controller
                 'language' => $language,
                 'material_type' => $materialType,
                 'media_type' => $mediaType,
+                'language_list' => $languageList,
+                'material_type_list' => $materialTypeList,
+                'media_type_list' => $mediaTypeList,
                 'ddc' => $ddc,
                 'year' => $year,
+                'year_from' => $yearFrom,
+                'year_to' => $yearTo,
                 'onlyAvailable' => $onlyAvailable,
                 'author' => $author,
                 'subject' => $subject,
                 'publisher' => $publisher,
+                'author_list' => $authorList,
+                'subject_list' => $subjectList,
+                'publisher_list' => $publisherList,
                 'sort' => $sort,
                 'page' => $page,
-                'branch_id' => $activeBranchId,
+                'branch_id' => empty($branchList) ? $activeBranchId : null,
+                'branch_list' => $branchList,
             ];
 
             if ($isPublic) {
@@ -875,9 +1293,15 @@ class KatalogController extends Controller
             && $mediaType === ''
             && $ddc === ''
             && $year === ''
-            && $author === ''
-            && $subject === ''
-            && $publisher === ''
+            && empty($authorList)
+            && empty($subjectList)
+            && empty($publisherList)
+            && $yearFrom <= 0
+            && $yearTo <= 0
+            && empty($languageList)
+            && empty($materialTypeList)
+            && empty($mediaTypeList)
+            && empty($branchList)
             && !$onlyAvailable
             && empty($fieldFilters);
 
@@ -894,7 +1318,8 @@ class KatalogController extends Controller
                 auth()->id(),
                 $rankMode,
                 $q,
-                $activeBranchId
+                $activeBranchId,
+                $branchList
             );
 
             $biblios = $searchService->hydrateResults(
@@ -908,6 +1333,43 @@ class KatalogController extends Controller
             $authorFacets = $searchService->mapAuthorFacets($searchResult['facets'] ?? []);
             $subjectFacets = $searchService->mapSubjectFacets($searchResult['facets'] ?? []);
             $publisherFacets = $searchService->mapPublisherFacets($searchResult['facets'] ?? []);
+            $rawFacets = (array) ($searchResult['facets'] ?? []);
+            $languageFacets = collect((array) ($rawFacets['language'] ?? []))
+                ->map(fn ($total, $label) => (object) ['label' => (string) $label, 'total' => (int) $total])
+                ->sortByDesc('total')
+                ->values();
+            $materialTypeFacets = collect((array) ($rawFacets['material_type'] ?? []))
+                ->map(fn ($total, $label) => (object) ['label' => (string) $label, 'total' => (int) $total])
+                ->sortByDesc('total')
+                ->values();
+            $mediaTypeFacets = collect((array) ($rawFacets['media_type'] ?? []))
+                ->map(fn ($total, $label) => (object) ['label' => (string) $label, 'total' => (int) $total])
+                ->sortByDesc('total')
+                ->values();
+            $yearFacets = collect((array) ($rawFacets['publish_year'] ?? []))
+                ->map(fn ($total, $label) => (object) ['label' => (string) $label, 'total' => (int) $total])
+                ->sortByDesc('total')
+                ->values();
+            $availableMap = (array) ($rawFacets['available'] ?? []);
+            $availabilityFacets = [
+                'available' => (int) ($availableMap['true'] ?? $availableMap[true] ?? 0),
+                'unavailable' => (int) ($availableMap['false'] ?? $availableMap[false] ?? 0),
+            ];
+            $branchRows = (array) ($rawFacets['branch_ids'] ?? []);
+            if (!empty($branchRows)) {
+                $branchNames = Branch::query()->whereIn('id', array_map('intval', array_keys($branchRows)))->pluck('name', 'id');
+                $branchFacets = collect($branchRows)
+                    ->map(function ($total, $branchId) use ($branchNames) {
+                        $id = (int) $branchId;
+                        return (object) [
+                            'id' => $id,
+                            'name' => (string) ($branchNames[$id] ?? ('Cabang #' . $id)),
+                            'total' => (int) $total,
+                        ];
+                    })
+                    ->sortByDesc('total')
+                    ->values();
+            }
         } else {
             $baseQuery = Biblio::query()
                 ->where('biblio.institution_id', $institutionId);
@@ -979,10 +1441,16 @@ class KatalogController extends Controller
                 'q' => $q,
                 'ddc' => $ddc,
                 'year' => $year,
+                'year_from' => $yearFrom,
+                'year_to' => $yearTo,
+                'language_list' => $languageList,
+                'material_type_list' => $materialTypeList,
+                'media_type_list' => $mediaTypeList,
                 'onlyAvailable' => $onlyAvailable,
-                'author' => $author,
-                'subject' => $subject,
-                'publisher' => $publisher,
+                'author_list' => $authorList,
+                'subject_list' => $subjectList,
+                'publisher_list' => $publisherList,
+                'branch_list' => $branchList,
                 'sort' => $sort,
                 'page' => $page,
                 'qf_field' => $qfFields,
@@ -1061,16 +1529,93 @@ class KatalogController extends Controller
                     ->limit(12)
                     ->get();
 
+                $languageFacets = (clone $facetBase)
+                    ->select('language as label', DB::raw('COUNT(*) as total'))
+                    ->whereNotNull('language')
+                    ->where('language', '<>', '')
+                    ->groupBy('language')
+                    ->orderByDesc('total')
+                    ->limit(12)
+                    ->get();
+
+                $materialTypeFacets = (clone $facetBase)
+                    ->select('material_type as label', DB::raw('COUNT(*) as total'))
+                    ->whereNotNull('material_type')
+                    ->where('material_type', '<>', '')
+                    ->groupBy('material_type')
+                    ->orderByDesc('total')
+                    ->limit(12)
+                    ->get();
+
+                $mediaTypeFacets = (clone $facetBase)
+                    ->select('media_type as label', DB::raw('COUNT(*) as total'))
+                    ->whereNotNull('media_type')
+                    ->where('media_type', '<>', '')
+                    ->groupBy('media_type')
+                    ->orderByDesc('total')
+                    ->limit(12)
+                    ->get();
+
+                $yearFacets = (clone $facetBase)
+                    ->select('publish_year as label', DB::raw('COUNT(*) as total'))
+                    ->whereNotNull('publish_year')
+                    ->groupBy('publish_year')
+                    ->orderByDesc('total')
+                    ->limit(12)
+                    ->get();
+
+                $availableCount = (clone $facetBase)
+                    ->whereHas('items', function ($q) {
+                        $q->where('status', 'available');
+                    })
+                    ->count();
+
+                $unavailableCount = (clone $facetBase)
+                    ->whereDoesntHave('items', function ($q) {
+                        $q->where('status', 'available');
+                    })
+                    ->count();
+
+                $branchFacets = collect();
+                if (Schema::hasColumn('items', 'branch_id')) {
+                    $branchFacets = DB::table('items as it')
+                        ->joinSub($facetSub, 'fb', function ($join) {
+                            $join->on('fb.id', '=', 'it.biblio_id');
+                        })
+                        ->join('branches as br', 'br.id', '=', 'it.branch_id')
+                        ->select('br.id', 'br.name', DB::raw('COUNT(DISTINCT it.biblio_id) as total'))
+                        ->whereNotNull('it.branch_id')
+                        ->groupBy('br.id', 'br.name')
+                        ->orderByDesc('total')
+                        ->limit(12)
+                        ->get();
+                }
+
                 return [
                     'authors' => $authorFacets,
                     'subjects' => $subjectFacets,
                     'publishers' => $publisherFacets,
+                    'languages' => $languageFacets,
+                    'material_types' => $materialTypeFacets,
+                    'media_types' => $mediaTypeFacets,
+                    'years' => $yearFacets,
+                    'branches' => $branchFacets,
+                    'availability' => [
+                        'available' => (int) $availableCount,
+                        'unavailable' => (int) $unavailableCount,
+                    ],
                 ];
             });
 
             $authorFacets = $facets['authors'] ?? collect();
             $subjectFacets = $facets['subjects'] ?? collect();
             $publisherFacets = $facets['publishers'] ?? collect();
+            $languageFacets = $facets['languages'] ?? collect();
+            $materialTypeFacets = $facets['material_types'] ?? collect();
+            $mediaTypeFacets = $facets['media_types'] ?? collect();
+            $yearFacets = $facets['years'] ?? collect();
+            $branchFacets = $facets['branches'] ?? collect();
+            $availabilityFacets = $facets['availability'] ?? ['available' => 0, 'unavailable' => 0];
 
             if (Schema::hasTable('biblio_metrics') && $biblios->count() > 1) {
                 $ranking = app(BiblioRankingService::class);
@@ -1078,7 +1623,10 @@ class KatalogController extends Controller
                     $biblios->getCollection()->pluck('id')->all(),
                     $institutionId,
                     auth()->id(),
-                    $rankMode
+                    $rankMode,
+                    null,
+                    $activeBranchId,
+                    $branchList
                 );
                 $rankMap = array_flip($rankedIds);
                 $biblios->setCollection(
@@ -1089,21 +1637,210 @@ class KatalogController extends Controller
             }
         }
 
+        $facetSignature = $this->normalizedFacetCacheSignature(
+            $institutionId,
+            $filters,
+            $fieldFilters,
+            $qfOp,
+            $qfExact,
+            $activeBranchId
+        );
+        $facetCacheKey = 'nbk:facets:v2:' . md5(json_encode($facetSignature));
+        $facetsV2 = Cache::remember($facetCacheKey, now()->addMinutes(5), function () use ($institutionId, $filters, $fieldFilters, $qfOp, $qfExact) {
+            $withoutKeys = function (array $base, array $keys): array {
+                foreach ($keys as $key) {
+                    unset($base[$key]);
+                }
+                return $base;
+            };
+            $baseCache = [];
+            $subCache = [];
+            $normalizeScope = function (array $scopeFilters): array {
+                foreach (['author_list', 'subject_list', 'publisher_list', 'language_list', 'material_type_list', 'media_type_list', 'branch_list'] as $k) {
+                    if (isset($scopeFilters[$k]) && is_array($scopeFilters[$k])) {
+                        $v = $scopeFilters[$k];
+                        sort($v);
+                        $scopeFilters[$k] = $v;
+                    }
+                }
+                return $scopeFilters;
+            };
+            $makeBase = function (array $scopeFilters) use (&$baseCache, $normalizeScope, $institutionId, $fieldFilters, $qfOp, $qfExact) {
+                $scopeFilters = $normalizeScope($scopeFilters);
+                $key = md5(json_encode($scopeFilters));
+                if (isset($baseCache[$key])) {
+                    return clone $baseCache[$key];
+                }
+                $q = Biblio::query()->where('biblio.institution_id', $institutionId);
+                $this->applyCatalogFilters($q, $scopeFilters);
+                $this->applyFieldedFilters($q, $fieldFilters, $qfOp, $qfExact);
+                $baseCache[$key] = clone $q;
+                return clone $q;
+            };
+            $makeSub = function (array $scopeFilters) use (&$subCache, $normalizeScope, $makeBase) {
+                $scopeFilters = $normalizeScope($scopeFilters);
+                $key = md5(json_encode($scopeFilters));
+                if (isset($subCache[$key])) {
+                    return clone $subCache[$key];
+                }
+                $sub = $makeBase($scopeFilters)->select('biblio.id');
+                $subCache[$key] = clone $sub;
+                return clone $sub;
+            };
+
+            $authorScope = $withoutKeys($filters, ['author', 'author_list']);
+            $authorSub = $makeSub($authorScope);
+            $authorFacets = Author::query()
+                ->select('authors.id', 'authors.name', DB::raw('COUNT(*) as total'))
+                ->join('biblio_author', 'authors.id', '=', 'biblio_author.author_id')
+                ->joinSub($authorSub, 'fb', function ($join) {
+                    $join->on('fb.id', '=', 'biblio_author.biblio_id');
+                })
+                ->groupBy('authors.id', 'authors.name')
+                ->orderByDesc('total')
+                ->limit(12)
+                ->get();
+
+            $subjectScope = $withoutKeys($filters, ['subject', 'subject_list']);
+            $subjectSub = $makeSub($subjectScope);
+            $subjectFacets = Subject::query()
+                ->select('subjects.id', 'subjects.term', 'subjects.name', DB::raw('COUNT(*) as total'))
+                ->join('biblio_subject', 'subjects.id', '=', 'biblio_subject.subject_id')
+                ->joinSub($subjectSub, 'fb', function ($join) {
+                    $join->on('fb.id', '=', 'biblio_subject.biblio_id');
+                })
+                ->groupBy('subjects.id', 'subjects.term', 'subjects.name')
+                ->orderByDesc('total')
+                ->limit(12)
+                ->get();
+
+            $publisherBase = $makeBase($withoutKeys($filters, ['publisher', 'publisher_list']));
+            $publisherFacets = (clone $publisherBase)
+                ->select('publisher', DB::raw('COUNT(*) as total'))
+                ->whereNotNull('publisher')
+                ->where('publisher', '<>', '')
+                ->groupBy('publisher')
+                ->orderByDesc('total')
+                ->limit(12)
+                ->get();
+
+            $languageBase = $makeBase($withoutKeys($filters, ['language', 'language_list']));
+            $languageFacets = (clone $languageBase)
+                ->select('language as label', DB::raw('COUNT(*) as total'))
+                ->whereNotNull('language')
+                ->where('language', '<>', '')
+                ->groupBy('language')
+                ->orderByDesc('total')
+                ->limit(12)
+                ->get();
+
+            $materialBase = $makeBase($withoutKeys($filters, ['material_type', 'material_type_list']));
+            $materialFacets = (clone $materialBase)
+                ->select('material_type as label', DB::raw('COUNT(*) as total'))
+                ->whereNotNull('material_type')
+                ->where('material_type', '<>', '')
+                ->groupBy('material_type')
+                ->orderByDesc('total')
+                ->limit(12)
+                ->get();
+
+            $mediaBase = $makeBase($withoutKeys($filters, ['media_type', 'media_type_list']));
+            $mediaFacets = (clone $mediaBase)
+                ->select('media_type as label', DB::raw('COUNT(*) as total'))
+                ->whereNotNull('media_type')
+                ->where('media_type', '<>', '')
+                ->groupBy('media_type')
+                ->orderByDesc('total')
+                ->limit(12)
+                ->get();
+
+            $yearBase = $makeBase($withoutKeys($filters, ['year', 'year_from', 'year_to']));
+            $yearFacets = (clone $yearBase)
+                ->select('publish_year as label', DB::raw('COUNT(*) as total'))
+                ->whereNotNull('publish_year')
+                ->groupBy('publish_year')
+                ->orderByDesc('total')
+                ->limit(12)
+                ->get();
+
+            $branchScope = $withoutKeys($filters, ['branch_list']);
+            $branchSub = $makeSub($branchScope);
+            $branchFacets = collect();
+            if (Schema::hasColumn('items', 'branch_id')) {
+                $branchFacets = DB::table('items as it')
+                    ->joinSub($branchSub, 'fb', function ($join) {
+                        $join->on('fb.id', '=', 'it.biblio_id');
+                    })
+                    ->join('branches as br', 'br.id', '=', 'it.branch_id')
+                    ->select('br.id', 'br.name', DB::raw('COUNT(DISTINCT it.biblio_id) as total'))
+                    ->whereNotNull('it.branch_id')
+                    ->groupBy('br.id', 'br.name')
+                    ->orderByDesc('total')
+                    ->limit(12)
+                    ->get();
+            }
+
+            $availabilityBase = $makeBase($withoutKeys($filters, ['onlyAvailable']));
+            $availableCount = (clone $availabilityBase)
+                ->whereHas('items', function ($q) {
+                    $q->where('status', 'available');
+                })
+                ->count();
+            $unavailableCount = (clone $availabilityBase)
+                ->whereDoesntHave('items', function ($q) {
+                    $q->where('status', 'available');
+                })
+                ->count();
+
+            return [
+                'authors' => $authorFacets,
+                'subjects' => $subjectFacets,
+                'publishers' => $publisherFacets,
+                'languages' => $languageFacets,
+                'material_types' => $materialFacets,
+                'media_types' => $mediaFacets,
+                'years' => $yearFacets,
+                'branches' => $branchFacets,
+                'availability' => [
+                    'available' => (int) $availableCount,
+                    'unavailable' => (int) $unavailableCount,
+                ],
+            ];
+        });
+        $authorFacets = $facetsV2['authors'] ?? collect();
+        $subjectFacets = $facetsV2['subjects'] ?? collect();
+        $publisherFacets = $facetsV2['publishers'] ?? collect();
+        $languageFacets = $facetsV2['languages'] ?? collect();
+        $materialTypeFacets = $facetsV2['material_types'] ?? collect();
+        $mediaTypeFacets = $facetsV2['media_types'] ?? collect();
+        $yearFacets = $facetsV2['years'] ?? collect();
+        $branchFacets = $facetsV2['branches'] ?? collect();
+        $availabilityFacets = $facetsV2['availability'] ?? ['available' => 0, 'unavailable' => 0];
+
         if ($q !== '') {
             $this->logSearchQuery($q, $institutionId, auth()->id(), (int) $biblios->total());
         }
 
         $didYouMean = null;
-        if ($q !== '' && $biblios->total() === 0) {
+        if ($q !== '' && $biblios->total() <= 3) {
             $didYouMean = $this->suggestQuery($q, $institutionId);
+            if ($didYouMean !== null && $this->normalizeLoose($didYouMean) === $this->normalizeLoose($q)) {
+                $didYouMean = null;
+            }
         }
 
         $showDiscovery = $q === ''
             && $ddc === ''
             && $year === ''
-            && $publisher === ''
-            && $author === ''
-            && $subject === ''
+            && $yearFrom <= 0
+            && $yearTo <= 0
+            && empty($publisherList)
+            && empty($authorList)
+            && empty($subjectList)
+            && empty($languageList)
+            && empty($materialTypeList)
+            && empty($mediaTypeList)
+            && empty($branchList)
             && !$onlyAvailable;
 
         $trendingBooks = collect();
@@ -1273,6 +2010,7 @@ class KatalogController extends Controller
 
         $indexRouteName = $isPublic ? 'opac.index' : 'katalog.index';
         $showRouteName = $isPublic ? 'opac.show' : 'katalog.show';
+        $opacPrefetchUrls = $isPublic ? $this->getOpacPrefetchUrls($institutionId) : [];
 
         // NEW: Set AI search context if coming from AI
         if ($aiSearch && $q) {
@@ -1293,12 +2031,21 @@ class KatalogController extends Controller
             'language' => $language,
             'material_type' => $materialType,
             'media_type' => $mediaType,
+            'languageList' => $languageList,
+            'materialTypeList' => $materialTypeList,
+            'mediaTypeList' => $mediaTypeList,
             'ddc' => $ddc,
             'year' => $year,
+            'yearFrom' => $yearFrom,
+            'yearTo' => $yearTo,
             'onlyAvailable' => $onlyAvailable,
             'author' => $author,
             'subject' => $subject,
             'publisher' => $publisher,
+            'authorList' => $authorList,
+            'subjectList' => $subjectList,
+            'publisherList' => $publisherList,
+            'branchList' => $branchList,
             'sort' => $sort,
             'qfFields' => $qfFields,
             'qfValues' => $qfValues,
@@ -1316,10 +2063,17 @@ class KatalogController extends Controller
             'indexRouteName' => $indexRouteName,
             'showRouteName' => $showRouteName,
             'isPublic' => $isPublic,
+            'opacPrefetchUrls' => $opacPrefetchUrls,
             'biblios' => $biblios,
             'authorFacets' => $authorFacets,
             'subjectFacets' => $subjectFacets,
             'publisherFacets' => $publisherFacets,
+            'languageFacets' => $languageFacets,
+            'materialTypeFacets' => $materialTypeFacets,
+            'mediaTypeFacets' => $mediaTypeFacets,
+            'yearFacets' => $yearFacets,
+            'branchFacets' => $branchFacets,
+            'availabilityFacets' => $availabilityFacets,
             'languageOptions' => $languageOptions,
             'materialTypeOptions' => $materialTypeOptions,
             'mediaTypeOptions' => $mediaTypeOptions,
@@ -1331,6 +2085,12 @@ class KatalogController extends Controller
         ];
 
         if ($request->ajax() || (string) $request->query('ajax') === '1') {
+            if ((string) $request->query('facets_only') === '1') {
+                return response()->json([
+                    'facet_html' => view('katalog.partials.facets', $payload)->render(),
+                ]);
+            }
+
             if ((string) $request->query('grid_only') === '1') {
                 return response()->json([
                     'html' => view('katalog.partials.grid', $payload)->render(),
@@ -1352,8 +2112,22 @@ class KatalogController extends Controller
         return $this->buildIndexPayload($request, false);
     }
 
+    public function facets(Request $request)
+    {
+        $request->query->set('ajax', '1');
+        $request->query->set('facets_only', '1');
+        return $this->buildIndexPayload($request, false);
+    }
+
     public function indexPublic(Request $request)
     {
+        return $this->buildIndexPayload($request, true);
+    }
+
+    public function facetsPublic(Request $request)
+    {
+        $request->query->set('ajax', '1');
+        $request->query->set('facets_only', '1');
         return $this->buildIndexPayload($request, true);
     }
 
@@ -1478,7 +2252,7 @@ class KatalogController extends Controller
                     'type' => 'author',
                     'label' => $a->name,
                     'value' => $a->name,
-                    'url' => route($isPublic ? 'opac.index' : 'katalog.index', ['author' => $a->id]),
+                    'url' => route($isPublic ? 'opac.index' : 'katalog.index', ['q' => $a->name]),
                 ];
             }
 
@@ -1489,7 +2263,7 @@ class KatalogController extends Controller
                     'type' => 'subject',
                     'label' => $label,
                     'value' => $label,
-                    'url' => route($isPublic ? 'opac.index' : 'katalog.index', ['subject' => $s->id]),
+                    'url' => route($isPublic ? 'opac.index' : 'katalog.index', ['q' => $label]),
                 ];
             }
 
@@ -1500,7 +2274,7 @@ class KatalogController extends Controller
                     'type' => 'publisher',
                     'label' => $label,
                     'value' => $label,
-                    'url' => route($isPublic ? 'opac.index' : 'katalog.index', ['publisher' => $label]),
+                    'url' => route($isPublic ? 'opac.index' : 'katalog.index', ['q' => $label]),
                 ];
             }
 
@@ -1520,7 +2294,7 @@ class KatalogController extends Controller
                     'type' => 'ddc',
                     'label' => $label,
                     'value' => $label,
-                    'url' => route($isPublic ? 'opac.index' : 'katalog.index', ['ddc' => $label]),
+                    'url' => route($isPublic ? 'opac.index' : 'katalog.index', ['q' => $label]),
                 ];
             }
 
@@ -1531,7 +2305,7 @@ class KatalogController extends Controller
                     'type' => 'call_number',
                     'label' => $label,
                     'value' => $label,
-                    'url' => route($isPublic ? 'opac.index' : 'katalog.index', ['call_number' => $label]),
+                    'url' => route($isPublic ? 'opac.index' : 'katalog.index', ['q' => $label]),
                 ];
             }
 
@@ -1648,6 +2422,17 @@ class KatalogController extends Controller
         $data = $request->validated();
 
         $institutionId = $this->currentInstitutionId();
+        $gate = ['ok' => true, 'errors' => [], 'warnings' => []];
+        if ((bool) config('notobuku.catalog.quality_gate.enabled', true)) {
+            /** @var \App\Services\CatalogQualityGateService $qualityGate */
+            $qualityGate = app(\App\Services\CatalogQualityGateService::class);
+            $gate = $qualityGate->evaluate($data, $institutionId, null);
+            if (!$gate['ok']) {
+                return back()
+                    ->withInput()
+                    ->withErrors(['quality_gate' => implode(' ', (array) ($gate['errors'] ?? []))]);
+            }
+        }
 
         $title = trim($data['title']);
         $subtitle = isset($data['subtitle']) ? trim((string) $data['subtitle']) : null;
@@ -1896,6 +2681,9 @@ class KatalogController extends Controller
         $redirect = redirect()
             ->route('katalog.show', $biblio->id)
             ->with('success', 'Bibliografi berhasil ditambahkan. Eksemplar: ' . $copiesCount);
+        if (!empty($gate['warnings'])) {
+            $redirect->with('warning', implode(' | ', (array) $gate['warnings']));
+        }
 
         if ($coverError) {
             \Log::warning('Upload cover gagal (store): ' . $coverError);
@@ -2283,6 +3071,17 @@ class KatalogController extends Controller
             ->findOrFail($id);
 
         $data = $request->validated();
+        $gate = ['ok' => true, 'errors' => [], 'warnings' => []];
+        if ((bool) config('notobuku.catalog.quality_gate.enabled', true)) {
+            /** @var \App\Services\CatalogQualityGateService $qualityGate */
+            $qualityGate = app(\App\Services\CatalogQualityGateService::class);
+            $gate = $qualityGate->evaluate($data, $institutionId, (int) $biblio->id);
+            if (!$gate['ok']) {
+                return back()
+                    ->withInput()
+                    ->withErrors(['quality_gate' => implode(' ', (array) ($gate['errors'] ?? []))]);
+            }
+        }
 
         $title = trim($data['title']);
         $subtitle = isset($data['subtitle']) ? trim((string) $data['subtitle']) : null;
@@ -2508,6 +3307,9 @@ class KatalogController extends Controller
         $redirect = redirect()
             ->route('katalog.show', $biblio->id)
             ->with('success', 'Bibliografi berhasil diperbarui.');
+        if (!empty($gate['warnings'])) {
+            $redirect->with('warning', implode(' | ', (array) $gate['warnings']));
+        }
 
         if ($coverError) {
             \Log::warning('Upload cover gagal (update): ' . $coverError);
@@ -3109,6 +3911,115 @@ class KatalogController extends Controller
         }
 
         return $prefix . '-' . $date . '-' . Str::upper(Str::random(10));
+    }
+
+    public function apiSearch(Request $request)
+    {
+        $institutionId = $this->currentInstitutionId();
+        $q = trim((string) $request->query('q', ''));
+        $perPage = (int) $request->query('per_page', 12);
+        $perPage = max(1, min(50, $perPage));
+        $sort = strtolower((string) $request->query('sort', 'relevant'));
+        $onlyAvailable = (bool) $request->boolean('only_available');
+
+        $query = Biblio::query()
+            ->where('institution_id', $institutionId)
+            ->with(['authors:id,name', 'subjects:id,term,name', 'tags:id,name'])
+            ->withCount(['items', 'availableItems as available_items_count']);
+
+        if ($q !== '') {
+            $qLike = '%' . $q . '%';
+            $query->where(function ($w) use ($qLike) {
+                $w->where('title', 'like', $qLike)
+                    ->orWhere('subtitle', 'like', $qLike)
+                    ->orWhere('isbn', 'like', $qLike)
+                    ->orWhere('issn', 'like', $qLike)
+                    ->orWhere('publisher', 'like', $qLike)
+                    ->orWhere('call_number', 'like', $qLike)
+                    ->orWhereHas('authors', fn ($a) => $a->where('name', 'like', $qLike))
+                    ->orWhereHas('subjects', fn ($s) => $s->where(function ($sq) use ($qLike) {
+                        $sq->where('term', 'like', $qLike)->orWhere('name', 'like', $qLike);
+                    }))
+                    ->orWhereHas('tags', fn ($t) => $t->where('name', 'like', $qLike));
+            });
+        }
+
+        if ($onlyAvailable) {
+            $query->whereHas('availableItems');
+        }
+
+        if ($sort === 'latest') {
+            $query->orderByDesc('updated_at');
+        } elseif ($sort === 'title') {
+            $query->orderBy('title');
+        } elseif ($sort === 'available') {
+            $query->orderByDesc('available_items_count')->orderBy('title');
+        } else {
+            $query->orderByDesc('available_items_count')->orderBy('title');
+        }
+
+        $results = $query->paginate($perPage)->appends($request->query());
+
+        return response()->json([
+            'ok' => true,
+            'query' => [
+                'q' => $q,
+                'sort' => $sort,
+                'only_available' => $onlyAvailable,
+            ],
+            'meta' => [
+                'current_page' => $results->currentPage(),
+                'per_page' => $results->perPage(),
+                'total' => $results->total(),
+                'last_page' => $results->lastPage(),
+            ],
+            'data' => collect($results->items())->map(fn ($b) => $this->mapBiblioApiRow($b))->values(),
+        ]);
+    }
+
+    public function apiShow($id)
+    {
+        $institutionId = $this->currentInstitutionId();
+
+        $biblio = Biblio::query()
+            ->where('institution_id', $institutionId)
+            ->with(['authors:id,name', 'subjects:id,term,name', 'tags:id,name'])
+            ->withCount(['items', 'availableItems as available_items_count'])
+            ->findOrFail($id);
+
+        return response()->json([
+            'ok' => true,
+            'data' => $this->mapBiblioApiRow($biblio),
+        ]);
+    }
+
+    private function mapBiblioApiRow(Biblio $biblio): array
+    {
+        return [
+            'id' => (int) $biblio->id,
+            'title' => (string) ($biblio->display_title ?? $biblio->title ?? ''),
+            'subtitle' => (string) ($biblio->subtitle ?? ''),
+            'isbn' => (string) ($biblio->isbn ?? ''),
+            'issn' => (string) ($biblio->issn ?? ''),
+            'publisher' => (string) ($biblio->publisher ?? ''),
+            'publish_year' => (string) ($biblio->publish_year ?? ''),
+            'language' => (string) ($biblio->language ?? ''),
+            'material_type' => (string) ($biblio->material_type ?? ''),
+            'media_type' => (string) ($biblio->media_type ?? ''),
+            'call_number' => (string) ($biblio->call_number ?? ''),
+            'ddc' => (string) ($biblio->ddc ?? ''),
+            'cover_url' => !empty($biblio->cover_path) ? asset('storage/' . ltrim((string) $biblio->cover_path, '/')) : null,
+            'items_count' => (int) ($biblio->items_count ?? 0),
+            'available_items_count' => (int) ($biblio->available_items_count ?? 0),
+            'authors' => $biblio->authors->pluck('name')->filter()->values()->all(),
+            'subjects' => $biblio->subjects
+                ->map(fn ($s) => trim((string) ($s->term ?? $s->name ?? '')))
+                ->filter()
+                ->values()
+                ->all(),
+            'tags' => $biblio->tags->pluck('name')->filter()->values()->all(),
+            'updated_at' => optional($biblio->updated_at)->toIso8601String(),
+        ];
     }
 
     public function show($id)

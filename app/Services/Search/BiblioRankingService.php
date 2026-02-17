@@ -7,7 +7,19 @@ use Illuminate\Support\Facades\Schema;
 
 class BiblioRankingService
 {
-    public function rerankIds(array $ids, int $institutionId, ?int $userId = null, string $mode = 'institution', ?string $query = null, ?int $branchId = null): array
+    public function __construct(private readonly SearchTuningService $tuning)
+    {
+    }
+
+    public function rerankIds(
+        array $ids,
+        int $institutionId,
+        ?int $userId = null,
+        string $mode = 'institution',
+        ?string $query = null,
+        ?int $branchId = null,
+        array $branchIds = []
+    ): array
     {
         $ids = array_values(array_unique(array_map('intval', $ids)));
         if ($institutionId <= 0 || empty($ids)) {
@@ -17,6 +29,7 @@ class BiblioRankingService
         if (!Schema::hasTable('biblio_metrics')) {
             return $ids;
         }
+        $settings = $this->tuning->forInstitution($institutionId);
 
         $halfLife = (int) config('search.ranking.half_life_days', 30);
         if ($halfLife <= 0) $halfLife = 30;
@@ -24,23 +37,29 @@ class BiblioRankingService
         $baseScores = $this->loadInstitutionScores($ids, $institutionId, $halfLife);
         $userScores = [];
         $branchScores = [];
+        $availabilityScores = [];
         $exactBoosts = [];
 
         if ($mode === 'personal' && $userId && Schema::hasTable('biblio_user_metrics')) {
             $userScores = $this->loadUserScores($ids, $institutionId, $userId, $halfLife);
         }
-        if ($branchId && Schema::hasTable('items')) {
-            $branchScores = $this->loadBranchScores($ids, $branchId);
+        $branchIds = array_values(array_unique(array_filter(array_map('intval', $branchIds), fn ($v) => $v > 0)));
+
+        if ((($branchId && $branchId > 0) || !empty($branchIds)) && Schema::hasTable('items')) {
+            $branchScores = $this->loadBranchScores($ids, $branchId, $branchIds);
+        }
+        if (Schema::hasTable('items')) {
+            $availabilityScores = $this->loadAvailabilityScores($ids, $branchId, $branchIds, $settings);
         }
         if ($query) {
-            $exactBoosts = $this->loadExactMatchBoosts($ids, $institutionId, $query);
+            $exactBoosts = $this->loadExactMatchBoosts($ids, $institutionId, $query, $settings);
         }
 
         $originalPos = array_flip($ids);
 
-        usort($ids, function ($a, $b) use ($baseScores, $userScores, $branchScores, $exactBoosts, $originalPos) {
-            $scoreA = ($baseScores[$a] ?? 0) + ($userScores[$a] ?? 0) + ($branchScores[$a] ?? 0) + ($exactBoosts[$a] ?? 0);
-            $scoreB = ($baseScores[$b] ?? 0) + ($userScores[$b] ?? 0) + ($branchScores[$b] ?? 0) + ($exactBoosts[$b] ?? 0);
+        usort($ids, function ($a, $b) use ($baseScores, $userScores, $branchScores, $availabilityScores, $exactBoosts, $originalPos) {
+            $scoreA = ($baseScores[$a] ?? 0) + ($userScores[$a] ?? 0) + ($branchScores[$a] ?? 0) + ($availabilityScores[$a] ?? 0) + ($exactBoosts[$a] ?? 0);
+            $scoreB = ($baseScores[$b] ?? 0) + ($userScores[$b] ?? 0) + ($branchScores[$b] ?? 0) + ($availabilityScores[$b] ?? 0) + ($exactBoosts[$b] ?? 0);
 
             if ($scoreA === $scoreB) {
                 return ($originalPos[$a] ?? 0) <=> ($originalPos[$b] ?? 0);
@@ -50,6 +69,38 @@ class BiblioRankingService
         });
 
         return $ids;
+    }
+
+    private function loadAvailabilityScores(array $ids, ?int $branchId = null, array $branchIds = [], array $settings = []): array
+    {
+        $weightAvailable = (float) ($settings['available_weight'] ?? config('search.ranking.availability.available_weight', 10));
+        $weightBorrowed = (float) ($settings['borrowed_penalty'] ?? config('search.ranking.availability.borrowed_penalty', 3));
+        $weightReserved = (float) ($settings['reserved_penalty'] ?? config('search.ranking.availability.reserved_penalty', 2));
+
+        $rows = DB::table('items')
+            ->select([
+                'biblio_id',
+                DB::raw("SUM(CASE WHEN status = 'available' THEN 1 ELSE 0 END) as available_count"),
+                DB::raw("SUM(CASE WHEN status = 'borrowed' THEN 1 ELSE 0 END) as borrowed_count"),
+                DB::raw("SUM(CASE WHEN status = 'reserved' THEN 1 ELSE 0 END) as reserved_count"),
+            ])
+            ->whereIn('biblio_id', $ids)
+            ->when(!empty($branchIds), fn ($q) => $q->whereIn('branch_id', $branchIds))
+            ->when(empty($branchIds) && $branchId, fn ($q) => $q->where('branch_id', $branchId))
+            ->groupBy('biblio_id')
+            ->get();
+
+        $scores = [];
+        foreach ($rows as $row) {
+            $available = (int) ($row->available_count ?? 0);
+            $borrowed = (int) ($row->borrowed_count ?? 0);
+            $reserved = (int) ($row->reserved_count ?? 0);
+            $scores[(int) $row->biblio_id] = ($available * $weightAvailable)
+                - ($borrowed * $weightBorrowed)
+                - ($reserved * $weightReserved);
+        }
+
+        return $scores;
     }
 
     private function loadInstitutionScores(array $ids, int $institutionId, int $halfLifeDays): array
@@ -89,7 +140,7 @@ class BiblioRankingService
         return $scores;
     }
 
-    private function loadBranchScores(array $ids, int $branchId): array
+    private function loadBranchScores(array $ids, ?int $branchId = null, array $branchIds = []): array
     {
         $rows = DB::table('items')
             ->select([
@@ -98,7 +149,8 @@ class BiblioRankingService
                 DB::raw("SUM(CASE WHEN status = 'available' THEN 1 ELSE 0 END) as available_count"),
             ])
             ->whereIn('biblio_id', $ids)
-            ->where('branch_id', $branchId)
+            ->when(!empty($branchIds), fn ($q) => $q->whereIn('branch_id', $branchIds))
+            ->when(empty($branchIds) && $branchId, fn ($q) => $q->where('branch_id', $branchId))
             ->groupBy('biblio_id')
             ->get();
 
@@ -111,7 +163,7 @@ class BiblioRankingService
         return $scores;
     }
 
-    private function loadExactMatchBoosts(array $ids, int $institutionId, string $query): array
+    private function loadExactMatchBoosts(array $ids, int $institutionId, string $query, array $settings = []): array
     {
         $boosts = [];
         $normalized = $this->normalizeQuery($query);
@@ -119,8 +171,8 @@ class BiblioRankingService
             return $boosts;
         }
 
-        $shortMax = (int) config('search.short_query_boost.max_len', 4);
-        $shortMultiplier = (float) config('search.short_query_boost.multiplier', 1.6);
+        $shortMax = (int) ($settings['short_query_max_len'] ?? config('search.short_query_boost.max_len', 4));
+        $shortMultiplier = (float) ($settings['short_query_multiplier'] ?? config('search.short_query_boost.multiplier', 1.6));
         $compact = str_replace(' ', '', $normalized);
         $isShort = $shortMax > 0 && $compact !== '' && mb_strlen($compact) <= $shortMax;
         $boostFactor = $isShort ? $shortMultiplier : 1.0;
@@ -135,7 +187,7 @@ class BiblioRankingService
             ->pluck('id')
             ->all();
         foreach ($titleIds as $id) {
-            $boosts[(int) $id] = ($boosts[(int) $id] ?? 0) + (int) round(80 * $boostFactor);
+            $boosts[(int) $id] = ($boosts[(int) $id] ?? 0) + (int) round(((int) ($settings['title_exact_weight'] ?? 80)) * $boostFactor);
         }
 
         $authorIds = DB::table('authors')
@@ -145,7 +197,7 @@ class BiblioRankingService
             ->pluck('biblio_author.biblio_id')
             ->all();
         foreach ($authorIds as $id) {
-            $boosts[(int) $id] = ($boosts[(int) $id] ?? 0) + (int) round(40 * $boostFactor);
+            $boosts[(int) $id] = ($boosts[(int) $id] ?? 0) + (int) round(((int) ($settings['author_exact_weight'] ?? 40)) * $boostFactor);
         }
 
         $subjectIds = DB::table('subjects')
@@ -158,7 +210,7 @@ class BiblioRankingService
             ->pluck('biblio_subject.biblio_id')
             ->all();
         foreach ($subjectIds as $id) {
-            $boosts[(int) $id] = ($boosts[(int) $id] ?? 0) + (int) round(25 * $boostFactor);
+            $boosts[(int) $id] = ($boosts[(int) $id] ?? 0) + (int) round(((int) ($settings['subject_exact_weight'] ?? 25)) * $boostFactor);
         }
 
         $publisherIds = DB::table('biblio')
@@ -168,7 +220,7 @@ class BiblioRankingService
             ->pluck('id')
             ->all();
         foreach ($publisherIds as $id) {
-            $boosts[(int) $id] = ($boosts[(int) $id] ?? 0) + (int) round(15 * $boostFactor);
+            $boosts[(int) $id] = ($boosts[(int) $id] ?? 0) + (int) round(((int) ($settings['publisher_exact_weight'] ?? 15)) * $boostFactor);
         }
 
         if ($this->isLikelyIsbn($normalized)) {
@@ -179,7 +231,7 @@ class BiblioRankingService
                 ->pluck('id')
                 ->all();
             foreach ($isbnIds as $id) {
-                $boosts[(int) $id] = ($boosts[(int) $id] ?? 0) + 100;
+                $boosts[(int) $id] = ($boosts[(int) $id] ?? 0) + (int) ($settings['isbn_exact_weight'] ?? 100);
             }
         }
 

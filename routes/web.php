@@ -32,6 +32,8 @@ use App\Http\Controllers\MemberReservationController;
 use App\Http\Controllers\MemberNotificationController;
 use App\Http\Controllers\MemberProfileController;
 use App\Http\Controllers\MemberSecurityController;
+use App\Http\Controllers\ReservationMetricsController;
+use App\Http\Controllers\ReservationPolicyController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\MemberController;
 use App\Http\Controllers\OperationalReportController;
@@ -39,6 +41,13 @@ use App\Http\Controllers\SerialIssueController;
 use App\Http\Controllers\OaiPmhController;
 use App\Http\Controllers\SruController;
 use App\Http\Controllers\InteropMetricsController;
+use App\Http\Controllers\CirculationMetricsController;
+use App\Http\Controllers\CirculationExceptionController;
+use App\Http\Controllers\CirculationPolicyController;
+use App\Http\Controllers\OpacSeoController;
+use App\Http\Controllers\OpacMetricsController;
+use App\Http\Controllers\StockTakeController;
+use App\Http\Controllers\CopyCatalogingController;
 
 // ✅ Pustakawan Digital Controller (Utama)
 use App\Http\Controllers\PustakawanDigitalController;
@@ -51,6 +60,9 @@ use App\Http\Controllers\Admin\MarcSettingsController;
 use App\Http\Controllers\Admin\MarcPolicyApiController;
 use App\Http\Controllers\Admin\AdminCollectionController;
 use App\Http\Controllers\Admin\SearchSynonymController;
+use App\Http\Controllers\Admin\SearchTuningController;
+use App\Http\Controllers\Admin\SearchStopWordController;
+use App\Http\Controllers\Admin\SearchAnalyticsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -78,21 +90,47 @@ Route::get('/masuk', fn () => redirect()->route('login'))->name('masuk');
 Route::get('/daftar', fn () => redirect()->route('register'))->name('daftar');
 
 // ✅ Public OPAC (tanpa login)
-Route::get('/opac', [KatalogController::class, 'indexPublic'])->name('opac.index');
+Route::get('/sitemap.xml', [OpacSeoController::class, 'sitemap'])
+    ->middleware('throttle:opac-public-seo')
+    ->name('opac.sitemap');
+Route::get('/sitemap-opac-root.xml', [OpacSeoController::class, 'sitemapRoot'])
+    ->middleware('throttle:opac-public-seo')
+    ->name('opac.sitemap.root');
+Route::get('/sitemap-opac-{page}.xml', [OpacSeoController::class, 'sitemapChunk'])
+    ->middleware('throttle:opac-public-seo')
+    ->whereNumber('page')
+    ->name('opac.sitemap.chunk');
+Route::get('/robots.txt', [OpacSeoController::class, 'robots'])
+    ->middleware('throttle:opac-public-seo')
+    ->name('opac.robots');
+Route::get('/opac', [KatalogController::class, 'indexPublic'])
+    ->middleware(['trace.request', 'opac.conditional', 'track.opac.metrics', 'throttle:opac-public-search'])
+    ->name('opac.index');
+Route::get('/opac/facets', [KatalogController::class, 'facetsPublic'])
+    ->middleware(['trace.request', 'opac.conditional', 'track.opac.metrics', 'throttle:opac-public-search'])
+    ->name('opac.facets');
 Route::get('/opac/{id}', [KatalogController::class, 'show'])
+    ->middleware(['trace.request', 'opac.conditional', 'track.opac.metrics', 'throttle:opac-public-detail'])
     ->whereNumber('id')
     ->name('opac.show');
-Route::get('/opac/suggest', [KatalogController::class, 'suggest'])->name('opac.suggest');
+Route::get('/opac/suggest', [KatalogController::class, 'suggest'])
+    ->middleware(['trace.request', 'opac.conditional', 'track.opac.metrics', 'throttle:opac-public-search'])
+    ->name('opac.suggest');
 Route::get('/opac/{id}/attachments/{attachment}/download', [KatalogController::class, 'downloadAttachment'])
+    ->middleware('throttle:opac-public-detail')
     ->whereNumber('id')->whereNumber('attachment')
     ->name('opac.attachments.download');
 Route::post('/opac/preferences/shelves', [KatalogController::class, 'setShelvesPreference'])
+    ->middleware('throttle:opac-public-write')
     ->name('opac.preferences.shelves');
+Route::get('/opac/metrics', OpacMetricsController::class)
+    ->middleware(['auth', 'role.any:super_admin,admin,staff', 'trace.request'])
+    ->name('opac.metrics');
 Route::match(['GET', 'POST'], '/oai', [OaiPmhController::class, 'handle'])
-    ->middleware('throttle:oai-interop')
+    ->middleware(['trace.request', 'throttle:oai-interop'])
     ->name('oai.pmh');
 Route::match(['GET', 'POST'], '/sru', [SruController::class, 'handle'])
-    ->middleware('throttle:sru-interop')
+    ->middleware(['trace.request', 'throttle:sru-interop'])
     ->name('sru.endpoint');
 
 Route::post('/keluar', [AuthenticatedSessionController::class, 'destroy'])
@@ -172,6 +210,43 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('/admin/search-synonyms/{id}', [SearchSynonymController::class, 'destroy'])
         ->middleware('role.any:super_admin,admin')
         ->name('admin.search_synonyms.delete');
+    Route::post('/admin/search-synonyms/zero-result/{id}/resolve', [SearchSynonymController::class, 'resolveZeroResult'])
+        ->middleware('role.any:super_admin,admin')
+        ->name('admin.search_synonyms.zero_result.resolve');
+
+    Route::get('/admin/search-tuning', [SearchTuningController::class, 'index'])
+        ->middleware('role.any:super_admin,admin')
+        ->name('admin.search_tuning');
+    Route::post('/admin/search-tuning', [SearchTuningController::class, 'update'])
+        ->middleware('role.any:super_admin,admin')
+        ->name('admin.search_tuning.update');
+    Route::post('/admin/search-tuning/reset', [SearchTuningController::class, 'reset'])
+        ->middleware('role.any:super_admin,admin')
+        ->name('admin.search_tuning.reset');
+    Route::post('/admin/search-tuning/preset', [SearchTuningController::class, 'applyPreset'])
+        ->middleware('role.any:super_admin,admin')
+        ->name('admin.search_tuning.preset');
+
+    Route::get('/admin/search-stopwords', [SearchStopWordController::class, 'index'])
+        ->middleware('role.any:super_admin,admin')
+        ->name('admin.search_stopwords');
+    Route::post('/admin/search-stopwords', [SearchStopWordController::class, 'store'])
+        ->middleware('role.any:super_admin,admin')
+        ->name('admin.search_stopwords.store');
+    Route::delete('/admin/search-stopwords/{id}', [SearchStopWordController::class, 'destroy'])
+        ->middleware('role.any:super_admin,admin')
+        ->name('admin.search_stopwords.delete');
+
+    Route::get('/admin/search-analytics', [SearchAnalyticsController::class, 'index'])
+        ->middleware('role.any:super_admin,admin')
+        ->name('admin.search_analytics');
+
+    Route::post('/admin/search-synonyms/{id}/approve', [SearchSynonymController::class, 'approve'])
+        ->middleware('role.any:super_admin,admin')
+        ->name('admin.search_synonyms.approve');
+    Route::post('/admin/search-synonyms/{id}/reject', [SearchSynonymController::class, 'reject'])
+        ->middleware('role.any:super_admin,admin')
+        ->name('admin.search_synonyms.reject');
 
     Route::get('/staff', function () {
         return view('placeholders.dashboard', [
@@ -217,6 +292,11 @@ Route::middleware(['auth', 'role.member'])
         Route::post('/reservasi/{id}/batalkan', [MemberReservationController::class, 'cancel'])
             ->whereNumber('id')
             ->name('reservasi.cancel');
+        Route::post('/reservasi/{id}/requeue', [MemberReservationController::class, 'requeue'])
+            ->whereNumber('id')
+            ->name('reservasi.requeue');
+        Route::get('/reservasi/status', [MemberReservationController::class, 'status'])
+            ->name('reservasi.status');
 
         // Notifikasi (member)
         Route::get('/notifikasi', [MemberNotificationController::class, 'index'])->name('notifikasi');
@@ -237,6 +317,12 @@ Route::middleware(['auth', 'role.member'])
 
         Route::post('/keamanan/password', [MemberSecurityController::class, 'updatePassword'])
             ->name('security.password');
+        Route::post('/keamanan/freeze', [MemberSecurityController::class, 'freezeAccount'])
+            ->name('security.freeze');
+        Route::post('/keamanan/unfreeze', [MemberSecurityController::class, 'unfreezeAccount'])
+            ->name('security.unfreeze');
+        Route::post('/keamanan/reset-kredensial', [MemberSecurityController::class, 'sendResetCredentialLink'])
+            ->name('security.reset_credential');
 
         // ✅ PUSTAKAWAN DIGITAL ROUTES (MODE BEBAS/AHLI)
         Route::prefix('pustakawan-digital')
@@ -345,6 +431,7 @@ Route::middleware(['auth', 'role.any:super_admin'])->group(function () {
 Route::middleware(['auth'])->group(function () {
 
     Route::get('/katalog', [KatalogController::class, 'index'])->name('katalog.index');
+    Route::get('/katalog/facets', [KatalogController::class, 'facets'])->name('katalog.facets');
     Route::get('/katalog/{id}', [KatalogController::class, 'show'])->whereNumber('id')->name('katalog.show');
     Route::get('/katalog/suggest', [KatalogController::class, 'suggest'])->name('katalog.suggest');
     Route::get('/katalog/{id}/attachments/{attachment}/download', [KatalogController::class, 'downloadAttachment'])
@@ -479,10 +566,10 @@ Route::middleware(['auth', 'role.any:super_admin,admin,staff'])->group(function 
 Route::middleware(['auth', 'role.any:super_admin,admin,staff'])->group(function () {
     Route::get('/laporan', [OperationalReportController::class, 'index'])->name('laporan.index');
     Route::get('/laporan/export/{type}', [OperationalReportController::class, 'export'])
-        ->whereIn('type', ['sirkulasi', 'overdue', 'denda', 'pengadaan', 'anggota', 'serial'])
+        ->whereIn('type', ['sirkulasi', 'overdue', 'denda', 'pengadaan', 'anggota', 'serial', 'sirkulasi_audit'])
         ->name('laporan.export');
     Route::get('/laporan/export-xlsx/{type}', [OperationalReportController::class, 'exportXlsx'])
-        ->whereIn('type', ['sirkulasi', 'overdue', 'denda', 'pengadaan', 'anggota', 'serial'])
+        ->whereIn('type', ['sirkulasi', 'overdue', 'denda', 'pengadaan', 'anggota', 'serial', 'sirkulasi_audit'])
         ->name('laporan.export_xlsx');
 });
 
@@ -505,6 +592,32 @@ Route::middleware(['auth', 'role.any:super_admin,admin,staff'])->group(function 
     Route::post('/serial-issues/{id}/claim', [SerialIssueController::class, 'claim'])
         ->whereNumber('id')
         ->name('serial_issues.claim');
+});
+
+/*
+|--------------------------------------------------------------------------
+| STOCK TAKE / OPNAME
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth', 'role.any:super_admin,admin,staff'])->group(function () {
+    Route::get('/stock-takes', [StockTakeController::class, 'index'])->name('stock_takes.index');
+    Route::post('/stock-takes', [StockTakeController::class, 'store'])->name('stock_takes.store');
+    Route::get('/stock-takes/{id}', [StockTakeController::class, 'show'])->whereNumber('id')->name('stock_takes.show');
+    Route::post('/stock-takes/{id}/start', [StockTakeController::class, 'start'])->whereNumber('id')->name('stock_takes.start');
+    Route::post('/stock-takes/{id}/scan', [StockTakeController::class, 'scan'])->whereNumber('id')->name('stock_takes.scan');
+    Route::post('/stock-takes/{id}/complete', [StockTakeController::class, 'complete'])->whereNumber('id')->name('stock_takes.complete');
+    Route::get('/stock-takes/{id}/export/csv', [StockTakeController::class, 'exportCsv'])->whereNumber('id')->name('stock_takes.export.csv');
+});
+
+/*
+|--------------------------------------------------------------------------
+| COPY CATALOGING CLIENT (SRU / Z39.50 Gateway / P2P)
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth', 'role.any:super_admin,admin,staff'])->group(function () {
+    Route::get('/copy-cataloging', [CopyCatalogingController::class, 'index'])->name('copy_cataloging.index');
+    Route::post('/copy-cataloging/sources', [CopyCatalogingController::class, 'storeSource'])->name('copy_cataloging.sources.store');
+    Route::post('/copy-cataloging/import', [CopyCatalogingController::class, 'import'])->name('copy_cataloging.import');
 });
 
 /*
@@ -533,13 +646,13 @@ Route::get('/dashboard', fn () => redirect()->route('transaksi.dashboard'))
     ->name('dashboard')
     ->middleware(['auth', 'role.any:super_admin,admin,staff']);
 
-Route::middleware(['auth', 'role.any:super_admin,admin,staff'])
+Route::middleware(['auth', 'role.any:super_admin,admin,staff', 'track.circulation.metrics'])
     ->prefix('transaksi')
     ->name('transaksi.')
     ->group(function () {
 
         Route::get('/', [TransaksiController::class, 'index'])->name('index');
-        Route::get('/pinjam', [TransaksiController::class, 'index'])->name('pinjam.form');
+        Route::get('/pinjam', [TransaksiController::class, 'pinjamForm'])->name('pinjam.form');
 
         Route::get('/pinjam/cari-member', [TransaksiController::class, 'cariMember'])->name('pinjam.cari_member');
         Route::get('/pinjam/member-info/{id}', [TransaksiController::class, 'memberInfo'])
@@ -547,6 +660,12 @@ Route::middleware(['auth', 'role.any:super_admin,admin,staff'])
             ->name('pinjam.member_info');
         Route::get('/pinjam/cek-barcode', [TransaksiController::class, 'cekBarcode'])->name('pinjam.cek_barcode');
         Route::post('/pinjam', [TransaksiController::class, 'storePinjam'])->name('pinjam.store');
+        Route::post('/unified/commit', [TransaksiController::class, 'unifiedCommit'])
+            ->middleware('throttle:240,1')
+            ->name('unified.commit');
+        Route::post('/unified/sync', [TransaksiController::class, 'unifiedSync'])
+            ->middleware('throttle:120,1')
+            ->name('unified.sync');
 
         Route::get('/pinjam/sukses/{id}', [TransaksiController::class, 'pinjamSuccess'])
             ->whereNumber('id')
@@ -576,6 +695,54 @@ Route::middleware(['auth', 'role.any:super_admin,admin,staff'])
         Route::get('/quick-search', [TransaksiController::class, 'quickSearch'])->name('quick_search');
 
         Route::get('/dashboard', [TransaksiDashboardController::class, 'index'])->name('dashboard');
+        Route::get('/metrics', CirculationMetricsController::class)
+            ->middleware('throttle:120,1')
+            ->name('metrics');
+        Route::get('/exceptions', [CirculationExceptionController::class, 'index'])->name('exceptions.index');
+        Route::get('/exceptions/export/csv', [CirculationExceptionController::class, 'exportCsv'])->name('exceptions.export.csv');
+        Route::get('/exceptions/export/xlsx', [CirculationExceptionController::class, 'exportXlsx'])->name('exceptions.export.xlsx');
+        Route::post('/exceptions/ack', [CirculationExceptionController::class, 'acknowledge'])
+            ->middleware('throttle:120,1')
+            ->name('exceptions.ack');
+        Route::post('/exceptions/resolve', [CirculationExceptionController::class, 'resolve'])
+            ->middleware('throttle:120,1')
+            ->name('exceptions.resolve');
+        Route::post('/exceptions/assign-owner', [CirculationExceptionController::class, 'assignOwner'])
+            ->middleware('throttle:120,1')
+            ->name('exceptions.assign_owner');
+        Route::post('/exceptions/bulk-assign-owner', [CirculationExceptionController::class, 'bulkAssignOwner'])
+            ->middleware('throttle:60,1')
+            ->name('exceptions.bulk_assign_owner');
+        Route::post('/exceptions/bulk', [CirculationExceptionController::class, 'bulkUpdate'])
+            ->middleware('throttle:60,1')
+            ->name('exceptions.bulk');
+        Route::get('/policies', [CirculationPolicyController::class, 'index'])
+            ->middleware('role.any:super_admin,admin')
+            ->name('policies.index');
+        Route::post('/policies/rules', [CirculationPolicyController::class, 'storeRule'])
+            ->middleware('role.any:super_admin,admin')
+            ->name('policies.rules.store');
+        Route::put('/policies/rules/{id}', [CirculationPolicyController::class, 'updateRule'])
+            ->whereNumber('id')
+            ->middleware('role.any:super_admin,admin')
+            ->name('policies.rules.update');
+        Route::delete('/policies/rules/{id}', [CirculationPolicyController::class, 'deleteRule'])
+            ->whereNumber('id')
+            ->middleware('role.any:super_admin,admin')
+            ->name('policies.rules.delete');
+        Route::post('/policies/calendars', [CirculationPolicyController::class, 'storeCalendar'])
+            ->middleware('role.any:super_admin,admin')
+            ->name('policies.calendars.store');
+        Route::post('/policies/closures', [CirculationPolicyController::class, 'storeClosure'])
+            ->middleware('role.any:super_admin,admin')
+            ->name('policies.closures.store');
+        Route::delete('/policies/closures/{id}', [CirculationPolicyController::class, 'deleteClosure'])
+            ->whereNumber('id')
+            ->middleware('role.any:super_admin,admin')
+            ->name('policies.closures.delete');
+        Route::post('/policies/simulate', [CirculationPolicyController::class, 'simulate'])
+            ->middleware('role.any:super_admin,admin')
+            ->name('policies.simulate');
 
         Route::get('/denda', [TransaksiController::class, 'finesIndex'])->name('denda.index');
         Route::post('/denda/recalc', [TransaksiController::class, 'finesRecalc'])->name('denda.recalc');
@@ -649,6 +816,18 @@ Route::middleware(['auth'])->group(function () {
         ->whereNumber('id')
         ->middleware(['role.any:super_admin,admin,staff'])
         ->name('reservasi.fulfill');
+
+    Route::get('/reservasi/metrics', ReservationMetricsController::class)
+        ->middleware(['role.any:super_admin,admin,staff'])
+        ->name('reservasi.metrics');
+});
+
+Route::middleware(['auth', 'role.any:super_admin,admin,staff'])->group(function () {
+    Route::get('/reservasi/rules', [ReservationPolicyController::class, 'index'])->name('reservasi.rules.index');
+    Route::post('/reservasi/rules', [ReservationPolicyController::class, 'store'])->name('reservasi.rules.store');
+    Route::post('/reservasi/rules/{id}/toggle', [ReservationPolicyController::class, 'toggle'])
+        ->whereNumber('id')
+        ->name('reservasi.rules.toggle');
 });
 
 /*

@@ -36,12 +36,21 @@ class BiblioSearchService
         $language = trim((string) ($params['language'] ?? ''));
         $materialType = trim((string) ($params['material_type'] ?? ''));
         $mediaType = trim((string) ($params['media_type'] ?? ''));
+        $languageList = $this->normalizeFilterArray($params['language_list'] ?? []);
+        $materialTypeList = $this->normalizeFilterArray($params['material_type_list'] ?? []);
+        $mediaTypeList = $this->normalizeFilterArray($params['media_type_list'] ?? []);
         $ddc = trim((string) ($params['ddc'] ?? ''));
         $year = trim((string) ($params['year'] ?? ''));
+        $yearFrom = max(0, (int) ($params['year_from'] ?? 0));
+        $yearTo = max(0, (int) ($params['year_to'] ?? 0));
         $onlyAvailable = (bool) ($params['onlyAvailable'] ?? false);
         $author = trim((string) ($params['author'] ?? ''));
         $subject = trim((string) ($params['subject'] ?? ''));
         $publisher = trim((string) ($params['publisher'] ?? ''));
+        $branchList = $this->normalizeFilterArray($params['branch_list'] ?? [], true);
+        $authorList = $this->normalizeFilterArray($params['author_list'] ?? [], true);
+        $subjectList = $this->normalizeFilterArray($params['subject_list'] ?? [], true);
+        $publisherList = $this->normalizeFilterArray($params['publisher_list'] ?? []);
         $sort = trim((string) ($params['sort'] ?? 'relevant'));
         $page = max(1, (int) ($params['page'] ?? 1));
 
@@ -78,22 +87,37 @@ class BiblioSearchService
             }
         }
 
-        if ($year !== '') {
+        if ($yearFrom > 0 && $yearTo > 0) {
+            $from = min($yearFrom, $yearTo);
+            $to = max($yearFrom, $yearTo);
+            $filters[] = "publish_year >= {$from}";
+            $filters[] = "publish_year <= {$to}";
+        } elseif ($yearFrom > 0) {
+            $filters[] = "publish_year >= {$yearFrom}";
+        } elseif ($yearTo > 0) {
+            $filters[] = "publish_year <= {$yearTo}";
+        } elseif ($year !== '') {
             $yearNum = (int) $year;
             if ($yearNum > 0) {
                 $filters[] = "publish_year = {$yearNum}";
             }
         }
 
-        if ($publisher !== '') {
+        if (!empty($publisherList)) {
+            $filters[] = '(' . implode(' OR ', array_map(fn ($v) => "publisher = \"" . $this->escapeFilter($v) . "\"", $publisherList)) . ')';
+        } elseif ($publisher !== '') {
             $filters[] = "publisher = \"" . $this->escapeFilter($publisher) . "\"";
         }
 
-        if ($author !== '') {
+        if (!empty($authorList)) {
+            $filters[] = '(' . implode(' OR ', array_map(fn ($v) => "author_ids = " . (int) $v, $authorList)) . ')';
+        } elseif ($author !== '') {
             $filters[] = "author_ids = " . (int) $author;
         }
 
-        if ($subject !== '') {
+        if (!empty($subjectList)) {
+            $filters[] = '(' . implode(' OR ', array_map(fn ($v) => "subject_ids = " . (int) $v, $subjectList)) . ')';
+        } elseif ($subject !== '') {
             $filters[] = "subject_ids = " . (int) $subject;
         }
 
@@ -105,19 +129,27 @@ class BiblioSearchService
             $filters[] = "call_number = \"" . $this->escapeFilter($callNumber) . "\"";
         }
 
-        if ($language !== '') {
+        if (!empty($languageList)) {
+            $filters[] = '(' . implode(' OR ', array_map(fn ($v) => "language = \"" . $this->escapeFilter($v) . "\"", $languageList)) . ')';
+        } elseif ($language !== '') {
             $filters[] = "language = \"" . $this->escapeFilter($language) . "\"";
         }
 
-        if ($materialType !== '') {
+        if (!empty($materialTypeList)) {
+            $filters[] = '(' . implode(' OR ', array_map(fn ($v) => "material_type = \"" . $this->escapeFilter($v) . "\"", $materialTypeList)) . ')';
+        } elseif ($materialType !== '') {
             $filters[] = "material_type = \"" . $this->escapeFilter($materialType) . "\"";
         }
 
-        if ($mediaType !== '') {
+        if (!empty($mediaTypeList)) {
+            $filters[] = '(' . implode(' OR ', array_map(fn ($v) => "media_type = \"" . $this->escapeFilter($v) . "\"", $mediaTypeList)) . ')';
+        } elseif ($mediaType !== '') {
             $filters[] = "media_type = \"" . $this->escapeFilter($mediaType) . "\"";
         }
 
-        if ($branchId) {
+        if (!empty($branchList)) {
+            $filters[] = '(' . implode(' OR ', array_map(fn ($v) => "branch_ids = " . (int) $v, $branchList)) . ')';
+        } elseif ($branchId) {
             $filters[] = "branch_ids = {$branchId}";
         }
 
@@ -141,7 +173,7 @@ class BiblioSearchService
             } elseif ($q === '') {
                 $sortParam = ['available_items_count:desc', 'popularity_score:desc', 'title:asc'];
             } else {
-                $sortParam = ['popularity_score:desc'];
+                $sortParam = ['available_items_count:desc', 'popularity_score:desc', 'title:asc'];
             }
         }
 
@@ -152,7 +184,7 @@ class BiblioSearchService
             'limit' => $perPage,
             'offset' => $offset,
             'filter' => $filters,
-            'facets' => ['author_ids', 'subject_ids', 'publisher', 'publish_year', 'language', 'material_type', 'media_type', 'available'],
+            'facets' => ['author_ids', 'subject_ids', 'publisher', 'publish_year', 'language', 'material_type', 'media_type', 'available', 'branch_ids'],
             'sort' => $sortParam,
             'attributesToRetrieve' => ['id'],
         ];
@@ -393,7 +425,7 @@ class BiblioSearchService
                 ],
             ],
             'synonyms' => (array) config('search.synonyms', []),
-            'stopWords' => array_values(array_unique(array_filter((array) config('search.stop_words', [])))),
+            'stopWords' => $this->loadStopWords((int) config('notobuku.opac.public_institution_id', 1), null),
         ];
 
         $this->client->updateSettings($settings);
@@ -519,6 +551,8 @@ class BiblioSearchService
             return $base;
         }
 
+        $stopWords = $this->loadStopWords($institutionId, $branchId);
+        $stopMap = array_fill_keys(array_map('mb_strtolower', $stopWords), true);
         $tokens = preg_split('/\s+/', $base);
         $synonyms = $this->loadSynonyms($institutionId, $branchId);
         if (empty($synonyms)) {
@@ -529,6 +563,7 @@ class BiblioSearchService
         foreach ($tokens as $token) {
             $token = trim($token);
             if ($token === '') continue;
+            if (isset($stopMap[mb_strtolower($token)])) continue;
             $expanded[] = $token;
             $lower = mb_strtolower($token);
             if (isset($synonyms[$lower])) {
@@ -546,12 +581,15 @@ class BiblioSearchService
         $syn = (array) config('search.synonyms', []);
 
         if (\Illuminate\Support\Facades\Schema::hasTable('search_synonyms')) {
-            $rows = \Illuminate\Support\Facades\DB::table('search_synonyms')
+            $q = \Illuminate\Support\Facades\DB::table('search_synonyms')
                 ->where('institution_id', $institutionId)
                 ->when($branchId, fn($q) => $q->where(function ($qq) use ($branchId) {
                     $qq->whereNull('branch_id')->orWhere('branch_id', $branchId);
-                }), fn($q) => $q->whereNull('branch_id'))
-                ->get(['term', 'synonyms']);
+                }), fn($q) => $q->whereNull('branch_id'));
+            if (\Illuminate\Support\Facades\Schema::hasColumn('search_synonyms', 'status')) {
+                $q->where('status', 'approved');
+            }
+            $rows = $q->get(['term', 'synonyms']);
 
             foreach ($rows as $row) {
                 $term = trim((string) $row->term);
@@ -641,6 +679,35 @@ class BiblioSearchService
         return is_array($override) ? $override : [];
     }
 
+    private function normalizeFilterArray($value, bool $numeric = false): array
+    {
+        if (!is_array($value)) {
+            if ($value === null || $value === '') {
+                return [];
+            }
+            $value = [$value];
+        }
+
+        $clean = [];
+        foreach ($value as $item) {
+            $item = trim((string) $item);
+            if ($item === '') {
+                continue;
+            }
+            if ($numeric) {
+                $n = (int) $item;
+                if ($n <= 0) {
+                    continue;
+                }
+                $clean[] = $n;
+            } else {
+                $clean[] = $item;
+            }
+        }
+
+        return array_values(array_unique($clean));
+    }
+
     private function decayMultiplier($lastAt, int $halfLifeDays): float
     {
         if (!$lastAt) {
@@ -658,5 +725,16 @@ class BiblioSearchService
         }
 
         return pow(0.5, $ageDays / $halfLifeDays);
+    }
+
+    private function loadStopWords(int $institutionId, ?int $branchId = null): array
+    {
+        try {
+            /** @var SearchStopWordService $svc */
+            $svc = app(SearchStopWordService::class);
+            return $svc->listForInstitution($institutionId, $branchId);
+        } catch (\Throwable) {
+            return array_values(array_unique(array_filter((array) config('search.stop_words', []))));
+        }
     }
 }

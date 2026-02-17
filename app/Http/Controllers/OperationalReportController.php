@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\CirculationSlaClock;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -23,11 +24,18 @@ class OperationalReportController extends Controller
             (string) $request->query('to', '')
         );
         $branchId = (int) $request->query('branch_id', 0);
+        $operatorId = (int) $request->query('operator_id', 0);
+        $loanStatus = strtolower(trim((string) $request->query('loan_status', '')));
+        if (!in_array($loanStatus, ['open', 'overdue', 'closed'], true)) {
+            $loanStatus = '';
+        }
 
         $filters = [
             'from' => $from,
             'to' => $to,
             'branch_id' => $branchId,
+            'operator_id' => $operatorId,
+            'loan_status' => $loanStatus,
         ];
 
         $kpi = $this->kpi($institutionId, $filters);
@@ -37,6 +45,7 @@ class OperationalReportController extends Controller
         $acquisitionRows = $this->acquisitionRows($institutionId, $filters);
         $memberRows = $this->memberRows($institutionId, $filters);
         $serialRows = $this->serialRows($institutionId, $filters);
+        $circulationAuditRows = $this->circulationAuditRows($institutionId, $filters, 80);
 
         $branches = [];
         if (Schema::hasTable('branches')) {
@@ -45,6 +54,21 @@ class OperationalReportController extends Controller
                 ->orderBy('name')
                 ->get(['id', 'name'])
                 ->map(fn($b) => ['id' => (int) $b->id, 'name' => (string) $b->name])
+                ->all();
+        }
+
+        $operators = [];
+        if (Schema::hasTable('users')) {
+            $operators = DB::table('users')
+                ->where('institution_id', $institutionId)
+                ->whereIn('role', ['super_admin', 'admin', 'staff'])
+                ->orderBy('name')
+                ->get(['id', 'name', 'role'])
+                ->map(fn($u) => [
+                    'id' => (int) $u->id,
+                    'name' => (string) ($u->name ?: ('User #' . (int) $u->id)),
+                    'role' => (string) $u->role,
+                ])
                 ->all();
         }
 
@@ -57,7 +81,9 @@ class OperationalReportController extends Controller
             'acquisitionRows' => $acquisitionRows,
             'memberRows' => $memberRows,
             'serialRows' => $serialRows,
+            'circulationAuditRows' => $circulationAuditRows,
             'branches' => $branches,
+            'operators' => $operators,
         ]);
     }
 
@@ -69,7 +95,18 @@ class OperationalReportController extends Controller
             (string) $request->query('to', '')
         );
         $branchId = (int) $request->query('branch_id', 0);
-        $filters = ['from' => $from, 'to' => $to, 'branch_id' => $branchId];
+        $operatorId = (int) $request->query('operator_id', 0);
+        $loanStatus = strtolower(trim((string) $request->query('loan_status', '')));
+        if (!in_array($loanStatus, ['open', 'overdue', 'closed'], true)) {
+            $loanStatus = '';
+        }
+        $filters = [
+            'from' => $from,
+            'to' => $to,
+            'branch_id' => $branchId,
+            'operator_id' => $operatorId,
+            'loan_status' => $loanStatus,
+        ];
 
         $type = strtolower(trim($type));
         $filename = "laporan-{$type}-{$from}-{$to}.csv";
@@ -116,6 +153,37 @@ class OperationalReportController extends Controller
                         $row['claim_reference'],
                     ]);
                 }
+            } elseif ($type === 'sirkulasi_audit') {
+                fputcsv($out, [
+                    'Loan Code',
+                    'Status Loan',
+                    'Kode Anggota',
+                    'Nama Anggota',
+                    'Barcode',
+                    'Judul',
+                    'Tgl Pinjam',
+                    'Jatuh Tempo',
+                    'Tgl Kembali',
+                    'Hari Terlambat',
+                    'Cabang',
+                    'Operator',
+                ]);
+                foreach ($this->circulationAuditRows($institutionId, $filters, 10000) as $row) {
+                    fputcsv($out, [
+                        $row['loan_code'],
+                        strtoupper($row['loan_status']),
+                        $row['member_code'],
+                        $row['member_name'],
+                        $row['barcode'],
+                        $row['title'],
+                        $row['borrowed_at'],
+                        $row['due_at'],
+                        $row['returned_at'],
+                        $row['late_days'],
+                        $row['branch_name'],
+                        $row['operator_name'],
+                    ]);
+                }
             } else {
                 fputcsv($out, ['PO', 'Vendor', 'Status', 'Total']);
                 foreach ($this->acquisitionRows($institutionId, $filters, 1000) as $row) {
@@ -134,7 +202,18 @@ class OperationalReportController extends Controller
             (string) $request->query('to', '')
         );
         $branchId = (int) $request->query('branch_id', 0);
-        $filters = ['from' => $from, 'to' => $to, 'branch_id' => $branchId];
+        $operatorId = (int) $request->query('operator_id', 0);
+        $loanStatus = strtolower(trim((string) $request->query('loan_status', '')));
+        if (!in_array($loanStatus, ['open', 'overdue', 'closed'], true)) {
+            $loanStatus = '';
+        }
+        $filters = [
+            'from' => $from,
+            'to' => $to,
+            'branch_id' => $branchId,
+            'operator_id' => $operatorId,
+            'loan_status' => $loanStatus,
+        ];
         $type = strtolower(trim($type));
 
         $headers = [];
@@ -176,6 +255,36 @@ class OperationalReportController extends Controller
                 $r['claim_reference'],
             ], $this->serialRows($institutionId, $filters, 4000));
             $sheetName = 'Serial';
+        } elseif ($type === 'sirkulasi_audit') {
+            $headers = [
+                'Loan Code',
+                'Status Loan',
+                'Kode Anggota',
+                'Nama Anggota',
+                'Barcode',
+                'Judul',
+                'Tgl Pinjam',
+                'Jatuh Tempo',
+                'Tgl Kembali',
+                'Hari Terlambat',
+                'Cabang',
+                'Operator',
+            ];
+            $rows = array_map(fn($r) => [
+                $r['loan_code'],
+                strtoupper($r['loan_status']),
+                $r['member_code'],
+                $r['member_name'],
+                $r['barcode'],
+                $r['title'],
+                $r['borrowed_at'],
+                $r['due_at'],
+                $r['returned_at'],
+                $r['late_days'],
+                $r['branch_name'],
+                $r['operator_name'],
+            ], $this->circulationAuditRows($institutionId, $filters, 10000));
+            $sheetName = 'Sirkulasi Audit';
         } else {
             $headers = ['PO', 'Vendor', 'Status', 'Total'];
             $rows = array_map(fn($r) => [$r['po_number'], $r['vendor_name'], strtoupper($r['status']), $r['total_amount']], $this->acquisitionRows($institutionId, $filters, 4000));
@@ -544,6 +653,90 @@ class OperationalReportController extends Controller
                 ];
             })
             ->all();
+    }
+
+    private function circulationAuditRows(int $institutionId, array $filters, int $limit = 50): array
+    {
+        if (!Schema::hasTable('loan_items') || !Schema::hasTable('loans') || !Schema::hasTable('members') || !Schema::hasTable('items')) {
+            return [];
+        }
+
+        $from = $filters['from'] ?? now()->subDays(30)->toDateString();
+        $to = $filters['to'] ?? now()->toDateString();
+        $branchId = (int) ($filters['branch_id'] ?? 0);
+        $operatorId = (int) ($filters['operator_id'] ?? 0);
+        $loanStatus = (string) ($filters['loan_status'] ?? '');
+
+        $biblioTable = null;
+        if (Schema::hasTable('biblio')) {
+            $biblioTable = 'biblio';
+        } elseif (Schema::hasTable('biblios')) {
+            $biblioTable = 'biblios';
+        }
+
+        $query = DB::table('loan_items as li')
+            ->join('loans as l', 'l.id', '=', 'li.loan_id')
+            ->join('members as m', 'm.id', '=', 'l.member_id')
+            ->join('items as i', 'i.id', '=', 'li.item_id')
+            ->leftJoin('branches as br', 'br.id', '=', 'l.branch_id')
+            ->leftJoin('users as u', 'u.id', '=', 'l.created_by')
+            ->where('l.institution_id', $institutionId)
+            ->when($branchId > 0, fn($q) => $q->where('l.branch_id', $branchId))
+            ->when($operatorId > 0, fn($q) => $q->where('l.created_by', $operatorId))
+            ->when($loanStatus !== '', fn($q) => $q->where('l.status', $loanStatus))
+            ->whereDate(DB::raw('COALESCE(li.borrowed_at, l.loaned_at)'), '>=', $from)
+            ->whereDate(DB::raw('COALESCE(li.borrowed_at, l.loaned_at)'), '<=', $to);
+
+        if ($biblioTable !== null) {
+            $query->leftJoin($biblioTable . ' as b', 'b.id', '=', 'i.biblio_id');
+            $titleSelect = 'COALESCE(b.title, \'-\') as title';
+        } else {
+            $titleSelect = '\'-\' as title';
+        }
+
+        $rows = $query
+            ->orderByDesc('li.borrowed_at')
+            ->limit($limit)
+            ->get([
+                'l.loan_code',
+                'l.status as loan_status',
+                'm.member_code',
+                'm.full_name as member_name',
+                'i.barcode',
+                DB::raw($titleSelect),
+                'li.borrowed_at',
+                'li.due_at',
+                'li.returned_at',
+                DB::raw('COALESCE(br.name, \'-\') as branch_name'),
+                DB::raw('COALESCE(u.name, \'-\') as operator_name'),
+            ]);
+
+        return $rows->map(function ($r) {
+            $borrowedAt = $r->borrowed_at ? (string) \Illuminate\Support\Carbon::parse($r->borrowed_at)->format('Y-m-d H:i:s') : '';
+            $dueAt = $r->due_at ? (string) \Illuminate\Support\Carbon::parse($r->due_at)->format('Y-m-d H:i:s') : '';
+            $returnedAt = $r->returned_at ? (string) \Illuminate\Support\Carbon::parse($r->returned_at)->format('Y-m-d H:i:s') : '';
+
+            $lateDays = 0;
+            $lateDays = CirculationSlaClock::elapsedLateDays(
+                $r->due_at ? (string) $r->due_at : null,
+                $r->returned_at ? (string) $r->returned_at : null
+            );
+
+            return [
+                'loan_code' => (string) ($r->loan_code ?? ''),
+                'loan_status' => (string) ($r->loan_status ?? ''),
+                'member_code' => (string) ($r->member_code ?? ''),
+                'member_name' => (string) ($r->member_name ?? ''),
+                'barcode' => (string) ($r->barcode ?? ''),
+                'title' => (string) ($r->title ?? '-'),
+                'borrowed_at' => $borrowedAt,
+                'due_at' => $dueAt,
+                'returned_at' => $returnedAt,
+                'late_days' => (int) $lateDays,
+                'branch_name' => (string) ($r->branch_name ?? '-'),
+                'operator_name' => (string) ($r->operator_name ?? '-'),
+            ];
+        })->all();
     }
 
     private function resolveDateRange(string $fromInput, string $toInput): array
