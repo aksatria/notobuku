@@ -48,6 +48,22 @@ jobs:
       - name: Install Composer dependencies
         run: composer install --no-progress --prefer-dist
 
+      - name: Prepare environment
+        run: |
+          if [ -f .env.testing ]; then
+            cp .env.testing .env
+          else
+            php -r "file_exists('.env') || copy('.env.example', '.env');"
+          fi
+
+      - name: Generate app key
+        run: php artisan key:generate --ansi
+
+      - name: Install MySQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y default-mysql-client
+
       - name: Wait for MySQL
         run: |
           for i in {1..60}; do

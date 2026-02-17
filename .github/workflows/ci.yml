@@ -17,7 +17,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
-          extensions: mbstring, xml, bcmath, gd, intl, pcntl, sqlite
+          extensions: mbstring, xml, bcmath, gd, intl, pcntl, sqlite3, pdo_sqlite
           ini-values: post_max_size=256M, memory_limit=2G
 
       - name: Setup Composer cache
@@ -31,17 +31,25 @@ jobs:
         run: composer install --no-progress --no-suggest --prefer-dist
 
       - name: Prepare environment
-        run: php -r "file_exists('.env') || copy('.env.example', '.env');"
+        run: |
+          if [ -f .env.testing ]; then
+            cp .env.testing .env
+          else
+            php -r "file_exists('.env') || copy('.env.example', '.env');"
+          fi
 
       - name: Generate app key
         run: php artisan key:generate --ansi
 
       - name: Create SQLite database file
-        run: mkdir -p database && touch database/database.sqlite
+        run: |
+          mkdir -p database
+          touch database/database.sqlite
 
       - name: Configure DB for SQLite
         run: |
-          php -r "\$env = file_get_contents('.env');\nif (strpos(\$env, 'DB_CONNECTION=') === false) { file_put_contents('.env', \$env . "\nDB_CONNECTION=sqlite\n"); } else { file_put_contents('.env', preg_replace('/DB_CONNECTION=.*/', 'DB_CONNECTION=sqlite', \$env)); }"
+          echo "DB_CONNECTION=sqlite" >> .env
+          echo "DB_DATABASE=${GITHUB_WORKSPACE}/database/database.sqlite" >> .env
 
       - name: Run migrations
         run: php artisan migrate --force
