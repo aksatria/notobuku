@@ -39,8 +39,22 @@ Halaman ini merangkum keunggulan NOTOBUKU untuk kebutuhan katalog dan OPAC moder
 - Lebih siap untuk beban pencarian tinggi dan data besar.
 - Sesuai untuk perpustakaan yang menargetkan layanan digital modern.
 
+10. Keunggulan keanggotaan
+- Pendaftaran dan pengelolaan anggota lebih terstruktur.
+- Mendukung import data anggota untuk percepatan onboarding.
+- Status anggota lebih mudah dipantau untuk kebutuhan layanan harian.
+- Riwayat aktivitas anggota membantu layanan yang lebih tepat.
+
+11. Keunggulan sirkulasi
+- Proses pinjam, kembali, dan perpanjang lebih cepat dan konsisten.
+- Perhitungan denda dan keterlambatan lebih tertib sesuai aturan.
+- Monitoring transaksi harian memudahkan kontrol operasional.
+- Jejak transaksi membantu audit dan evaluasi layanan.
+
 ## Nilai praktis untuk perpustakaan
 1. Waktu layanan lebih cepat.
 2. Kualitas data katalog lebih rapi dan konsisten.
 3. Pengalaman pemustaka lebih baik saat mencari koleksi.
 4. Integrasi data lebih siap untuk kolaborasi lintas sistem.
+5. Layanan anggota lebih tertata dan mudah dipantau.
+6. Proses sirkulasi lebih cepat, akurat, dan mudah diaudit.
