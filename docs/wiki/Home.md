@@ -5,7 +5,7 @@ NOTOBUKU adalah sistem manajemen perpustakaan dengan fokus interoperabilitas MAR
 ## Mulai dari sini
 - [Instalasi dan Quickstart](Instalasi-dan-Quickstart)
 - [Fitur Utama](Fitur-Utama)
-- [Perbandingan Search NOTOBUKU vs SLiMS](Perbandingan-Search-NOTOBUKU-vs-SLiMS)
+- [Keunggulan NOTOBUKU](Keunggulan-NOTOBUKU)
 - [SOP Harian Pustakawan Pemula](SOP-Harian-Pustakawan-Pemula)
 - [Panduan Peran User](Panduan-Peran-User)
 - [Operasional Harian](Operasional-Harian)
