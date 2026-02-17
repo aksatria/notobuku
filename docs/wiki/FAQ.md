@@ -39,6 +39,23 @@ Sistem menampilkan denda sesuai aturan kebijakan. Petugas memverifikasi nominal,
 ## Untuk apa fitur export MARC21?
 Untuk pertukaran data bibliografi antar sistem perpustakaan. Ini membantu migrasi, integrasi, dan standarisasi metadata.
 
+## Apakah MARC21/RDA itu aturan internasional?
+Ya.  
+- `MARC21` adalah standar internasional untuk format/struktur data bibliografi.  
+- `RDA` adalah standar internasional untuk aturan deskripsi isi bibliografi.  
+
+Praktiknya:
+- `RDA` mengatur bagaimana data katalog ditulis.
+- `MARC21` mengatur bagaimana data itu disimpan dan dipertukarkan antar sistem.
+
+## Kenapa fitur MARC21/RDA dibuat untuk perpustakaan Indonesia?
+Supaya perpustakaan di Indonesia bisa:
+- Punya kualitas metadata yang lebih rapi dan konsisten.
+- Lebih mudah migrasi data dari sistem lama ke sistem baru.
+- Lebih mudah kolaborasi dan tukar data antar institusi.
+- Lebih siap integrasi dengan ekosistem nasional/internasional.
+- Tetap bisa menyesuaikan kebutuhan lokal (bahasa, praktik kerja, kebijakan layanan) tanpa kehilangan standar.
+
 ## Apa manfaat `media_profiles`?
 `media_profiles` membuat aturan metadata per jenis koleksi (teks/audio/video/serial) agar hasil katalog konsisten.
 
