@@ -1,11 +1,55 @@
 # Lelakon NOTOBUKU
 
-Selamat datang di NOTOBUKU dan terima kasih sudah mampir.
+Selamat datang di NOTOBUKU.  
+Terima kasih sudah mampir.
 
-NOTOBUKU berawal dari project pribadi yang awalnya iseng, tetapi bukan iseng biasa, karena saya mengerjakan project NOTOBUKU ini dengan sangat serius. Saya suka membaca buku filsafat, psikologi, dan ilmu sosial. Di sisi lain, saya perokok dan tentu tidak bisa merokok di perpustakaan. Saya juga sering tidak ingin meminjam buku untuk dibawa pulang, karena kadang ada kesibukan kerja atau urusan lain yang membuat saya malas kembali ke perpustakaan untuk mengembalikan buku.
+## Awal Cerita
+NOTOBUKU berawal dari project pribadi yang awalnya iseng, tapi bukan iseng biasa.  
+Saya mengerjakannya dengan serius, dari sudut pandang pengguna perpustakaan sehari-hari.
 
-Dari pengalaman itu, saya ingin NOTOBUKU jadi solusi perpustakaan yang lebih realistis, lebih dekat dengan kebiasaan pengguna, dan tetap kuat secara sistem. Di era setelah Google dan sekarang masuk era AI, perpustakaan perlu pengalaman yang lebih hidup, bukan hanya administrasi. Karena itu, selain fitur inti ILS, saya juga menyiapkan fitur Komunitas seperti sosial media khusus literasi, agar pengguna bisa berbagi rekomendasi buku, menulis ulasan, berdiskusi, saling merespons konten, dan ikut aktivitas baca bersama untuk memancing minat baca serta memperkuat budaya literasi.
+Saya suka membaca buku filsafat, psikologi, dan ilmu sosial.  
+Saya juga perokok dan tentu tidak bisa merokok di perpustakaan.  
+Selain itu, saya sering tidak ingin meminjam buku untuk dibawa pulang karena kadang ada urusan kerja atau hal lain yang bikin malas balik hanya untuk mengembalikan buku.
 
-Saya juga menyiapkan fitur AI yang masih dalam proses. Untuk member, AI diarahkan menjadi asisten pencarian bahasa natural, rekomendasi bacaan personal, ringkasan buku, dan tanya jawab cepat seputar koleksi serta layanan. Untuk pustakawan, AI diarahkan membantu input metadata katalog, memberi saran klasifikasi, subjek, dan kata kunci, mendeteksi data yang kurang konsisten, serta membantu membaca tren peminjaman untuk pengembangan koleksi.
+## Kenapa NOTOBUKU Dibuat
+Dari pengalaman itu, saya ingin membangun solusi perpustakaan yang:
+- lebih realistis
+- lebih dekat dengan kebiasaan pengguna
+- tetap kuat secara sistem
 
-Terima kasih untuk semua dukungan, masukan, semangat, dan pemberian rokoknya. Semoga NOTOBUKU bisa terus berkembang dan memberi manfaat nyata untuk perpustakaan di Indonesia.
+Di era setelah Google dan sekarang masuk era AI, perpustakaan perlu pengalaman yang lebih hidup, bukan sekadar administrasi.
+
+## Arah Pengembangan
+Selain fitur inti ILS, saya menyiapkan dua arah besar.
+
+### 1. Komunitas
+Konsepnya seperti sosial media, tapi khusus literasi.
+
+Pengguna nantinya bisa:
+- berbagi rekomendasi buku
+- menulis ulasan
+- berdiskusi
+- saling merespons konten
+- ikut aktivitas baca bersama
+
+Tujuannya untuk memancing minat baca dan memperkuat budaya literasi.
+
+### 2. Fitur AI
+Masih dalam proses pengembangan.
+
+Untuk member:
+- asisten pencarian bahasa natural
+- rekomendasi bacaan personal
+- ringkasan buku
+- tanya jawab cepat seputar koleksi dan layanan
+
+Untuk pustakawan:
+- bantuan input metadata katalog
+- saran klasifikasi, subjek, dan kata kunci
+- deteksi data yang kurang konsisten
+- analisis tren peminjaman untuk pengembangan koleksi
+
+## Penutup
+Terima kasih untuk semua dukungan, masukan, semangat, dan pemberian rokoknya.
+
+Semoga NOTOBUKU bisa terus berkembang dan memberi manfaat nyata untuk perpustakaan di Indonesia.
