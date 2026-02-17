@@ -32,11 +32,7 @@ jobs:
 
       - name: Prepare environment
         run: |
-          if [ -f .env.testing ]; then
-            cp .env.testing .env
-          else
-            php -r "file_exists('.env') || copy('.env.example', '.env');"
-          fi
+          cp .env.example .env
 
       - name: Generate app key
         run: php artisan key:generate --ansi
@@ -55,6 +51,10 @@ jobs:
         run: php artisan migrate --force
 
       - name: Run tests
+        env:
+          APP_ENV: testing
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ${{ github.workspace }}/database/database.sqlite
         run: composer test --no-interaction --no-ansi
 
       - name: Run Pint (format)
