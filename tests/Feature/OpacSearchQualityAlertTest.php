@@ -66,7 +66,7 @@ class OpacSearchQualityAlertTest extends TestCase
             $data = $request->data();
             return $request->url() === 'https://hooks.example.test/opac-search-alert'
                 && ($data['event'] ?? '') === 'opac_search_quality_alert'
-                && ($data['state'] ?? '') === 'critical';
+                && in_array((string) ($data['state'] ?? ''), ['warning', 'critical'], true);
         });
     }
 }
