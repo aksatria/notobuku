@@ -9,6 +9,19 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mariadb:11
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: notobuku_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mariadb-admin ping -h 127.0.0.1 -proot --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=60
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,29 +45,49 @@ jobs:
 
       - name: Prepare environment
         run: |
-          cp .env.example .env
+          if [ -f .env.testing ]; then
+            cp .env.testing .env
+          else
+            cp .env.example .env
+          fi
 
       - name: Generate app key
         run: php artisan key:generate --ansi
 
-      - name: Create SQLite database file
+      - name: Install MySQL client
         run: |
-          mkdir -p database
-          touch database/database.sqlite
+          sudo apt-get update
+          sudo apt-get install -y default-mysql-client
 
-      - name: Configure DB for SQLite
+      - name: Wait for MySQL
         run: |
-          echo "DB_CONNECTION=sqlite" >> .env
-          echo "DB_DATABASE=${GITHUB_WORKSPACE}/database/database.sqlite" >> .env
+          for i in {1..120}; do
+            mysqladmin ping -h 127.0.0.1 -uroot -proot --silent && exit 0
+            sleep 2
+          done
+          echo "Database service did not become ready in time"
+          exit 1
 
       - name: Run migrations
+        env:
+          APP_ENV: testing
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: notobuku_test
+          DB_USERNAME: root
+          DB_PASSWORD: root
         run: php artisan migrate --force
 
       - name: Run tests
         env:
           APP_ENV: testing
-          DB_CONNECTION: sqlite
-          DB_DATABASE: ${{ github.workspace }}/database/database.sqlite
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: notobuku_test
+          DB_USERNAME: root
+          DB_PASSWORD: root
         run: composer test --no-interaction --no-ansi
 
       - name: Run Pint (format)
