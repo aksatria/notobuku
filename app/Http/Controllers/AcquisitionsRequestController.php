@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\CatalogAccess;
 use App\Http\Requests\ApproveAcquisitionRequestRequest;
 use App\Http\Requests\BulkConvertAcquisitionRequestsRequest;
 use App\Http\Requests\ConvertAcquisitionRequestToPORequest;
@@ -23,11 +24,7 @@ use Illuminate\Support\Facades\Schema;
 
 class AcquisitionsRequestController extends Controller
 {
-    private function currentInstitutionId(): int
-    {
-        $id = (int) (auth()->user()->institution_id ?? 0);
-        return $id > 0 ? $id : 1;
-    }
+    use CatalogAccess;
 
     public function index(Request $request)
     {

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\ActiveInstitutionAccess;
 use App\Services\ReservationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -9,6 +10,8 @@ use Illuminate\Support\Facades\DB;
 
 class MemberReservationController extends Controller
 {
+    use ActiveInstitutionAccess;
+
     public function __construct(private ReservationService $reservationService) {}
 
     public function index(Request $request)
@@ -106,7 +109,7 @@ class MemberReservationController extends Controller
             return ['ok' => false, 'message' => 'Tidak terautentikasi.'];
         }
 
-        $institutionId = max(1, (int) ($user->active_institution_id ?? $user->active_inst_id ?? $user->institution_id ?? 1));
+        $institutionId = $this->currentInstitutionId();
         $memberId = (int) DB::table('members')->where('user_id', (int) $user->id)->value('id');
         if ($memberId <= 0) {
             return ['ok' => false, 'message' => 'Akun belum terhubung ke data anggota.'];

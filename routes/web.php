@@ -4,7 +4,15 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
-use App\Http\Controllers\KatalogController;
+use App\Http\Controllers\CatalogSearchController;
+use App\Http\Controllers\CatalogAttachmentController;
+use App\Http\Controllers\CatalogImportExportController;
+use App\Http\Controllers\CatalogMetadataController;
+use App\Http\Controllers\CatalogBulkController;
+use App\Http\Controllers\CatalogDetailController;
+use App\Http\Controllers\CatalogWriteController;
+use App\Http\Controllers\CatalogAuditController;
+use App\Http\Controllers\CatalogMaintenanceController;
 use App\Http\Controllers\EksemplarController;
 use App\Http\Controllers\ReservasiController;
 use App\Http\Controllers\TransaksiController;
@@ -103,24 +111,24 @@ Route::get('/sitemap-opac-{page}.xml', [OpacSeoController::class, 'sitemapChunk'
 Route::get('/robots.txt', [OpacSeoController::class, 'robots'])
     ->middleware('throttle:opac-public-seo')
     ->name('opac.robots');
-Route::get('/opac', [KatalogController::class, 'indexPublic'])
+Route::get('/opac', [CatalogSearchController::class, 'indexPublic'])
     ->middleware(['trace.request', 'opac.conditional', 'track.opac.metrics', 'throttle:opac-public-search'])
     ->name('opac.index');
-Route::get('/opac/facets', [KatalogController::class, 'facetsPublic'])
+Route::get('/opac/facets', [CatalogSearchController::class, 'facetsPublic'])
     ->middleware(['trace.request', 'opac.conditional', 'track.opac.metrics', 'throttle:opac-public-search'])
     ->name('opac.facets');
-Route::get('/opac/{id}', [KatalogController::class, 'show'])
+Route::get('/opac/{id}', [CatalogDetailController::class, 'show'])
     ->middleware(['trace.request', 'opac.conditional', 'track.opac.metrics', 'throttle:opac-public-detail'])
     ->whereNumber('id')
     ->name('opac.show');
-Route::get('/opac/suggest', [KatalogController::class, 'suggest'])
+Route::get('/opac/suggest', [CatalogSearchController::class, 'suggest'])
     ->middleware(['trace.request', 'opac.conditional', 'track.opac.metrics', 'throttle:opac-public-search'])
     ->name('opac.suggest');
-Route::get('/opac/{id}/attachments/{attachment}/download', [KatalogController::class, 'downloadAttachment'])
+Route::get('/opac/{id}/attachments/{attachment}/download', [CatalogAttachmentController::class, 'download'])
     ->middleware('throttle:opac-public-detail')
     ->whereNumber('id')->whereNumber('attachment')
     ->name('opac.attachments.download');
-Route::post('/opac/preferences/shelves', [KatalogController::class, 'setShelvesPreference'])
+Route::post('/opac/preferences/shelves', [CatalogSearchController::class, 'setShelvesPreference'])
     ->middleware('throttle:opac-public-write')
     ->name('opac.preferences.shelves');
 Route::get('/opac/metrics', OpacMetricsController::class)
@@ -430,18 +438,18 @@ Route::middleware(['auth', 'role.any:super_admin'])->group(function () {
 */
 Route::middleware(['auth'])->group(function () {
 
-    Route::get('/katalog', [KatalogController::class, 'index'])->name('katalog.index');
-    Route::get('/katalog/facets', [KatalogController::class, 'facets'])->name('katalog.facets');
-    Route::get('/katalog/{id}', [KatalogController::class, 'show'])->whereNumber('id')->name('katalog.show');
-    Route::get('/katalog/suggest', [KatalogController::class, 'suggest'])->name('katalog.suggest');
-    Route::get('/katalog/{id}/attachments/{attachment}/download', [KatalogController::class, 'downloadAttachment'])
+    Route::get('/katalog', [CatalogSearchController::class, 'index'])->name('katalog.index');
+    Route::get('/katalog/facets', [CatalogSearchController::class, 'facets'])->name('katalog.facets');
+    Route::get('/katalog/{id}', [CatalogDetailController::class, 'show'])->whereNumber('id')->name('katalog.show');
+    Route::get('/katalog/suggest', [CatalogSearchController::class, 'suggest'])->name('katalog.suggest');
+    Route::get('/katalog/{id}/attachments/{attachment}/download', [CatalogAttachmentController::class, 'download'])
         ->whereNumber('id')->whereNumber('attachment')
         ->name('katalog.attachments.download');
 
     Route::middleware(['role.any:super_admin,admin,staff'])->group(function () {
 
-        Route::get('/katalog/export', [KatalogController::class, 'export'])->name('katalog.export');
-        Route::post('/katalog/import', [KatalogController::class, 'import'])->name('katalog.import');
+        Route::get('/katalog/export', [CatalogImportExportController::class, 'export'])->name('katalog.export');
+        Route::post('/katalog/import', [CatalogImportExportController::class, 'import'])->name('katalog.import');
 
         Route::get('/authority/authors', [AuthorityAuthorController::class, 'index'])->name('authority.authors');
         Route::get('/authority/subjects', [AuthoritySubjectController::class, 'index'])->name('authority.subjects');
@@ -449,23 +457,23 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/telemetry/autocomplete', [TelemetryController::class, 'autocomplete'])->name('telemetry.autocomplete');
         Route::get('/ddc/search', [DdcController::class, 'search'])->name('ddc.search');
 
-        Route::get('/katalog/tambah', [KatalogController::class, 'create'])->name('katalog.create');
-        Route::post('/katalog', [KatalogController::class, 'store'])->name('katalog.store');
-        Route::get('/katalog/isbn-lookup', [KatalogController::class, 'isbnLookup'])->name('katalog.isbnLookup');
-        Route::post('/katalog/validate-metadata', [KatalogController::class, 'validateMetadata'])->name('katalog.validateMetadata');
-        Route::post('/katalog/bulk-update', [KatalogController::class, 'bulkUpdate'])->name('katalog.bulkUpdate');
-        Route::post('/katalog/bulk-preview', [KatalogController::class, 'bulkPreview'])->name('katalog.bulkPreview');
-        Route::post('/katalog/bulk-undo', [KatalogController::class, 'bulkUndo'])->name('katalog.bulkUndo');
+        Route::get('/katalog/tambah', [CatalogWriteController::class, 'create'])->name('katalog.create');
+    Route::post('/katalog', [CatalogWriteController::class, 'store'])->name('katalog.store');
+        Route::get('/katalog/isbn-lookup', [CatalogMetadataController::class, 'isbnLookup'])->name('katalog.isbnLookup');
+        Route::post('/katalog/validate-metadata', [CatalogMetadataController::class, 'validateMetadata'])->name('katalog.validateMetadata');
+        Route::post('/katalog/bulk-update', [CatalogBulkController::class, 'bulkUpdate'])->name('katalog.bulkUpdate');
+        Route::post('/katalog/bulk-preview', [CatalogBulkController::class, 'bulkPreview'])->name('katalog.bulkPreview');
+        Route::post('/katalog/bulk-undo', [CatalogBulkController::class, 'bulkUndo'])->name('katalog.bulkUndo');
 
-        Route::get('/katalog/{id}/edit', [KatalogController::class, 'edit'])->whereNumber('id')->name('katalog.edit');
-        Route::post('/katalog/{id}/autofix', [KatalogController::class, 'autofix'])->whereNumber('id')->name('katalog.autofix');
-        Route::put('/katalog/{id}', [KatalogController::class, 'update'])->whereNumber('id')->name('katalog.update');
-        Route::get('/katalog/{id}/audit', [KatalogController::class, 'audit'])->whereNumber('id')->name('katalog.audit');
-        Route::get('/katalog/{id}/audit.csv', [KatalogController::class, 'auditCsv'])->whereNumber('id')->name('katalog.audit.csv');
-        Route::delete('/katalog/{id}', [KatalogController::class, 'destroy'])->whereNumber('id')->name('katalog.destroy');
-        Route::post('/katalog/{id}/attachments', [KatalogController::class, 'addAttachment'])
+        Route::get('/katalog/{id}/edit', [CatalogAuditController::class, 'edit'])->whereNumber('id')->name('katalog.edit');
+        Route::post('/katalog/{id}/autofix', [CatalogMaintenanceController::class, 'autofix'])->whereNumber('id')->name('katalog.autofix');
+        Route::put('/katalog/{id}', [CatalogWriteController::class, 'update'])->whereNumber('id')->name('katalog.update');
+        Route::get('/katalog/{id}/audit', [CatalogAuditController::class, 'audit'])->whereNumber('id')->name('katalog.audit');
+        Route::get('/katalog/{id}/audit.csv', [CatalogAuditController::class, 'auditCsv'])->whereNumber('id')->name('katalog.audit.csv');
+        Route::delete('/katalog/{id}', [CatalogMaintenanceController::class, 'destroy'])->whereNumber('id')->name('katalog.destroy');
+        Route::post('/katalog/{id}/attachments', [CatalogAttachmentController::class, 'store'])
             ->whereNumber('id')->name('katalog.attachments.store');
-        Route::delete('/katalog/{id}/attachments/{attachment}', [KatalogController::class, 'deleteAttachment'])
+        Route::delete('/katalog/{id}/attachments/{attachment}', [CatalogAttachmentController::class, 'destroy'])
             ->whereNumber('id')->whereNumber('attachment')
             ->name('katalog.attachments.delete');
 
@@ -629,6 +637,8 @@ Route::middleware(['auth', 'role.any:super_admin,admin,staff'])->group(function 
     Route::get('/master/rak', [RakController::class, 'index'])->name('rak.index');
     Route::get('/master/rak/tambah', [RakController::class, 'create'])->name('rak.create');
     Route::post('/master/rak', [RakController::class, 'store'])->name('rak.store');
+    Route::post('/master/rak/generate-ddc', [RakController::class, 'generateDdc'])->name('rak.generate_ddc');
+    Route::post('/master/rak/map-items-ddc', [RakController::class, 'mapItemsByDdc'])->name('rak.map_items_ddc');
 
     Route::get('/master/rak/{id}/edit', [RakController::class, 'edit'])->whereNumber('id')->name('rak.edit');
     Route::put('/master/rak/{id}', [RakController::class, 'update'])->whereNumber('id')->name('rak.update');
@@ -927,10 +937,10 @@ Route::middleware(['auth:sanctum'])
     ->group(function () {
         // Book Search API
         Route::prefix('books')->group(function () {
-            Route::get('/search', [KatalogController::class, 'apiSearch'])
+            Route::get('/search', [CatalogSearchController::class, 'apiSearch'])
                 ->name('books.search');
             
-            Route::get('/{id}', [KatalogController::class, 'apiShow'])
+            Route::get('/{id}', [CatalogSearchController::class, 'apiShow'])
                 ->whereNumber('id')
                 ->name('books.show');
             

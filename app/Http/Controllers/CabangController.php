@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\CatalogAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class CabangController extends Controller
 {
+    use CatalogAccess;
+
     /* =========================================================
      | Helpers
      ========================================================= */
@@ -22,7 +25,7 @@ class CabangController extends Controller
     {
         abort_unless(
             auth()->check() &&
-            in_array(auth()->user()->role ?? 'member', ['super_admin','admin','staff'], true),
+            $this->canManageCatalog(),
             403
         );
     }

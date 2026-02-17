@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\CatalogAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Artisan;
@@ -10,21 +11,11 @@ use Illuminate\Support\Facades\Schema;
 
 class SearchSynonymController extends Controller
 {
-    private function currentInstitutionId(): int
-    {
-        $id = (int) (auth()->user()->institution_id ?? 0);
-        return $id > 0 ? $id : 1;
-    }
-
-    private function canManage(): bool
-    {
-        $role = auth()->user()->role ?? 'member';
-        return in_array($role, ['super_admin', 'admin', 'staff'], true);
-    }
+    use CatalogAccess;
 
     public function index(Request $request)
     {
-        abort_unless($this->canManage(), 403);
+        abort_unless($this->canManageCatalog(), 403);
 
         $institutionId = $this->currentInstitutionId();
         $branchId = $request->query('branch_id');
@@ -72,7 +63,7 @@ class SearchSynonymController extends Controller
 
     public function store(Request $request)
     {
-        abort_unless($this->canManage(), 403);
+        abort_unless($this->canManageCatalog(), 403);
 
         $institutionId = $this->currentInstitutionId();
         $max = (int) config('search.synonym_max', 10);
@@ -142,7 +133,7 @@ class SearchSynonymController extends Controller
 
     public function destroy(int $id)
     {
-        abort_unless($this->canManage(), 403);
+        abort_unless($this->canManageCatalog(), 403);
         $institutionId = $this->currentInstitutionId();
 
         DB::table('search_synonyms')
@@ -155,7 +146,7 @@ class SearchSynonymController extends Controller
 
     public function syncAuto(Request $request)
     {
-        abort_unless($this->canManage(), 403);
+        abort_unless($this->canManageCatalog(), 403);
 
         $institutionId = $this->currentInstitutionId();
         $limit = (int) $request->input('limit', 300);
@@ -178,7 +169,7 @@ class SearchSynonymController extends Controller
 
     public function importCsv(Request $request)
     {
-        abort_unless($this->canManage(), 403);
+        abort_unless($this->canManageCatalog(), 403);
 
         $institutionId = $this->currentInstitutionId();
         $max = (int) config('search.synonym_max', 10);
@@ -256,7 +247,7 @@ class SearchSynonymController extends Controller
 
     public function previewImport(Request $request)
     {
-        abort_unless($this->canManage(), 403);
+        abort_unless($this->canManageCatalog(), 403);
 
         $max = (int) config('search.synonym_max', 10);
         $data = $request->validate([
@@ -382,14 +373,14 @@ class SearchSynonymController extends Controller
 
     public function cancelPreview(Request $request)
     {
-        abort_unless($this->canManage(), 403);
+        abort_unless($this->canManageCatalog(), 403);
         $request->session()->forget('synonym_import_preview');
         return back()->with('status', 'Preview dibatalkan.');
     }
 
     public function confirmImport(Request $request)
     {
-        abort_unless($this->canManage(), 403);
+        abort_unless($this->canManageCatalog(), 403);
 
         $institutionId = $this->currentInstitutionId();
         $max = (int) config('search.synonym_max', 10);
@@ -485,7 +476,7 @@ class SearchSynonymController extends Controller
 
     public function downloadTemplate()
     {
-        abort_unless($this->canManage(), 403);
+        abort_unless($this->canManageCatalog(), 403);
         $csv = "istilah,sinonim\n".
                "ilkom,ilmu komputer; informatika; computer science\n".
                "pemrograman,programming; coding; koding\n";
@@ -498,7 +489,7 @@ class SearchSynonymController extends Controller
 
     public function downloadErrorCsv(Request $request)
     {
-        abort_unless($this->canManage(), 403);
+        abort_unless($this->canManageCatalog(), 403);
         $payload = $request->session()->get('synonym_import_preview');
         if (!$payload || empty($payload['rows'])) {
             return back()->withErrors(['csv_file' => 'Preview tidak ditemukan.']);
@@ -533,7 +524,7 @@ class SearchSynonymController extends Controller
 
     public function downloadDuplicateCsv(Request $request)
     {
-        abort_unless($this->canManage(), 403);
+        abort_unless($this->canManageCatalog(), 403);
         $payload = $request->session()->get('synonym_import_preview');
         if (!$payload || empty($payload['rows'])) {
             return back()->withErrors(['csv_file' => 'Preview tidak ditemukan.']);
@@ -568,7 +559,7 @@ class SearchSynonymController extends Controller
 
     public function downloadPreviewCsv(Request $request)
     {
-        abort_unless($this->canManage(), 403);
+        abort_unless($this->canManageCatalog(), 403);
         $payload = $request->session()->get('synonym_import_preview');
         if (!$payload || empty($payload['rows'])) {
             return back()->withErrors(['csv_file' => 'Preview tidak ditemukan.']);
@@ -597,7 +588,7 @@ class SearchSynonymController extends Controller
 
     public function resolveZeroResult(Request $request, int $id)
     {
-        abort_unless($this->canManage(), 403);
+        abort_unless($this->canManageCatalog(), 403);
         $institutionId = $this->currentInstitutionId();
 
         $data = $request->validate([
@@ -692,7 +683,7 @@ class SearchSynonymController extends Controller
 
     public function approve(int $id)
     {
-        abort_unless($this->canManage(), 403);
+        abort_unless($this->canManageCatalog(), 403);
         $institutionId = $this->currentInstitutionId();
 
         DB::table('search_synonyms')
@@ -712,7 +703,7 @@ class SearchSynonymController extends Controller
 
     public function reject(Request $request, int $id)
     {
-        abort_unless($this->canManage(), 403);
+        abort_unless($this->canManageCatalog(), 403);
         $institutionId = $this->currentInstitutionId();
         $data = $request->validate([
             'note' => ['nullable', 'string', 'max:255'],
@@ -733,3 +724,4 @@ class SearchSynonymController extends Controller
         return back()->with('status', 'Sinonim ditolak.');
     }
 }
+

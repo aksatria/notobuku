@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\CatalogAccess;
 use App\Models\Biblio;
 use App\Models\Item;
 use Illuminate\Http\Request;
@@ -11,21 +12,11 @@ use Illuminate\Support\Str;
 
 class EksemplarController extends Controller
 {
-    private function currentInstitutionId(): int
-    {
-        $id = (int) (auth()->user()->institution_id ?? 0);
-        return $id > 0 ? $id : 1;
-    }
-
-    private function canManage(): bool
-    {
-        $role = auth()->user()->role ?? 'member';
-        return in_array($role, ['super_admin', 'admin', 'staff'], true);
-    }
+    use CatalogAccess;
 
     private function ensureManage(): void
     {
-        abort_unless(auth()->check() && $this->canManage(), 403);
+        abort_unless(auth()->check() && $this->canManageCatalog(), 403);
     }
 
     private function getBiblioOrFail(int $biblioId): Biblio

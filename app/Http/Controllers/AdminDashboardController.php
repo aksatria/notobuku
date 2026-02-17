@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\CatalogAccess;
 use App\Models\Biblio;
 use App\Support\InteropMetrics;
 use App\Support\OpacMetrics;
@@ -11,11 +12,7 @@ use Illuminate\Support\Facades\Schema;
 
 class AdminDashboardController extends Controller
 {
-    private function currentInstitutionId(): int
-    {
-        $id = (int) (auth()->user()->institution_id ?? 0);
-        return $id > 0 ? $id : 1;
-    }
+    use CatalogAccess;
 
     public function index(\Illuminate\Http\Request $request)
     {

@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\CatalogAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class RakController extends Controller
 {
+    use CatalogAccess;
+
     /* =========================================================
      | Helpers
      ========================================================= */
@@ -22,7 +25,7 @@ class RakController extends Controller
     {
         abort_unless(
             auth()->check() &&
-            in_array(auth()->user()->role ?? 'member', ['super_admin','admin','staff'], true),
+            $this->canManageCatalog(),
             403
         );
     }
@@ -50,6 +53,87 @@ class RakController extends Controller
         abort_if(!$row, 404);
 
         return $row;
+    }
+
+    private function ddcHundredsLabel(int $hundreds): string
+    {
+        return match ($hundreds) {
+            0 => 'Karya Umum, Ilmu Komputer, Informasi',
+            1 => 'Filsafat dan Psikologi',
+            2 => 'Agama',
+            3 => 'Ilmu Sosial',
+            4 => 'Bahasa',
+            5 => 'Sains',
+            6 => 'Teknologi',
+            7 => 'Seni dan Rekreasi',
+            8 => 'Sastra',
+            9 => 'Sejarah dan Geografi',
+            default => 'Subjek Umum',
+        };
+    }
+
+    private function parseDdc3(?string $value): ?string
+    {
+        $ddc = trim((string) $value);
+        if ($ddc === '') return null;
+        if (!preg_match('/(\d{3})/', $ddc, $m)) return null;
+        return $m[1];
+    }
+
+    private function generateDdcShelvesForInstitution(int $institutionId): array
+    {
+        $branches = DB::table('branches')
+            ->where('institution_id', $institutionId)
+            ->where('is_active', 1)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
+        if ($branches->isEmpty()) {
+            return ['created_or_updated' => 0, 'branches' => 0];
+        }
+
+        $affected = 0;
+        foreach ($branches as $branch) {
+            for ($hundreds = 0; $hundreds <= 9; $hundreds++) {
+                for ($tens = 0; $tens <= 9; $tens++) {
+                    $code3 = (string) ($hundreds * 100 + $tens * 10);
+                    $code3 = str_pad($code3, 3, '0', STR_PAD_LEFT);
+                    $code = 'DDC-' . $code3;
+
+                    $rangeStart = $code3;
+                    $rangeEnd = str_pad((string) ((int) $code3 + 9), 3, '0', STR_PAD_LEFT);
+                    $hundredsLabel = $this->ddcHundredsLabel($hundreds);
+
+                    $name = $tens === 0
+                        ? $code3 . ' ' . $hundredsLabel
+                        : $code3 . '-' . $rangeEnd . ' Subkelas ' . $hundredsLabel;
+
+                    $location = 'Zona DDC ' . $code3 . '-' . $rangeEnd;
+                    $notes = 'Auto-generate DDC ' . $code3 . '-' . $rangeEnd . ' (' . $branch->name . ')';
+
+                    DB::table('shelves')->updateOrInsert(
+                        [
+                            'institution_id' => $institutionId,
+                            'branch_id' => (int) $branch->id,
+                            'code' => $code,
+                        ],
+                        [
+                            'name' => $name,
+                            'location' => $location,
+                            'notes' => $notes,
+                            'sort_order' => (($hundreds * 10) + $tens + 1) * 10,
+                            'is_active' => 1,
+                            'updated_at' => now(),
+                            'created_at' => now(),
+                        ]
+                    );
+                    $affected++;
+                }
+            }
+        }
+
+        return ['created_or_updated' => $affected, 'branches' => $branches->count()];
     }
 
     /* =========================================================
@@ -295,6 +379,118 @@ class RakController extends Controller
         return redirect()
             ->route('rak.index')
             ->with('success', 'Status rak diperbarui.');
+    }
+
+    public function generateDdc(Request $request)
+    {
+        $this->ensureManage();
+        $institutionId = $this->institutionId();
+
+        $result = $this->generateDdcShelvesForInstitution($institutionId);
+        if ((int) $result['created_or_updated'] === 0) {
+            return redirect()
+                ->route('rak.index')
+                ->with('error', 'Tidak ada cabang aktif. Rak DDC belum dibuat.');
+        }
+
+        return redirect()
+            ->route('rak.index')
+            ->with(
+                'success',
+                'Rak DDC detail berhasil diproses: ' .
+                $result['created_or_updated'] .
+                ' rak untuk ' .
+                $result['branches'] .
+                ' cabang.'
+            );
+    }
+
+    public function mapItemsByDdc(Request $request)
+    {
+        $this->ensureManage();
+        $institutionId = $this->institutionId();
+
+        // Pastikan rak DDC siap sebelum mapping.
+        $this->generateDdcShelvesForInstitution($institutionId);
+
+        $ddcShelves = DB::table('shelves')
+            ->where('institution_id', $institutionId)
+            ->where('is_active', 1)
+            ->where('code', 'like', 'DDC-%')
+            ->select('id', 'branch_id', 'code')
+            ->get();
+
+        $shelfMap = [];
+        foreach ($ddcShelves as $s) {
+            $shelfMap[(int) $s->branch_id][(string) $s->code] = (int) $s->id;
+        }
+
+        $query = DB::table('items')
+            ->join('biblio', 'biblio.id', '=', 'items.biblio_id')
+            ->leftJoin('shelves as current_shelf', 'current_shelf.id', '=', 'items.shelf_id')
+            ->where('items.institution_id', $institutionId)
+            ->whereNotNull('items.branch_id')
+            ->whereNotNull('biblio.ddc')
+            ->select([
+                'items.id',
+                'items.branch_id',
+                'items.shelf_id',
+                'biblio.ddc',
+                'current_shelf.code as current_shelf_code',
+            ]);
+
+        $mapped = 0;
+        $skipped = 0;
+
+        $query->orderBy('items.id')->chunk(500, function ($rows) use (&$mapped, &$skipped, $shelfMap) {
+            foreach ($rows as $row) {
+                $branchId = (int) $row->branch_id;
+                $ddc3 = $this->parseDdc3((string) $row->ddc);
+                if (!$ddc3) {
+                    $skipped++;
+                    continue;
+                }
+
+                $targetId = null;
+                $exactCode = 'DDC-' . $ddc3;
+                $hundredsCode = 'DDC-' . $ddc3[0] . '00';
+
+                if (isset($shelfMap[$branchId][$exactCode])) {
+                    $targetId = (int) $shelfMap[$branchId][$exactCode];
+                } elseif (isset($shelfMap[$branchId][$hundredsCode])) {
+                    $targetId = (int) $shelfMap[$branchId][$hundredsCode];
+                }
+
+                if (!$targetId) {
+                    $skipped++;
+                    continue;
+                }
+
+                $currentCode = (string) ($row->current_shelf_code ?? '');
+                $isCurrentDdcShelf = str_starts_with($currentCode, 'DDC-');
+
+                // Update jika shelf kosong, atau shelf DDC lama perlu diselaraskan.
+                if ($row->shelf_id === null || (int) $row->shelf_id === 0 || $isCurrentDdcShelf) {
+                    if ((int) $row->shelf_id !== $targetId) {
+                        DB::table('items')
+                            ->where('id', (int) $row->id)
+                            ->update([
+                                'shelf_id' => $targetId,
+                                'updated_at' => now(),
+                            ]);
+                        $mapped++;
+                    } else {
+                        $skipped++;
+                    }
+                } else {
+                    $skipped++;
+                }
+            }
+        });
+
+        return redirect()
+            ->route('rak.index')
+            ->with('success', "Mapping item→rak DDC selesai. Terpetakan: {$mapped}, dilewati: {$skipped}.");
     }
 
     /* =========================================================

@@ -2,18 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\ActiveInstitutionAccess;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 class ReservationPolicyController extends Controller
 {
-    private function institutionId(): int
-    {
-        $u = Auth::user();
-        return max(1, (int) ($u->active_institution_id ?? $u->active_inst_id ?? $u->institution_id ?? 1));
-    }
+    use ActiveInstitutionAccess;
 
     public function index()
     {
@@ -22,7 +18,7 @@ class ReservationPolicyController extends Controller
         }
 
         $rules = DB::table('reservation_policy_rules')
-            ->where('institution_id', $this->institutionId())
+            ->where('institution_id', $this->currentInstitutionId())
             ->orderByDesc('is_enabled')
             ->orderByDesc('id')
             ->get();
@@ -50,7 +46,7 @@ class ReservationPolicyController extends Controller
         ]);
 
         DB::table('reservation_policy_rules')->insert([
-            'institution_id' => $this->institutionId(),
+            'institution_id' => $this->currentInstitutionId(),
             'label' => $v['label'],
             'branch_id' => !empty($v['branch_id']) ? (int) $v['branch_id'] : null,
             'member_type' => !empty($v['member_type']) ? strtolower(trim((string) $v['member_type'])) : null,
@@ -75,7 +71,7 @@ class ReservationPolicyController extends Controller
         }
 
         $rule = DB::table('reservation_policy_rules')
-            ->where('institution_id', $this->institutionId())
+            ->where('institution_id', $this->currentInstitutionId())
             ->where('id', $id)
             ->first(['id', 'is_enabled']);
 

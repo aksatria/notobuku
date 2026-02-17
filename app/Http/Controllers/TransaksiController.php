@@ -1,6 +1,7 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\CatalogAccess;
 use App\Models\Item;
 use App\Services\ReservationService;
 use App\Services\LoanPolicyService;
@@ -17,6 +18,8 @@ use Illuminate\Support\Str;
 
 class TransaksiController extends Controller
 {
+    use CatalogAccess;
+
     /*
     |--------------------------------------------------------------------------
     | PINJAM - FORM
@@ -3152,12 +3155,6 @@ class TransaksiController extends Controller
         }
 
         return $base;
-    }
-
-    private function currentInstitutionId(): int
-    {
-        $id = (int)(Auth::user()->institution_id ?? 0);
-        return $id > 0 ? $id : 1;
     }
 
     private function resolveFinesViewMode(Request $request): string

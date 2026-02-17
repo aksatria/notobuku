@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\CatalogAccess;
 use App\Models\CopyCatalogImport;
 use App\Models\CopyCatalogSource;
 use App\Services\CopyCatalogingService;
@@ -9,11 +10,7 @@ use Illuminate\Http\Request;
 
 class CopyCatalogingController extends Controller
 {
-    private function currentInstitutionId(): int
-    {
-        $id = (int) (auth()->user()->institution_id ?? 0);
-        return $id > 0 ? $id : 1;
-    }
+    use CatalogAccess;
 
     public function index(Request $request, CopyCatalogingService $service)
     {
@@ -107,4 +104,3 @@ class CopyCatalogingController extends Controller
             ->with('success', 'Copy cataloging berhasil. Lengkapi metadata sebelum publish.');
     }
 }
-

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\CatalogAccess;
 use App\Http\Requests\AddPurchaseOrderLineRequest;
 use App\Http\Requests\ReceivePurchaseOrderRequest;
 use App\Http\Requests\StorePurchaseOrderRequest;
@@ -15,11 +16,7 @@ use Illuminate\Support\Facades\Schema;
 
 class PurchaseOrderController extends Controller
 {
-    private function currentInstitutionId(): int
-    {
-        $id = (int) (auth()->user()->institution_id ?? 0);
-        return $id > 0 ? $id : 1;
-    }
+    use CatalogAccess;
 
     public function index(Request $request)
     {

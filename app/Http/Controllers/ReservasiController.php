@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\ActiveInstitutionAccess;
 use App\Services\ReservationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -10,17 +11,7 @@ use Illuminate\Support\Facades\Schema;
 
 class ReservasiController extends Controller
 {
-    private function currentInstitutionId(): int
-    {
-        $user = Auth::user();
-
-        $inst = (int)($user->active_institution_id
-            ?? $user->active_inst_id
-            ?? $user->institution_id
-            ?? 1);
-
-        return $inst > 0 ? $inst : 1;
-    }
+    use ActiveInstitutionAccess;
 
     /**
      * Resolve member_id (FK ke members.id) dari user login.
