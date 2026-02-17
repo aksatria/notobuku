@@ -1,96 +1,89 @@
 # SOP Harian Pustakawan Pemula
 
-Dokumen ini untuk staf yang baru belajar aplikasi perpustakaan. Ikuti urutan ini setiap hari.
+Dokumen ini untuk staf baru agar operasional berjalan rapi, cepat, dan minim kesalahan.
+
+## Ringkasan Shift Harian
+| Tahap | Fokus |
+| --- | --- |
+| Sebelum buka | Cek akses sistem dan perangkat |
+| Saat layanan | Katalog, anggota, pinjam-kembali-perpanjang |
+| Akhir hari | Laporan, verifikasi error, penutupan layanan |
 
 ## A. Sebelum Perpustakaan Buka (10-15 menit)
 1. Nyalakan komputer dan koneksi internet.
-2. Buka aplikasi NOTOBUKU.
-3. Login pakai akun `admin/staff`.
-4. Cek notifikasi/error di dashboard.
-5. Pastikan printer struk/label dan scanner barcode berfungsi.
+2. Buka NOTOBUKU dan login akun `admin/staff`.
+3. Cek notifikasi/error di dashboard.
+4. Pastikan scanner barcode dan printer berfungsi.
 
-Checklist cepat:
-- [ ] Bisa login
-- [ ] Scanner barcode terbaca
+Checklist:
+- [ ] Login berhasil
+- [ ] Scanner terbaca
 - [ ] Printer siap
-- [ ] Tidak ada error besar di dashboard
+- [ ] Tidak ada error kritis
 
 ## B. Input Buku Baru (Katalog)
-1. Buka menu `Katalog`.
-2. Klik `Tambah`.
-3. Isi minimal data wajib:
-- Judul
-- Pengarang
-- Subjek
-- ISBN (jika ada)
-- DDC (jika ada)
-4. Simpan data bibliografi.
-5. Tambah eksemplar buku:
-- Barcode
-- Lokasi/rak
-- Kondisi
-6. Simpan, lalu cek buku muncul di daftar.
+1. Masuk menu `Katalog` -> `Tambah`.
+2. Isi data minimal: judul, pengarang, subjek (tambahkan ISBN/DDC jika ada).
+3. Simpan bibliografi.
+4. Tambahkan eksemplar: barcode, lokasi rak, kondisi.
+5. Simpan dan verifikasi buku tampil di daftar.
 
-Checklist cepat:
-- [ ] Buku tersimpan
+Checklist:
+- [ ] Bibliografi tersimpan
 - [ ] Barcode unik
 - [ ] Lokasi rak terisi
 
-## C. Daftarkan Anggota
+## C. Keanggotaan
 1. Buka menu `Anggota`.
-2. Klik `Tambah Anggota` atau `Import CSV`.
-3. Isi/cek data inti:
-- Nama
-- ID anggota
-- Kontak
-- Status aktif
+2. Tambah anggota manual atau `Import CSV`.
+3. Validasi data inti: nama, ID anggota, kontak, status aktif.
 4. Simpan.
 
-Checklist cepat:
-- [ ] ID anggota tidak duplikat
+Checklist:
+- [ ] ID anggota unik
 - [ ] Status aktif
 
-## D. Layanan Pinjam
-1. Buka menu `Sirkulasi -> Pinjam`.
+## D. Sirkulasi
+### Pinjam
+1. Buka `Sirkulasi -> Pinjam`.
 2. Scan/isi ID anggota.
 3. Scan barcode buku.
-4. Pastikan tanggal jatuh tempo muncul.
+4. Cek tanggal jatuh tempo.
 5. Klik `Konfirmasi Pinjam`.
 
-Jika gagal:
-- Cek status anggota (aktif/tidak).
-- Cek buku sedang dipinjam orang lain atau tidak.
-- Cek barcode benar.
-
-## E. Layanan Kembali
-1. Buka menu `Sirkulasi -> Kembali`.
+### Kembali
+1. Buka `Sirkulasi -> Kembali`.
 2. Scan barcode buku.
-3. Sistem tampilkan denda (jika terlambat).
+3. Verifikasi denda (jika ada).
 4. Konfirmasi `Kembali`.
-5. Jika ada denda, proses sesuai aturan perpustakaan.
 
-## F. Layanan Perpanjang
+### Perpanjang
 1. Buka transaksi pinjaman anggota.
-2. Pilih buku yang mau diperpanjang.
+2. Pilih item.
 3. Klik `Perpanjang`.
-4. Pastikan tanggal jatuh tempo baru tersimpan.
+4. Pastikan due date baru tersimpan.
 
-## G. Akhir Hari (15-20 menit)
-1. Buka menu `Laporan`.
-2. Export laporan transaksi harian (CSV/XLSX).
-3. Cek transaksi gagal/error lalu catat.
-4. Pastikan data sudah tersimpan/backup sesuai prosedur.
+Jika transaksi gagal:
+- Cek status anggota
+- Cek status ketersediaan item
+- Cek barcode/input data
+
+## E. Akhir Hari (15-20 menit)
+1. Buka `Laporan`.
+2. Export transaksi harian (CSV/XLSX).
+3. Catat error/transaksi gagal.
+4. Pastikan backup/prosedur penyimpanan berjalan.
 5. Logout semua akun staf.
 
-Checklist tutup harian:
-- [ ] Laporan harian diexport
+Checklist:
+- [ ] Laporan diexport
 - [ ] Error dicatat
-- [ ] Backup sesuai prosedur
+- [ ] Backup/prosedur selesai
 - [ ] Semua akun logout
 
-## H. Aturan Emas untuk Pemula
-1. Jangan hapus data kalau ragu. Catat dulu, tanya admin.
-2. Input data harus lengkap minimal (judul, pengarang, subjek).
-3. Selalu cek barcode sebelum klik simpan.
-4. Semua masalah dicatat: waktu, user, barcode/ID anggota, pesan error.
-5. Jika sistem lambat/error terus, hentikan input massal dan lapor admin teknis.
+## Aturan Emas
+1. Jangan hapus data jika ragu; catat dan eskalasi.
+2. Selalu isi data katalog minimal.
+3. Verifikasi barcode sebelum simpan.
+4. Catat masalah dengan detail waktu, user, ID/barcode, dan pesan error.
+5. Jika sistem tidak stabil, hentikan input massal dan lapor admin teknis.

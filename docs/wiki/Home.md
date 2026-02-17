@@ -2,7 +2,7 @@
 
 NOTOBUKU adalah sistem manajemen perpustakaan dengan fokus interoperabilitas MARC21/RDA dan operasional ILS harian.
 
-## Mulai dari sini
+## Navigasi Utama
 - [Instalasi dan Quickstart](Instalasi-dan-Quickstart)
 - [Fitur Utama](Fitur-Utama)
 - [Keunggulan NOTOBUKU](Keunggulan-NOTOBUKU)
@@ -13,7 +13,16 @@ NOTOBUKU adalah sistem manajemen perpustakaan dengan fokus interoperabilitas MAR
 - [Testing dan Stabilitas](Testing-dan-Stabilitas)
 - [FAQ](FAQ)
 
-## Link penting
+## Ringkasan Cepat
+| Area | Halaman |
+| --- | --- |
+| Mulai instalasi | [Instalasi dan Quickstart](Instalasi-dan-Quickstart) |
+| Pahami fitur | [Fitur Utama](Fitur-Utama) |
+| Lihat keunggulan | [Keunggulan NOTOBUKU](Keunggulan-NOTOBUKU) |
+| Operasional staf | [SOP Harian Pustakawan Pemula](SOP-Harian-Pustakawan-Pemula) |
+| Jawaban umum | [FAQ](FAQ) |
+
+## Link Penting
 - Repository: `https://github.com/aksatria/notobuku`
 - User docs in-app: `/docs`
 - UAT checklist: `docs/UAT_PRODUKSI_ILS_CORE_CHECKLIST.md`

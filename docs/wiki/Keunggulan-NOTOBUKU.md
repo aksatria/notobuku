@@ -1,60 +1,33 @@
 # Keunggulan NOTOBUKU
 
-Halaman ini merangkum keunggulan NOTOBUKU untuk kebutuhan katalog dan OPAC modern.
+Halaman ini merangkum nilai utama NOTOBUKU untuk perpustakaan yang ingin layanan katalog dan OPAC lebih modern.
 
-## Keunggulan utama
-1. Pencarian OPAC cepat dan responsif
-- Mendukung pengalaman pencarian realtime saat pengguna mengetik.
-- Cocok untuk katalog yang terus bertambah.
+## 1) Keunggulan Search dan OPAC
+1. Pencarian cepat dan responsif untuk pengalaman realtime.
+2. Toleransi typo agar salah ketik kecil tetap menghasilkan data relevan.
+3. Relevansi hasil lebih baik sehingga pengguna lebih cepat menemukan koleksi.
+4. Filter bertingkat (facet) untuk eksplorasi katalog yang lebih nyaman.
 
-2. Toleransi salah ketik (typo tolerance)
-- Salah ketik kecil tetap bisa menemukan hasil relevan.
-- Mengurangi kegagalan pencarian di sisi pemustaka.
+## 2) Keunggulan Metadata dan Interoperabilitas
+1. Ekspor `MARC21` lengkap dan selaras praktik `RDA`.
+2. Validasi metadata penting (mis. field 008, bahasa, aturan profile).
+3. Profil media berbasis `media_profiles` agar konsistensi deskripsi terjaga.
+4. Kesiapan integrasi dan pertukaran data antar sistem perpustakaan.
 
-3. Relevansi hasil pencarian lebih baik
-- Urutan hasil lebih sesuai konteks kata kunci.
-- Mempercepat pengguna menemukan koleksi yang benar.
+## 3) Keunggulan Operasional
+1. Modul inti ILS tersedia: katalog, sirkulasi, anggota, laporan.
+2. Modul tambahan tersedia: stock opname, serial issue, copy cataloging, OPAC, interop.
+3. Keanggotaan lebih tertata:
+- onboarding lebih cepat (termasuk import data)
+- status dan riwayat anggota lebih mudah dipantau
+4. Sirkulasi lebih kuat:
+- alur pinjam, kembali, perpanjang lebih konsisten
+- kontrol denda dan monitoring transaksi lebih rapi
+- jejak transaksi mendukung audit layanan
 
-4. Filter bertingkat (faceted search)
-- Pencarian bisa dipersempit per subjek, format, tahun, dan metadata lain.
-- Memudahkan eksplorasi koleksi pada OPAC.
-
-5. Interoperabilitas metadata tingkat lanjut
-- Ekspor MARC21 lengkap dan konsisten RDA.
-- Mendukung kebutuhan integrasi antar sistem perpustakaan.
-
-6. Validasi metadata saat ekspor
-- Ada guard untuk format penting seperti field 008, kode bahasa, dan aturan profile.
-- Mengurangi error saat pertukaran atau migrasi data.
-
-7. Profil media terstandar
-- Aturan katalog berbasis `media_profiles` (audio, video, peta, teks, serial).
-- Membuat kualitas deskripsi bibliografi lebih konsisten.
-
-8. Kesiapan operasional harian
-- Modul inti ILS tersedia: katalog, sirkulasi, anggota, laporan.
-- Modul tambahan tersedia: stock opname, serial issue, copy cataloging, OPAC, dan interop.
-
-9. Dukungan skala dan pertumbuhan
-- Lebih siap untuk beban pencarian tinggi dan data besar.
-- Sesuai untuk perpustakaan yang menargetkan layanan digital modern.
-
-10. Keunggulan keanggotaan
-- Pendaftaran dan pengelolaan anggota lebih terstruktur.
-- Mendukung import data anggota untuk percepatan onboarding.
-- Status anggota lebih mudah dipantau untuk kebutuhan layanan harian.
-- Riwayat aktivitas anggota membantu layanan yang lebih tepat.
-
-11. Keunggulan sirkulasi
-- Proses pinjam, kembali, dan perpanjang lebih cepat dan konsisten.
-- Perhitungan denda dan keterlambatan lebih tertib sesuai aturan.
-- Monitoring transaksi harian memudahkan kontrol operasional.
-- Jejak transaksi membantu audit dan evaluasi layanan.
-
-## Nilai praktis untuk perpustakaan
+## Nilai Praktis untuk Perpustakaan
 1. Waktu layanan lebih cepat.
-2. Kualitas data katalog lebih rapi dan konsisten.
-3. Pengalaman pemustaka lebih baik saat mencari koleksi.
-4. Integrasi data lebih siap untuk kolaborasi lintas sistem.
-5. Layanan anggota lebih tertata dan mudah dipantau.
-6. Proses sirkulasi lebih cepat, akurat, dan mudah diaudit.
+2. Kualitas data katalog lebih konsisten.
+3. Pengalaman pemustaka lebih baik.
+4. Integrasi data lebih siap untuk kolaborasi lintas institusi.
+5. Operasional harian lebih mudah dikontrol dan dievaluasi.

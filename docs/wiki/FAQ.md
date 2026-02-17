@@ -1,65 +1,52 @@
 # FAQ
 
-## Apa itu NOTOBUKU?
-NOTOBUKU adalah sistem manajemen perpustakaan untuk katalog, sirkulasi, keanggotaan, laporan, OPAC, dan interoperabilitas metadata (MARC21/RDA).
+## Tentang NOTOBUKU
+**Q: Apa itu NOTOBUKU?**  
+**A:** Sistem manajemen perpustakaan untuk katalog, sirkulasi, keanggotaan, laporan, OPAC, dan interoperabilitas metadata (`MARC21/RDA`).
 
-## Siapa yang memakai NOTOBUKU?
-- `super_admin`: pengaturan, governance, monitoring.
-- `admin/staff`: operasional harian (katalog, anggota, sirkulasi, laporan).
-- `member`: pencarian OPAC, pinjaman, reservasi, notifikasi.
+**Q: Siapa pengguna NOTOBUKU?**  
+**A:**  
+- `super_admin`: governance, konfigurasi, monitoring  
+- `admin/staff`: operasional harian  
+- `member`: pencarian OPAC, pinjaman, reservasi, notifikasi
 
-## Bagaimana urutan kerja harian paling aman?
-1. Login.
-2. Input/perbarui katalog.
-3. Kelola transaksi pinjam-kembali-perpanjang.
-4. Cek anggota dan notifikasi.
-5. Export laporan harian.
-6. Cek error dan tutup layanan.
+## Operasional Harian
+**Q: Urutan kerja harian paling aman seperti apa?**  
+**A:** Login -> perbarui katalog -> proses sirkulasi -> cek anggota/notifikasi -> export laporan -> cek error -> tutup layanan.
 
-## Apa data minimal saat input katalog?
-Minimal isi judul, pengarang, subjek. Lebih baik lengkapi juga ISBN, DDC, tahun, penerbit, dan lokasi eksemplar.
+**Q: Data minimal saat input katalog apa saja?**  
+**A:** Judul, pengarang, subjek. Disarankan lengkapi ISBN, DDC, tahun, penerbit, lokasi eksemplar.
 
-## Kenapa buku tidak muncul di OPAC?
-Penyebab umum:
-- Data bibliografi belum lengkap/tersimpan.
-- Item belum aktif atau status tidak tersedia.
-- Index pencarian belum terbarui.
-- Filter OPAC terlalu sempit.
+## Masalah Umum
+**Q: Kenapa buku tidak muncul di OPAC?**  
+**A:** Umumnya karena data belum lengkap/tersimpan, item belum aktif, index pencarian belum terbarui, atau filter terlalu sempit.
 
-## Kenapa transaksi pinjam gagal?
-Penyebab umum:
-- Status anggota tidak aktif.
-- Batas pinjaman anggota sudah penuh.
-- Buku sedang dipinjam anggota lain.
-- Barcode salah atau item belum terdaftar benar.
+**Q: Kenapa transaksi pinjam gagal?**  
+**A:** Umumnya karena status anggota tidak aktif, limit pinjaman penuh, buku sedang dipinjam orang lain, atau barcode tidak valid.
 
-## Bagaimana kalau ada denda keterlambatan?
-Sistem menampilkan denda sesuai aturan kebijakan. Petugas memverifikasi nominal, lalu memproses sesuai prosedur perpustakaan.
+**Q: Bagaimana penanganan denda keterlambatan?**  
+**A:** Sistem menampilkan denda sesuai kebijakan; petugas verifikasi dan proses sesuai SOP perpustakaan.
 
-## Untuk apa fitur export MARC21?
-Untuk pertukaran data bibliografi antar sistem perpustakaan. Ini membantu migrasi, integrasi, dan standarisasi metadata.
+## MARC21 / RDA
+**Q: Untuk apa fitur export MARC21?**  
+**A:** Untuk pertukaran data bibliografi antar sistem, mendukung migrasi dan standarisasi metadata.
 
-## Apakah MARC21/RDA itu aturan internasional?
-Ya.  
-- `MARC21` adalah standar internasional untuk format/struktur data bibliografi.  
-- `RDA` adalah standar internasional untuk aturan deskripsi isi bibliografi.  
+**Q: Apakah MARC21/RDA itu aturan internasional?**  
+**A:** Ya.  
+- `MARC21`: standar internasional format/struktur data bibliografi  
+- `RDA`: standar internasional aturan isi deskripsi bibliografi  
 
-Praktiknya:
-- `RDA` mengatur bagaimana data katalog ditulis.
-- `MARC21` mengatur bagaimana data itu disimpan dan dipertukarkan antar sistem.
+Ringkasnya: `RDA` mengatur isi, `MARC21` mengatur wadah/format pertukaran data.
 
-## Kenapa fitur MARC21/RDA dibuat untuk perpustakaan Indonesia?
-Supaya perpustakaan di Indonesia bisa:
-- Punya kualitas metadata yang lebih rapi dan konsisten.
-- Lebih mudah migrasi data dari sistem lama ke sistem baru.
-- Lebih mudah kolaborasi dan tukar data antar institusi.
-- Lebih siap integrasi dengan ekosistem nasional/internasional.
-- Tetap bisa menyesuaikan kebutuhan lokal (bahasa, praktik kerja, kebijakan layanan) tanpa kehilangan standar.
+**Q: Kenapa fitur MARC21/RDA penting untuk perpustakaan Indonesia?**  
+**A:** Agar kualitas metadata lebih konsisten, migrasi lebih mudah, kolaborasi antar institusi lebih lancar, dan tetap bisa menyesuaikan kebutuhan lokal.
 
-## Apa manfaat `media_profiles`?
-`media_profiles` membuat aturan metadata per jenis koleksi (teks/audio/video/serial) agar hasil katalog konsisten.
+**Q: Apa manfaat `media_profiles`?**  
+**A:** Menjaga konsistensi metadata per jenis koleksi (teks/audio/video/serial).
 
-## Di mana panduan pengguna lengkap?
-- In-app docs: `/docs`
-- SOP pemula: `SOP-Harian-Pustakawan-Pemula`
-- Keunggulan produk: `Keunggulan-NOTOBUKU`
+## Panduan Lanjutan
+**Q: Di mana panduan lengkap?**  
+**A:**  
+- In-app docs: `/docs`  
+- SOP pemula: `SOP-Harian-Pustakawan-Pemula`  
+- Keunggulan: `Keunggulan-NOTOBUKU`
