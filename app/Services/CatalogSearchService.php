@@ -2240,7 +2240,7 @@ class CatalogSearchService
                 $authors = $b->authors?->pluck('name')->take(2)->implode(', ') ?? '';
                 $items[] = [
                     'type' => 'title',
-                    'label' => trim($b->title . ($authors ? " â€” {$authors}" : '')),
+                    'label' => trim($b->title . ($authors ? " - {$authors}" : '')),
                     'value' => $b->title,
                     'url' => route($isPublic ? 'opac.show' : 'katalog.show', $b->id),
                 ];
