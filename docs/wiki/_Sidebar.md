@@ -1,6 +1,7 @@
 ## NOTOBUKU Wiki
 
 - [Home](Home)
+- [Lelakon NOTOBUKU](Lelakon-NOTOBUKU)
 - [Instalasi dan Quickstart](Instalasi-dan-Quickstart)
 - [Fitur Utama](Fitur-Utama)
 - [Keunggulan NOTOBUKU](Keunggulan-NOTOBUKU)

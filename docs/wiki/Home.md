@@ -3,6 +3,7 @@
 NOTOBUKU adalah sistem manajemen perpustakaan dengan fokus interoperabilitas MARC21/RDA dan operasional ILS harian.
 
 ## Navigasi Utama
+- [Lelakon NOTOBUKU](Lelakon-NOTOBUKU)
 - [Instalasi dan Quickstart](Instalasi-dan-Quickstart)
 - [Fitur Utama](Fitur-Utama)
 - [Keunggulan NOTOBUKU](Keunggulan-NOTOBUKU)
@@ -16,6 +17,7 @@ NOTOBUKU adalah sistem manajemen perpustakaan dengan fokus interoperabilitas MAR
 ## Ringkasan Cepat
 | Area | Halaman |
 | --- | --- |
+| Cerita project | [Lelakon NOTOBUKU](Lelakon-NOTOBUKU) |
 | Mulai instalasi | [Instalasi dan Quickstart](Instalasi-dan-Quickstart) |
 | Pahami fitur | [Fitur Utama](Fitur-Utama) |
 | Lihat keunggulan | [Keunggulan NOTOBUKU](Keunggulan-NOTOBUKU) |
