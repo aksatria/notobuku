@@ -496,11 +496,28 @@
 <body>
   <script>
     (function () {
-      try {
+      const cleanup = function () {
         document.body.classList.remove('nb-search-open', 'nb-sidebar-open', 'modal-open', 'overflow-hidden');
         document.documentElement.classList.remove('overflow-hidden');
         document.body.style.overflow = '';
         document.documentElement.style.overflow = '';
+        document.body.style.pointerEvents = '';
+
+        // Hard reset known blocking layers that can get stuck after logout/login or bfcache restore.
+        document.querySelectorAll(
+          '.nb-search-overlay, .nb-sidebar-overlay, .nb-modal-overlay, .nb-modal-backdrop, .dt-backdrop, .nb-k-shortcuts-backdrop'
+        ).forEach(function (el) {
+          el.classList.remove('show', 'open', 'is-open');
+          el.style.display = 'none';
+          el.style.pointerEvents = 'none';
+          el.setAttribute('aria-hidden', 'true');
+        });
+      };
+      try {
+        cleanup();
+        document.addEventListener('DOMContentLoaded', cleanup, { once: true });
+        window.addEventListener('pageshow', cleanup);
+        window.addEventListener('focus', function () { setTimeout(cleanup, 0); });
       } catch (_) {}
     })();
   </script>
@@ -684,6 +701,23 @@
           }
         });
 
+        // Hardening: klik menu sidebar/bottomnav harus selalu pindah halaman.
+        // Ini mencegah kasus intermiten ketika handler lain menahan default anchor.
+        document.addEventListener('click', (e) => {
+          const link = e.target.closest('.nb-sb-item-link, .nb-sb-sub a, .nb-bottomnav a');
+          if (!link) return;
+          if (e.defaultPrevented) return;
+          if (e.button !== 0) return; // only left click
+          if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+          const href = link.getAttribute('href') || '';
+          if (!href || href.startsWith('#') || href.startsWith('javascript:')) return;
+          if (link.getAttribute('target') === '_blank') return;
+
+          e.preventDefault();
+          clearGlobalUiLocks();
+          window.location.assign(link.href);
+        }, true);
+
         // click outside search modal closes it
         document.addEventListener('click', (e) => {
           const overlay = e.target.closest('[data-nb-search-overlay]');
@@ -735,6 +769,18 @@
           if (el.matches('.nb-sidebar-overlay') && document.body.classList.contains('nb-sidebar-open')) return true;
           return false;
         };
+        const findFullscreenBlockerAt = (el) => {
+          if (!el || !(el instanceof HTMLElement)) return null;
+          const blocker = el.closest(
+            '.nb-search-overlay, .nb-sidebar-overlay, .nb-modal-overlay, .nb-modal-backdrop, .dt-backdrop, .nb-k-shortcuts-backdrop'
+          );
+          if (!blocker || !(blocker instanceof HTMLElement)) return null;
+          const rect = blocker.getBoundingClientRect();
+          const vw = window.innerWidth || document.documentElement.clientWidth || 0;
+          const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+          const covers = rect.width >= (vw * 0.85) && rect.height >= (vh * 0.85);
+          return covers ? blocker : null;
+        };
         const neutralizeStuckBlockers = () => {
           const vw = window.innerWidth || document.documentElement.clientWidth || 0;
           const vh = window.innerHeight || document.documentElement.clientHeight || 0;
@@ -767,7 +813,26 @@
         window.setInterval(() => {
           guardOverlayInteraction();
           neutralizeStuckBlockers();
-        }, 2000);
+        }, 4000);
+
+        // Jika klik jatuh ke blocker fullscreen yang nyangkut, netralisasi lalu teruskan ke link di bawahnya.
+        document.addEventListener('click', (e) => {
+          const blocker = findFullscreenBlockerAt(e.target);
+          if (!blocker) return;
+          if (isAllowedBlockingLayer(blocker)) return;
+
+          e.preventDefault();
+          e.stopPropagation();
+          blocker.style.pointerEvents = 'none';
+          blocker.style.display = 'none';
+          clearGlobalUiLocks();
+
+          const below = document.elementFromPoint(e.clientX, e.clientY);
+          const belowLink = below && below.closest ? below.closest('a[href]') : null;
+          if (belowLink && belowLink.href && !belowLink.href.startsWith('javascript:')) {
+            window.location.assign(belowLink.href);
+          }
+        }, true);
 
         document.addEventListener('click', (e) => {
           if (!e.target.closest('[data-nb-unlock-ui]')) return;
