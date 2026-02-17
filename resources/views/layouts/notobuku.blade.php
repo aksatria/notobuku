@@ -75,6 +75,7 @@
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
       text-rendering: optimizeLegibility;
+      pointer-events:auto !important;
     }
 
     a{ color:inherit; text-decoration:none; }
