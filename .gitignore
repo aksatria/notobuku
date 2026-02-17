@@ -19,8 +19,11 @@
 /storage/*.key
 /storage/pail
 /storage/meilisearch
+/storage/meilisearch-data
 /vendor
 /tools/meilisearch/meilisearch.exe
+/tools/_tmp_*
+/tools/gram_chunks/
 Homestead.json
 Homestead.yaml
 Thumbs.db
