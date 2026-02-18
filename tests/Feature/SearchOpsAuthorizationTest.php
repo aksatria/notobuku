@@ -3,14 +3,14 @@
 namespace Tests\Feature;
 
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
 class SearchOpsAuthorizationTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseTransactions;
 
     private function seedInstitutionAndBranch(): array
     {
