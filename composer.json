@@ -53,7 +53,8 @@
         "test:stable": [
             "@php artisan config:clear --ansi",
             "@php artisan migrate:fresh --env=testing --force --no-interaction",
-            "@php artisan test --env=testing"
+            "@php artisan test --env=testing --exclude-group=searchops-isolated",
+            "@php artisan test --env=testing --group=searchops-isolated"
         ],
         "test:circulation:stable": [
             "@php artisan config:clear --ansi",

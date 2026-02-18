@@ -8,6 +8,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
+/**
+ * @group searchops-isolated
+ */
 class SearchOpsWorkflowTest extends TestCase
 {
     use DatabaseTransactions;
