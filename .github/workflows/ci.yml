@@ -50,6 +50,19 @@ jobs:
           else
             cp .env.example .env
           fi
+          if [ ! -f .env.testing ]; then
+            cp .env .env.testing
+          fi
+          for target in .env .env.testing; do
+            {
+              echo "DB_CONNECTION=mysql"
+              echo "DB_HOST=127.0.0.1"
+              echo "DB_PORT=3306"
+              echo "DB_DATABASE=notobuku_test"
+              echo "DB_USERNAME=root"
+              echo "DB_PASSWORD=root"
+            } >> "$target"
+          done
 
       - name: Generate app key
         run: php artisan key:generate --ansi
