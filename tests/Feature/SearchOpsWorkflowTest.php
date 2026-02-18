@@ -10,19 +10,7 @@ use Tests\TestCase;
 
 class SearchOpsWorkflowTest extends TestCase
 {
-    use RefreshDatabase {
-        refreshDatabase as private refreshDatabaseBase;
-    }
-
-    protected function refreshDatabase(): void
-    {
-        $mysqlDb = (string) config('database.connections.mysql.database', '');
-        if ($mysqlDb !== '') {
-            config(['database.default' => 'mysql']);
-        }
-
-        $this->refreshDatabaseBase();
-    }
+    use RefreshDatabase;
 
     private function seedContext(): array
     {
