@@ -459,8 +459,14 @@
     if (!input || !box) return;
 
     var suggestUrl = @json($suggestUrl);
-    var timer;
+    var suggestTimer;
     var active = -1;
+    var suggestSeq = 0;
+    var suggestAbortController = null;
+    var telemetryUrl = @json(route('telemetry.autocomplete'));
+    var telemetryToken = @json(csrf_token());
+    var telemetryBuffer = {};
+    var telemetryTimer = null;
 
     var typeLabels = {
       title: 'judul',
@@ -481,6 +487,77 @@
       ddc: 'DDC',
       call_number: 'No. Panggil'
     };
+    var telemetryFieldMap = {
+      title: 'title',
+      author: 'authors',
+      subject: 'subjects',
+      publisher: 'publisher',
+      isbn: 'isbn',
+      ddc: 'title',
+      call_number: 'title'
+    };
+
+    var flushTelemetry = function () {
+      if (!telemetryUrl || !telemetryToken) return;
+      var counts = telemetryBuffer;
+      telemetryBuffer = {};
+      fetch(telemetryUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': telemetryToken,
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({
+          event: 'autocomplete_select',
+          path: window.location.pathname,
+          counts: counts
+        })
+      }).catch(function () {});
+    };
+
+    var trackAutocomplete = function (type) {
+      var key = telemetryFieldMap[type] || 'title';
+      telemetryBuffer[key] = (telemetryBuffer[key] || 0) + 1;
+      if (telemetryTimer) window.clearTimeout(telemetryTimer);
+      telemetryTimer = window.setTimeout(flushTelemetry, 800);
+    };
+
+    var escapeRegExp = function (value) {
+      return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    };
+
+    var appendHighlightedText = function (target, text, query) {
+      var src = String(text || '');
+      var q = String(query || '').trim();
+      if (!q) {
+        target.appendChild(document.createTextNode(src));
+        return;
+      }
+
+      var matcher = new RegExp(escapeRegExp(q), 'ig');
+      var lastIndex = 0;
+      var match;
+      while ((match = matcher.exec(src)) !== null) {
+        if (match.index > lastIndex) {
+          target.appendChild(document.createTextNode(src.slice(lastIndex, match.index)));
+        }
+        var mark = document.createElement('mark');
+        mark.className = 'nb-k-mark';
+        mark.textContent = match[0];
+        target.appendChild(mark);
+        lastIndex = match.index + match[0].length;
+      }
+      if (lastIndex < src.length) {
+        target.appendChild(document.createTextNode(src.slice(lastIndex)));
+      }
+    };
+
+    var closeSuggest = function () {
+      box.classList.remove('is-open');
+      if (previewBox) previewBox.classList.remove('is-open');
+      if (cacheEl) cacheEl.classList.remove('is-open');
+    };
 
     var renderItems = function (items) {
       box.innerHTML = '';
@@ -488,7 +565,10 @@
       if (!items || items.length === 0) {
         var typeKey = filterEl ? (filterEl.value || '') : '';
         var label = emptyLabels[typeKey] || 'semua tipe';
-        box.innerHTML = '<div class="nb-k-suggestEmpty">Tidak ada saran untuk ' + label + '.</div>';
+        var emptyEl = document.createElement('div');
+        emptyEl.className = 'nb-k-suggestEmpty';
+        emptyEl.textContent = 'Tidak ada saran untuk ' + label + '.';
+        box.appendChild(emptyEl);
         box.classList.add('is-open');
         return;
       }
@@ -498,11 +578,19 @@
         row.className = 'nb-k-suggestItem';
         row.dataset.index = idx;
         row.dataset.url = item.url || '';
-        var typeLabel = typeLabels[item.type] || 'item';
-        row.innerHTML = '<span class="nb-k-suggestType">' + typeLabel + '</span>' +
-                        '<span>' + (item.label || item.value || '') + '</span>';
+
+        var typeEl = document.createElement('span');
+        typeEl.className = 'nb-k-suggestType';
+        typeEl.textContent = typeLabels[item.type] || 'item';
+        row.appendChild(typeEl);
+
+        var labelEl = document.createElement('span');
+        labelEl.textContent = item.label || item.value || '';
+        row.appendChild(labelEl);
+
         row.addEventListener('mousedown', function (e) {
           e.preventDefault();
+          trackAutocomplete(item.type);
           if (item.url) {
             window.location.href = item.url;
           } else {
@@ -515,31 +603,49 @@
       box.classList.add('is-open');
     };
 
-    var renderPreview = function (items) {
+    var renderPreview = function (items, q) {
       if (!previewBox) return;
       previewBox.innerHTML = '';
       if (!items || items.length === 0) {
         previewBox.classList.remove('is-open');
         return;
       }
-      var q = (input.value || '').trim();
-      var highlight = function (text) {
-        if (!q) return text || '';
-        var re = new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'ig');
-        return (text || '').replace(re, '<mark class="nb-k-mark">$1</mark>');
-      };
+
       items.forEach(function (item) {
         var row = document.createElement('a');
         row.className = 'nb-k-previewItem';
         row.href = item.url || '#';
-        row.innerHTML =
-          '<div class="nb-k-previewCover">' +
-            (item.cover ? '<img src="' + item.cover + '" alt="cover">' : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 4.2h10A2.2 2.2 0 0 1 18.2 6.4V20H7.4A1.4 1.4 0 0 0 6 21.4V4.2Z" stroke="currentColor" stroke-width="1.6"/><path d="M6 18.8h12.2" stroke="currentColor" stroke-width="1.6" opacity=".9"/></svg>') +
-          '</div>' +
-          '<div>' +
-            '<div class="nb-k-previewTitle">' + highlight(item.title || '-') + '</div>' +
-            '<div class="nb-k-previewMeta">' + highlight(item.authors || '-') + (item.year ? (' â€¢ ' + item.year) : '') + '</div>' +
-          '</div>';
+
+        var coverWrap = document.createElement('div');
+        coverWrap.className = 'nb-k-previewCover';
+        if (item.cover) {
+          var img = document.createElement('img');
+          img.src = String(item.cover);
+          img.alt = 'cover';
+          coverWrap.appendChild(img);
+        } else {
+          coverWrap.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 4.2h10A2.2 2.2 0 0 1 18.2 6.4V20H7.4A1.4 1.4 0 0 0 6 21.4V4.2Z" stroke="currentColor" stroke-width="1.6"/><path d="M6 18.8h12.2" stroke="currentColor" stroke-width="1.6" opacity=".9"/></svg>';
+        }
+
+        var metaWrap = document.createElement('div');
+        var titleEl = document.createElement('div');
+        titleEl.className = 'nb-k-previewTitle';
+        appendHighlightedText(titleEl, item.title || '-', q);
+
+        var previewMeta = document.createElement('div');
+        previewMeta.className = 'nb-k-previewMeta';
+        appendHighlightedText(previewMeta, item.authors || '-', q);
+        if (item.year) {
+          previewMeta.appendChild(document.createTextNode(' - ' + item.year));
+        }
+
+        metaWrap.appendChild(titleEl);
+        metaWrap.appendChild(previewMeta);
+        row.appendChild(coverWrap);
+        row.appendChild(metaWrap);
+        row.addEventListener('mousedown', function () {
+          trackAutocomplete('title');
+        });
         previewBox.appendChild(row);
       });
       previewBox.classList.add('is-open');
@@ -547,36 +653,51 @@
 
     var fetchSuggest = function () {
       var q = (input.value || '').trim();
+      if (suggestAbortController && typeof suggestAbortController.abort === 'function') {
+        suggestAbortController.abort();
+      }
+
       if (q.length < 2) {
-        box.classList.remove('is-open');
-        if (previewBox) previewBox.classList.remove('is-open');
-        if (cacheEl) cacheEl.classList.remove('is-open');
+        closeSuggest();
         return;
       }
+
+      var seq = ++suggestSeq;
+      suggestAbortController = (typeof AbortController !== 'undefined') ? new AbortController() : null;
       var type = filterEl ? (filterEl.value || '') : '';
       var url = suggestUrl + '?q=' + encodeURIComponent(q);
       if (type) url += '&type=' + encodeURIComponent(type);
+
       fetch(url, {
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-      }).then(function (res) { return res.json(); })
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        signal: suggestAbortController ? suggestAbortController.signal : undefined
+      })
+        .then(function (res) {
+          if (!res.ok) throw new Error('http');
+          return res.json();
+        })
         .then(function (data) {
+          if (seq !== suggestSeq) return;
           renderItems((data && data.items) || []);
-          renderPreview((data && data.preview) || []);
+          renderPreview((data && data.preview) || [], q);
           if (cacheEl) {
             if (data && data.cache_hit) {
-              cacheEl.textContent = 'Cache hit';
+              cacheEl.textContent = 'Saran dari cache';
               cacheEl.classList.add('is-open');
             } else {
               cacheEl.classList.remove('is-open');
             }
           }
         })
-        .catch(function () { box.classList.remove('is-open'); });
+        .catch(function (err) {
+          if (err && err.name === 'AbortError') return;
+          closeSuggest();
+        });
     };
 
     input.addEventListener('input', function () {
-      if (timer) window.clearTimeout(timer);
-      timer = window.setTimeout(fetchSuggest, 220);
+      if (suggestTimer) window.clearTimeout(suggestTimer);
+      suggestTimer = window.setTimeout(fetchSuggest, 220);
     });
 
     if (filterEl) {
@@ -591,9 +712,7 @@
 
     document.addEventListener('click', function (e) {
       if (!wrap || !wrap.contains(e.target)) {
-        box.classList.remove('is-open');
-        if (previewBox) previewBox.classList.remove('is-open');
-        if (cacheEl) cacheEl.classList.remove('is-open');
+        closeSuggest();
       }
     });
 
@@ -612,13 +731,11 @@
           e.preventDefault();
           items[active].dispatchEvent(new MouseEvent('mousedown'));
         } else {
-          box.classList.remove('is-open');
-          if (previewBox) previewBox.classList.remove('is-open');
-          if (cacheEl) cacheEl.classList.remove('is-open');
+          closeSuggest();
         }
         return;
       } else if (e.key === 'Escape') {
-        box.classList.remove('is-open');
+        closeSuggest();
         return;
       }
       items.forEach(function (el, i) {
@@ -3588,7 +3705,7 @@
                    placeholder="Judul, pengarang, ISBN, DDC, nomor panggil."
                    data-nb-autosubmit="0"
                    autocomplete="off">
-            <select class="nb-field nb-k-suggestFilter" id="nbSuggestFilter" aria-label="Filter saran">
+            <select class="nb-field nb-k-suggestFilter" id="nbSuggestFilter" aria-label="Filter saran autocomplete" title="Filter jenis saran autocomplete">
               <option value="">Semua</option>
               <option value="title">Judul</option>
               <option value="author">Pengarang</option>
@@ -3653,7 +3770,7 @@
               <div class="nb-k-advancedTitle">Filter Lanjutan</div>
               <div class="nb-k-advancedSub">Atur filter detail tanpa memenuhi halaman utama.</div>
             </div>
-            <button type="button" class="nb-k-advancedClose" id="nbAdvancedClose" aria-label="Tutup">×</button>
+            <button type="button" class="nb-k-advancedClose" id="nbAdvancedClose" aria-label="Tutup">&times;</button>
           </div>
         <div class="nb-k-filter">
           <div class="nb-k-fieldBlock">
@@ -4047,7 +4164,7 @@
                   <option value="">Set Rak (opsional)</option>
                   @foreach($shelfOptions as $s)
                     <option value="{{ $s->id }}">
-                      {{ trim(($s->branch_name ? $s->branch_name . ' â€¢ ' : '') . $s->name . ($s->code ? ' (' . $s->code . ')' : '') . ($s->is_active ? '' : ' (nonaktif)')) }}
+                      {{ trim(($s->branch_name ? $s->branch_name . ' - ' : '') . $s->name . ($s->code ? ' (' . $s->code . ')' : '') . ($s->is_active ? '' : ' (nonaktif)')) }}
                     </option>
                   @endforeach
                 </select>

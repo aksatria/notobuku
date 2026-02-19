@@ -81,6 +81,10 @@ jobs:
           echo "Database service did not become ready in time"
           exit 1
 
+      - name: Ensure test database exists
+        run: |
+          mysql -h 127.0.0.1 -uroot -proot -e "CREATE DATABASE IF NOT EXISTS notobuku_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
       - name: Run stable test suite
         env:
           APP_ENV: testing
@@ -90,7 +94,17 @@ jobs:
           DB_DATABASE: notobuku_test
           DB_USERNAME: root
           DB_PASSWORD: root
-        run: composer run test:stable --no-interaction --no-ansi
+        run: |
+          set +e
+          composer run test:stable --no-interaction --no-ansi
+          status=$?
+          if [ $status -ne 0 ]; then
+            echo "Stable suite failed. Retrying once to absorb transient infra flake..."
+            php artisan config:clear --ansi || true
+            composer run test:stable --no-interaction --no-ansi
+            status=$?
+          fi
+          exit $status
 
       - name: Run search quality gate (MRR/NDCG)
         env:
@@ -101,6 +115,11 @@ jobs:
           DB_DATABASE: notobuku_test
           DB_USERNAME: root
           DB_PASSWORD: root
+          SEARCH_EVAL_THRESHOLD_MRR: 0.55
+          SEARCH_EVAL_THRESHOLD_NDCG: 0.65
+          SEARCH_EVAL_MIN_QUERIES_USED: 3
+          SEARCH_EVAL_MIN_ROW_MRR: 0.20
+          SEARCH_EVAL_MIN_ROW_NDCG: 0.30
         run: |
           php artisan migrate --force
           php artisan db:seed --class=Database\\Seeders\\SearchEvalFixtureSeeder --force

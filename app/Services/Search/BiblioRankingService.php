@@ -30,23 +30,24 @@ class BiblioRankingService
             return $ids;
         }
         $settings = $this->tuning->forInstitution($institutionId);
+        $signalConfig = (array) config('search.ranking.signals', []);
 
         $halfLife = (int) config('search.ranking.half_life_days', 30);
         if ($halfLife <= 0) $halfLife = 30;
 
-        $baseScores = $this->loadInstitutionScores($ids, $institutionId, $halfLife);
+        $baseScores = $this->loadInstitutionScores($ids, $institutionId, $halfLife, $signalConfig);
         $userScores = [];
         $branchScores = [];
         $availabilityScores = [];
         $exactBoosts = [];
 
         if ($mode === 'personal' && $userId && Schema::hasTable('biblio_user_metrics')) {
-            $userScores = $this->loadUserScores($ids, $institutionId, $userId, $halfLife);
+            $userScores = $this->loadUserScores($ids, $institutionId, $userId, $halfLife, $signalConfig);
         }
         $branchIds = array_values(array_unique(array_filter(array_map('intval', $branchIds), fn ($v) => $v > 0)));
 
         if ((($branchId && $branchId > 0) || !empty($branchIds)) && Schema::hasTable('items')) {
-            $branchScores = $this->loadBranchScores($ids, $branchId, $branchIds);
+            $branchScores = $this->loadBranchScores($ids, $branchId, $branchIds, $signalConfig);
         }
         if (Schema::hasTable('items')) {
             $availabilityScores = $this->loadAvailabilityScores($ids, $branchId, $branchIds, $settings);
@@ -103,8 +104,15 @@ class BiblioRankingService
         return $scores;
     }
 
-    private function loadInstitutionScores(array $ids, int $institutionId, int $halfLifeDays): array
+    private function loadInstitutionScores(array $ids, int $institutionId, int $halfLifeDays, array $signalConfig = []): array
     {
+        $borrowWeight = (float) ($signalConfig['institution_borrow_weight'] ?? 5);
+        $clickWeight = (float) ($signalConfig['institution_click_weight'] ?? 1);
+        $recentCfg = (array) ($signalConfig['recent_activity_boost'] ?? []);
+        $recentEnabled = (bool) ($recentCfg['enabled'] ?? true);
+        $recentWindowDays = max(1, (int) ($recentCfg['window_days'] ?? 14));
+        $recentWeight = (float) ($recentCfg['weight'] ?? 2.5);
+
         $rows = DB::table('biblio_metrics')
             ->select(['biblio_id', 'click_count', 'borrow_count', 'last_clicked_at', 'last_borrowed_at'])
             ->where('institution_id', $institutionId)
@@ -115,14 +123,25 @@ class BiblioRankingService
         foreach ($rows as $row) {
             $clickDecay = $this->decayMultiplier($row->last_clicked_at ?? null, $halfLifeDays);
             $borrowDecay = $this->decayMultiplier($row->last_borrowed_at ?? null, $halfLifeDays);
-            $scores[(int) $row->biblio_id] = ((int) $row->borrow_count * 5 * $borrowDecay) + ((int) $row->click_count * 1 * $clickDecay);
+            $score = ((int) $row->borrow_count * $borrowWeight * $borrowDecay)
+                + ((int) $row->click_count * $clickWeight * $clickDecay);
+
+            if ($recentEnabled) {
+                $score += $this->recentActivityBoost($row->last_clicked_at ?? null, $recentWindowDays, $recentWeight);
+                $score += $this->recentActivityBoost($row->last_borrowed_at ?? null, $recentWindowDays, $recentWeight);
+            }
+
+            $scores[(int) $row->biblio_id] = $score;
         }
 
         return $scores;
     }
 
-    private function loadUserScores(array $ids, int $institutionId, int $userId, int $halfLifeDays): array
+    private function loadUserScores(array $ids, int $institutionId, int $userId, int $halfLifeDays, array $signalConfig = []): array
     {
+        $borrowWeight = (float) ($signalConfig['user_borrow_weight'] ?? 8);
+        $clickWeight = (float) ($signalConfig['user_click_weight'] ?? 2);
+
         $rows = DB::table('biblio_user_metrics')
             ->select(['biblio_id', 'click_count', 'borrow_count', 'last_clicked_at', 'last_borrowed_at'])
             ->where('institution_id', $institutionId)
@@ -134,14 +153,18 @@ class BiblioRankingService
         foreach ($rows as $row) {
             $clickDecay = $this->decayMultiplier($row->last_clicked_at ?? null, $halfLifeDays);
             $borrowDecay = $this->decayMultiplier($row->last_borrowed_at ?? null, $halfLifeDays);
-            $scores[(int) $row->biblio_id] = ((int) $row->borrow_count * 8 * $borrowDecay) + ((int) $row->click_count * 2 * $clickDecay);
+            $scores[(int) $row->biblio_id] = ((int) $row->borrow_count * $borrowWeight * $borrowDecay)
+                + ((int) $row->click_count * $clickWeight * $clickDecay);
         }
 
         return $scores;
     }
 
-    private function loadBranchScores(array $ids, ?int $branchId = null, array $branchIds = []): array
+    private function loadBranchScores(array $ids, ?int $branchId = null, array $branchIds = [], array $signalConfig = []): array
     {
+        $availableWeight = (float) ($signalConfig['branch_available_weight'] ?? 3);
+        $totalWeight = (float) ($signalConfig['branch_total_weight'] ?? 1);
+
         $rows = DB::table('items')
             ->select([
                 'biblio_id',
@@ -158,7 +181,7 @@ class BiblioRankingService
         foreach ($rows as $row) {
             $total = (int) ($row->total_count ?? 0);
             $available = (int) ($row->available_count ?? 0);
-            $scores[(int) $row->biblio_id] = ($available * 3) + ($total * 1);
+            $scores[(int) $row->biblio_id] = ($available * $availableWeight) + ($total * $totalWeight);
         }
         return $scores;
     }
@@ -274,5 +297,24 @@ class BiblioRankingService
         }
 
         return pow(0.5, $ageDays / $halfLifeDays);
+    }
+
+    private function recentActivityBoost($lastAt, int $windowDays, float $weight): float
+    {
+        if (!$lastAt || $windowDays <= 0 || $weight <= 0) {
+            return 0.0;
+        }
+
+        $ts = is_string($lastAt) ? strtotime($lastAt) : (is_object($lastAt) && method_exists($lastAt, 'getTimestamp') ? $lastAt->getTimestamp() : null);
+        if (!$ts) {
+            return 0.0;
+        }
+
+        $ageDays = max(0, (time() - $ts) / 86400);
+        if ($ageDays > $windowDays) {
+            return 0.0;
+        }
+
+        return $weight * (1 - ($ageDays / $windowDays));
     }
 }

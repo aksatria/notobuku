@@ -27,13 +27,24 @@ class SearchTuningAdminTest extends TestCase
 
     private function seedInstitutionAndBranch(int $institutionId): int
     {
-        DB::table('institutions')->insert([
-            'id' => $institutionId,
-            'name' => 'Inst Tuning',
-            'code' => 'INST-TUNE',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        DB::table('institutions')->updateOrInsert(
+            ['id' => $institutionId],
+            [
+                'name' => 'Inst Tuning',
+                'code' => 'INST-TUNE',
+                'updated_at' => now(),
+                'created_at' => now(),
+            ]
+        );
+
+        $existing = DB::table('branches')
+            ->where('institution_id', $institutionId)
+            ->where('code', 'BR-TUNE')
+            ->value('id');
+
+        if ($existing) {
+            return (int) $existing;
+        }
 
         return (int) DB::table('branches')->insertGetId([
             'institution_id' => $institutionId,

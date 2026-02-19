@@ -863,6 +863,38 @@ class CatalogSearchService
         return array_values(array_unique($clean));
     }
 
+    private function getBranchOptions(int $institutionId)
+    {
+        return Cache::remember("nbk:filter:branch:{$institutionId}", now()->addMinutes(10), function () use ($institutionId) {
+            return Branch::query()
+                ->where('institution_id', $institutionId)
+                ->orderByDesc('is_active')
+                ->orderBy('name')
+                ->get(['id', 'name', 'is_active']);
+        });
+    }
+
+    private function expandBranchFacets($branchFacets, $branchOptions)
+    {
+        $countMap = collect($branchFacets ?? [])
+            ->mapWithKeys(function ($row) {
+                $id = (int) ($row->id ?? 0);
+                return $id > 0 ? [$id => (int) ($row->total ?? 0)] : [];
+            });
+
+        return collect($branchOptions ?? [])
+            ->map(function ($branch) use ($countMap) {
+                $id = (int) ($branch->id ?? 0);
+                return (object) [
+                    'id' => $id,
+                    'name' => (string) ($branch->name ?? ('Cabang #' . $id)),
+                    'total' => (int) ($countMap->get($id, 0)),
+                ];
+            })
+            ->sortByDesc('total')
+            ->values();
+    }
+
     private function normalizedFacetCacheSignature(
         int $institutionId,
         array $filters,
@@ -1984,13 +2016,8 @@ class CatalogSearchService
                 ->pluck('media_type');
         });
 
-        $branchOptions = Cache::remember("nbk:filter:branch:{$institutionId}", now()->addMinutes(10), function () use ($institutionId) {
-            return Branch::query()
-                ->where('institution_id', $institutionId)
-                ->orderByDesc('is_active')
-                ->orderBy('name')
-                ->get(['id', 'name', 'is_active']);
-        });
+        $branchOptions = $this->getBranchOptions($institutionId);
+        $branchFacets = $this->expandBranchFacets($branchFacets, $branchOptions);
 
         $shelfOptions = Cache::remember("nbk:filter:shelf:{$institutionId}", now()->addMinutes(10), function () use ($institutionId) {
             return DB::table('shelves as s')
@@ -2394,6 +2421,16 @@ class CatalogSearchService
             $query->orderByDesc('updated_at');
         } elseif ($sort === 'title') {
             $query->orderBy('title');
+        } elseif ($sort === 'popular') {
+            if (Schema::hasTable('biblio_metrics')) {
+                $query->leftJoin('biblio_metrics as bm', function ($join) use ($institutionId) {
+                    $join->on('bm.biblio_id', '=', 'biblio.id')
+                        ->where('bm.institution_id', '=', $institutionId);
+                })->addSelect(DB::raw('(COALESCE(bm.borrow_count, 0) * 5 + COALESCE(bm.click_count, 0)) as popularity_score'));
+                $query->orderByDesc('popularity_score')->orderByDesc('available_items_count')->orderBy('biblio.title');
+            } else {
+                $query->orderByDesc('items_count')->orderByDesc('available_items_count')->orderBy('title');
+            }
         } elseif ($sort === 'available') {
             $query->orderByDesc('available_items_count')->orderBy('title');
         } else {

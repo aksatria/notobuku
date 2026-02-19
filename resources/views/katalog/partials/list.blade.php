@@ -1,4 +1,4 @@
-﻿{{-- Partial: hasil pencarian katalog (untuk AJAX) --}}
+{{-- Partial: hasil pencarian katalog (untuk AJAX) --}}
 @php
   $p = $biblios ?? null;
   $fromResult = $fromResult ?? (int) ($p?->firstItem() ?? 0);
@@ -163,7 +163,7 @@
               <option value="">Set Rak (opsional)</option>
               @foreach($shelfOptions as $s)
                 <option value="{{ $s->id }}">
-                  {{ trim(($s->branch_name ? $s->branch_name . ' â€¢ ' : '') . $s->name . ($s->code ? ' (' . $s->code . ')' : '') . ($s->is_active ? '' : ' (nonaktif)')) }}
+                  {{ trim(($s->branch_name ? $s->branch_name . ' - ' : '') . $s->name . ($s->code ? ' (' . $s->code . ')' : '') . ($s->is_active ? '' : ' (nonaktif)')) }}
                 </option>
               @endforeach
             </select>

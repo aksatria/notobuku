@@ -471,7 +471,9 @@ class BiblioSearchService
         if ($halfLife <= 0) $halfLife = 30;
         $clickDecay = $this->decayMultiplier($metric?->last_clicked_at, $halfLife);
         $borrowDecay = $this->decayMultiplier($metric?->last_borrowed_at, $halfLife);
-        $popularityScore = (int) round(($borrowCount * 5 * $borrowDecay) + ($clickCount * 1 * $clickDecay));
+        $borrowWeight = (float) config('search.ranking.signals.institution_borrow_weight', 5);
+        $clickWeight = (float) config('search.ranking.signals.institution_click_weight', 1);
+        $popularityScore = (int) round(($borrowCount * $borrowWeight * $borrowDecay) + ($clickCount * $clickWeight * $clickDecay));
 
         return [
             'id' => (int) $biblio->id,

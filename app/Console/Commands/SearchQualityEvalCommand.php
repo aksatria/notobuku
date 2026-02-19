@@ -79,8 +79,28 @@ class SearchQualityEvalCommand extends Command
         $durationMs = (int) round((microtime(true) - $start) * 1000);
         $thresholdMrr = (float) config('search.quality_eval.thresholds.mrr', 0.5);
         $thresholdNdcg = (float) config('search.quality_eval.thresholds.ndcg_at_k', 0.6);
+        $minQueriesUsed = max(1, (int) config('search.quality_eval.minimums.queries_used', 3));
+        $minPerQueryMrr = max(0.0, (float) config('search.quality_eval.minimums.per_query_mrr', 0.15));
+        $minPerQueryNdcg = max(0.0, (float) config('search.quality_eval.minimums.per_query_ndcg_at_k', 0.25));
+
+        $rowViolations = [];
+        foreach ((array) ($report['rows'] ?? []) as $row) {
+            $query = (string) ($row['query'] ?? '');
+            $rr = (float) ($row['reciprocal_rank'] ?? 0.0);
+            $ndcg = (float) ($row['ndcg_at_k'] ?? 0.0);
+            if ($rr < $minPerQueryMrr || $ndcg < $minPerQueryNdcg) {
+                $rowViolations[] = [
+                    'query' => $query,
+                    'reciprocal_rank' => $rr,
+                    'ndcg_at_k' => $ndcg,
+                ];
+            }
+        }
+
         $pass = ((float) ($report['mrr'] ?? 0.0) >= $thresholdMrr)
-            && ((float) ($report['ndcg_at_k'] ?? 0.0) >= $thresholdNdcg);
+            && ((float) ($report['ndcg_at_k'] ?? 0.0) >= $thresholdNdcg)
+            && ((int) ($report['queries_used'] ?? 0) >= $minQueriesUsed)
+            && empty($rowViolations);
 
         $full = [
             'generated_at' => now()->toDateTimeString(),
@@ -92,8 +112,17 @@ class SearchQualityEvalCommand extends Command
                 'mrr' => $thresholdMrr,
                 'ndcg_at_k' => $thresholdNdcg,
             ],
+            'minimums' => [
+                'queries_used' => $minQueriesUsed,
+                'per_query_mrr' => $minPerQueryMrr,
+                'per_query_ndcg_at_k' => $minPerQueryNdcg,
+            ],
             'pass' => $pass,
             'metrics' => $report,
+            'violations' => [
+                'query_count_below_minimum' => ((int) ($report['queries_used'] ?? 0) < $minQueriesUsed),
+                'per_query' => $rowViolations,
+            ],
         ];
 
         $output = trim((string) $this->option('output'));
@@ -108,6 +137,15 @@ class SearchQualityEvalCommand extends Command
             . ' ndcg@k=' . (float) ($report['ndcg_at_k'] ?? 0.0)
             . ' pass=' . ($pass ? 'yes' : 'no')
             . ' duration=' . $durationMs . 'ms');
+
+        if (!$pass) {
+            if ((int) ($report['queries_used'] ?? 0) < $minQueriesUsed) {
+                $this->warn("Minimum queries_used belum terpenuhi. expected>={$minQueriesUsed}, got=" . (int) ($report['queries_used'] ?? 0));
+            }
+            if (!empty($rowViolations)) {
+                $this->warn('Ada query di bawah floor kualitas per-query.');
+            }
+        }
 
         if ((bool) $this->option('strict') && !$pass) {
             $this->error('Search quality gate failed (strict mode).');

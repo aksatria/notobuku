@@ -20,7 +20,7 @@
   $onlyAvailable = (bool) ($onlyAvailable ?? false);
 
   $topYearFacets = collect($yearFacets)->take(6)->values();
-  $topBranchFacets = collect($branchFacets)->take(6)->values();
+  $topBranchFacets = collect($branchFacets)->values();
   $topMaterialFacets = collect($materialTypeFacets)->take(6)->values();
   $topLanguageFacets = collect($languageFacets)->take(6)->values();
   $topMediaFacets = collect($mediaTypeFacets)->take(6)->values();
@@ -97,7 +97,7 @@
     @if($topBranchFacets->isNotEmpty())
       <div class="nb-k-facetRow">
         <span class="nb-k-facetLabel">Cabang</span>
-        @foreach($topBranchFacets->take(4) as $branchFacet)
+        @foreach($topBranchFacets as $branchFacet)
           @php
             $branchIdFacet = (int) ($branchFacet->id ?? 0);
             $branchActive = in_array($branchIdFacet, array_map('intval', $branchList), true);

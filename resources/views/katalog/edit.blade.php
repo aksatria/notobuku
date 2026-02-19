@@ -1,4 +1,4 @@
-﻿{{-- resources/views/katalog/edit.blade.php --}}
+{{-- resources/views/katalog/edit.blade.php --}}
 @extends('layouts.notobuku')
 
 @section('title', 'Edit Bibliografi - NOTOBUKU')
@@ -551,7 +551,7 @@
       </div>
     @else
 
-    {{-- âœ… enctype untuk upload cover --}}
+    {{-- enctype untuk upload cover --}}
     <form id="biblio_edit_form" method="POST" action="{{ route('katalog.update', $biblio->id) }}" enctype="multipart/form-data">
       @csrf
       @method('PUT')
@@ -944,7 +944,7 @@
                 <label>Catatan</label>
                 <input type="hidden" name="notes" id="notes_input" value="{{ old('notes', $biblio->notes) }}">
                 <div class="kc-editor kc-editor--notes">
-                  <div id="notes_editor" data-placeholder="Tulis catatan (misal ringkasan, kondisi buku, info penting)â€¦"></div>
+                  <div id="notes_editor" data-placeholder="Tulis catatan (misal ringkasan, kondisi buku, info penting)..."></div>
                 </div>
                 <div class="nb-muted-2 kc-help">Bisa format teks (bold, italic, underline, list). Disimpan sebagai HTML.</div>
                 @error('notes') <div class="kc-error">{{ $message }}</div> @enderror
@@ -1068,7 +1068,7 @@
               <input type="checkbox" name="auto_fix" value="1" {{ old('auto_fix', '1') === '1' ? 'checked' : '' }}>
               <span>Auto-fix ringan</span>
             </label>
-            <span class="nb-muted-2" style="font-size:12px;">Trim spasi, normalisasi DDC/call number, normalisasi bahasa (idâ†’ind).</span>
+            <span class="nb-muted-2" style="font-size:12px;">Trim spasi, normalisasi DDC/call number, normalisasi bahasa (id->ind).</span>
           </div>
           <div class="kc-actions">
             <button class="nb-btn nb-btn-primary" type="submit" form="biblio_edit_form">Simpan Perubahan</button>
@@ -1087,7 +1087,7 @@
               <p class="nb-muted-2 hint">Opsional</p>
             </div>
 
-            {{-- âœ… name="cover" match controller --}}
+            {{-- name="cover" match controller --}}
             <input id="cover_file" class="kc-coverFile" type="file" name="cover" accept="image/*">
 
             <div class="kc-cover">
@@ -1107,7 +1107,7 @@
                   </div>
 
                   @error('cover') <div class="kc-error">{{ $message }}</div> @enderror
-                  <div class="nb-muted-2 kc-help">Klik â€œHapusâ€ untuk menghapus cover lama (butuh support di controller).</div>
+                  <div class="nb-muted-2 kc-help">Klik "Hapus" untuk menghapus cover lama (butuh dukungan di controller).</div>
                 </div>
               </div>
             </div>
@@ -1342,7 +1342,7 @@
 
 <script>
   (function(){
-    // âœ… cegah init dobel
+    // Cegah inisialisasi dobel
     if (window.__NB_KATALOG_EDIT_INITED__) return;
     window.__NB_KATALOG_EDIT_INITED__ = true;
 

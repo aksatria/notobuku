@@ -71,9 +71,27 @@ return [
             'mrr' => (float) env('SEARCH_EVAL_THRESHOLD_MRR', 0.50),
             'ndcg_at_k' => (float) env('SEARCH_EVAL_THRESHOLD_NDCG', 0.60),
         ],
+        'minimums' => [
+            'queries_used' => (int) env('SEARCH_EVAL_MIN_QUERIES_USED', 3),
+            'per_query_mrr' => (float) env('SEARCH_EVAL_MIN_ROW_MRR', 0.15),
+            'per_query_ndcg_at_k' => (float) env('SEARCH_EVAL_MIN_ROW_NDCG', 0.25),
+        ],
     ],
     'ranking' => [
         'half_life_days' => (int) env('SEARCH_RANK_HALF_LIFE_DAYS', 30),
+        'signals' => [
+            'institution_borrow_weight' => (float) env('SEARCH_RANK_INST_BORROW_WEIGHT', 5),
+            'institution_click_weight' => (float) env('SEARCH_RANK_INST_CLICK_WEIGHT', 1),
+            'user_borrow_weight' => (float) env('SEARCH_RANK_USER_BORROW_WEIGHT', 8),
+            'user_click_weight' => (float) env('SEARCH_RANK_USER_CLICK_WEIGHT', 2),
+            'branch_available_weight' => (float) env('SEARCH_RANK_BRANCH_AVAILABLE_WEIGHT', 3),
+            'branch_total_weight' => (float) env('SEARCH_RANK_BRANCH_TOTAL_WEIGHT', 1),
+            'recent_activity_boost' => [
+                'enabled' => (bool) env('SEARCH_RANK_RECENT_ACTIVITY_ENABLED', true),
+                'window_days' => (int) env('SEARCH_RANK_RECENT_ACTIVITY_WINDOW_DAYS', 14),
+                'weight' => (float) env('SEARCH_RANK_RECENT_ACTIVITY_WEIGHT', 2.5),
+            ],
+        ],
         'availability' => [
             'available_weight' => (float) env('SEARCH_AVAIL_WEIGHT', 10),
             'borrowed_penalty' => (float) env('SEARCH_BORROWED_PENALTY', 3),

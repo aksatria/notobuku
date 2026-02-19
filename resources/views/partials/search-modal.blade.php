@@ -149,7 +149,7 @@
   <div class="nb-search" data-nb-search-modal role="dialog" aria-modal="true" aria-label="Pencarian">
     <div class="nb-search-head">
       <svg style="width:18px;height:18px;color:var(--nb-muted)"><use href="#nb-icon-search"/></svg>
-      <input class="nb-search-input" data-nb-search-input placeholder="Cari menu / halaman…" autocomplete="off">
+      <input class="nb-search-input" data-nb-search-input placeholder="Cari menu / halaman..." autocomplete="off">
       <span class="nb-search-kbd">ESC</span>
     </div>
     <div class="nb-search-body" data-nb-search-list></div>

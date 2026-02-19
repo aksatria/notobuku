@@ -26,13 +26,15 @@ class BiblioRankingServiceTest extends TestCase
 
     public function test_rerank_prioritizes_available_items_over_borrowed_when_scores_are_equal(): void
     {
-        DB::table('institutions')->insert([
-            'id' => 1,
-            'name' => 'Inst',
-            'code' => 'INST',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        DB::table('institutions')->updateOrInsert(
+            ['id' => 1],
+            [
+                'name' => 'Inst',
+                'code' => 'INST',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]
+        );
 
         DB::table('biblio')->insert([
             ['id' => 11, 'institution_id' => 1, 'title' => 'Avail First', 'created_at' => now(), 'updated_at' => now()],
@@ -57,18 +59,24 @@ class BiblioRankingServiceTest extends TestCase
 
     public function test_rerank_uses_selected_branch_context_when_branch_filter_exists(): void
     {
-        DB::table('institutions')->insert([
-            'id' => 1,
-            'name' => 'Inst',
-            'code' => 'INST',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        DB::table('institutions')->updateOrInsert(
+            ['id' => 1],
+            [
+                'name' => 'Inst',
+                'code' => 'INST',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]
+        );
 
-        DB::table('branches')->insert([
-            ['id' => 9, 'institution_id' => 1, 'name' => 'Pusat', 'code' => 'PST', 'is_active' => 1, 'created_at' => now(), 'updated_at' => now()],
-            ['id' => 10, 'institution_id' => 1, 'name' => 'Selatan', 'code' => 'SLT', 'is_active' => 1, 'created_at' => now(), 'updated_at' => now()],
-        ]);
+        DB::table('branches')->updateOrInsert(
+            ['id' => 9],
+            ['institution_id' => 1, 'name' => 'Pusat', 'code' => 'PST', 'is_active' => 1, 'created_at' => now(), 'updated_at' => now()]
+        );
+        DB::table('branches')->updateOrInsert(
+            ['id' => 10],
+            ['institution_id' => 1, 'name' => 'Selatan', 'code' => 'SLT', 'is_active' => 1, 'created_at' => now(), 'updated_at' => now()]
+        );
 
         DB::table('biblio')->insert([
             ['id' => 21, 'institution_id' => 1, 'title' => 'Ada di Cabang 9', 'created_at' => now(), 'updated_at' => now()],
@@ -93,13 +101,15 @@ class BiblioRankingServiceTest extends TestCase
 
     public function test_rerank_uses_custom_tuning_weights_from_admin_settings(): void
     {
-        DB::table('institutions')->insert([
-            'id' => 1,
-            'name' => 'Inst',
-            'code' => 'INST',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        DB::table('institutions')->updateOrInsert(
+            ['id' => 1],
+            [
+                'name' => 'Inst',
+                'code' => 'INST',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]
+        );
 
         DB::table('biblio')->insert([
             ['id' => 31, 'institution_id' => 1, 'title' => 'abc', 'normalized_title' => 'abc', 'created_at' => now(), 'updated_at' => now()],
