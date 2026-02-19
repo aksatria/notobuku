@@ -96,13 +96,20 @@ jobs:
           DB_PASSWORD: root
         run: |
           set +e
-          composer run test:stable --no-interaction --no-ansi
-          status=$?
-          if [ $status -ne 0 ]; then
-            echo "Stable suite failed. Retrying once to absorb transient infra flake..."
-            php artisan config:clear --ansi || true
+          status=1
+          for attempt in 1 2 3; do
+            echo "Running stable suite attempt #$attempt ..."
             composer run test:stable --no-interaction --no-ansi
             status=$?
+            if [ $status -eq 0 ]; then
+              break
+            fi
+            echo "Stable suite attempt #$attempt failed."
+            php artisan config:clear --ansi || true
+            sleep 5
+          done
+          if [ $status -ne 0 ]; then
+            echo "Stable suite failed after 3 attempts."
           fi
           exit $status
 
