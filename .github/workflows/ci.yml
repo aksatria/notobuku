@@ -96,22 +96,41 @@ jobs:
           DB_PASSWORD: root
         run: |
           set +e
-          status=1
+          php artisan config:clear --ansi || true
+
+          phase1_status=1
           for attempt in 1 2 3; do
-            echo "Running stable suite attempt #$attempt ..."
-            composer run test:stable --no-interaction --no-ansi
-            status=$?
-            if [ $status -eq 0 ]; then
+            echo "Running stable phase 1 (exclude searchops-isolated), attempt #$attempt ..."
+            php artisan migrate:fresh --env=testing --force --no-interaction
+            php artisan test --env=testing --exclude-group=searchops-isolated
+            phase1_status=$?
+            if [ $phase1_status -eq 0 ]; then
               break
             fi
-            echo "Stable suite attempt #$attempt failed."
-            php artisan config:clear --ansi || true
+            echo "Stable phase 1 attempt #$attempt failed."
             sleep 5
           done
-          if [ $status -ne 0 ]; then
-            echo "Stable suite failed after 3 attempts."
+          if [ $phase1_status -ne 0 ]; then
+            echo "Stable phase 1 failed after 3 attempts."
+            exit $phase1_status
           fi
-          exit $status
+
+          phase2_status=1
+          for attempt in 1 2 3; do
+            echo "Running stable phase 2 (searchops-isolated), attempt #$attempt ..."
+            php artisan migrate:fresh --env=testing --force --no-interaction
+            php artisan test --env=testing --group=searchops-isolated
+            phase2_status=$?
+            if [ $phase2_status -eq 0 ]; then
+              break
+            fi
+            echo "Stable phase 2 attempt #$attempt failed."
+            sleep 5
+          done
+          if [ $phase2_status -ne 0 ]; then
+            echo "Stable phase 2 failed after 3 attempts."
+            exit $phase2_status
+          fi
 
       - name: Run search quality gate (MRR/NDCG)
         env:
