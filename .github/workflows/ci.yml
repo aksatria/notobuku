@@ -103,8 +103,9 @@ jobs:
           for attempt in 1 2 3; do
             echo "Running stable phase 1 (exclude searchops-isolated), attempt #$attempt ..."
             php artisan migrate:fresh --env=testing --force --no-interaction
-            php artisan test --env=testing --exclude-group=searchops-isolated 2>&1 | tee "storage/logs/ci-stable-phase1-attempt${attempt}.log"
-            phase1_status=${PIPESTATUS[0]}
+            php artisan test --env=testing --exclude-group=searchops-isolated > "storage/logs/ci-stable-phase1-attempt${attempt}.log" 2>&1
+            phase1_status=$?
+            cat "storage/logs/ci-stable-phase1-attempt${attempt}.log"
             if [ $phase1_status -eq 0 ]; then
               break
             fi
@@ -120,8 +121,9 @@ jobs:
           for attempt in 1 2 3; do
             echo "Running stable phase 2 (searchops-isolated), attempt #$attempt ..."
             php artisan migrate:fresh --env=testing --force --no-interaction
-            php artisan test --env=testing --group=searchops-isolated 2>&1 | tee "storage/logs/ci-stable-phase2-attempt${attempt}.log"
-            phase2_status=${PIPESTATUS[0]}
+            php artisan test --env=testing --group=searchops-isolated > "storage/logs/ci-stable-phase2-attempt${attempt}.log" 2>&1
+            phase2_status=$?
+            cat "storage/logs/ci-stable-phase2-attempt${attempt}.log"
             if [ $phase2_status -eq 0 ]; then
               break
             fi
