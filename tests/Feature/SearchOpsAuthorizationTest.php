@@ -6,11 +6,10 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
-/**
- * @group searchops-isolated
- */
+#[Group('searchops-isolated')]
 class SearchOpsAuthorizationTest extends TestCase
 {
     use DatabaseTransactions;
