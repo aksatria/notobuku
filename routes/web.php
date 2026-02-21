@@ -56,6 +56,7 @@ use App\Http\Controllers\OpacSeoController;
 use App\Http\Controllers\OpacMetricsController;
 use App\Http\Controllers\StockTakeController;
 use App\Http\Controllers\CopyCatalogingController;
+use App\Http\Controllers\VisitorCounterController;
 
 // ✅ Pustakawan Digital Controller (Utama)
 use App\Http\Controllers\PustakawanDigitalController;
@@ -121,6 +122,10 @@ Route::get('/opac/{id}', [CatalogDetailController::class, 'show'])
     ->middleware(['trace.request', 'opac.conditional', 'track.opac.metrics', 'throttle:opac-public-detail'])
     ->whereNumber('id')
     ->name('opac.show');
+Route::post('/opac/{id}/track-cta', [CatalogDetailController::class, 'trackCta'])
+    ->middleware(['trace.request', 'throttle:opac-public-write'])
+    ->whereNumber('id')
+    ->name('opac.track_cta');
 Route::get('/opac/suggest', [CatalogSearchController::class, 'suggest'])
     ->middleware(['trace.request', 'opac.conditional', 'opac.query_guard', 'track.opac.metrics', 'throttle:opac-public-search'])
     ->name('opac.suggest');
@@ -441,6 +446,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/katalog', [CatalogSearchController::class, 'index'])->name('katalog.index');
     Route::get('/katalog/facets', [CatalogSearchController::class, 'facets'])->name('katalog.facets');
     Route::get('/katalog/{id}', [CatalogDetailController::class, 'show'])->whereNumber('id')->name('katalog.show');
+    Route::post('/katalog/{id}/track-cta', [CatalogDetailController::class, 'trackCta'])->whereNumber('id')->name('katalog.track_cta');
     Route::get('/katalog/suggest', [CatalogSearchController::class, 'suggest'])->name('katalog.suggest');
     Route::get('/katalog/{id}/attachments/{attachment}/download', [CatalogAttachmentController::class, 'download'])
         ->whereNumber('id')->whereNumber('attachment')
@@ -484,6 +490,8 @@ Route::middleware(['auth'])->group(function () {
         */
         Route::get('/katalog/{id}/eksemplar', [EksemplarController::class, 'index'])
             ->whereNumber('id')->name('eksemplar.index');
+        Route::get('/katalog/{id}/eksemplar/print', [EksemplarController::class, 'printLabels'])
+            ->whereNumber('id')->name('eksemplar.print');
 
         Route::get('/katalog/{id}/eksemplar/tambah', [EksemplarController::class, 'create'])
             ->whereNumber('id')->name('eksemplar.create');
@@ -561,9 +569,45 @@ Route::middleware(['auth', 'role.any:super_admin,admin,staff'])->group(function 
     Route::post('/anggota/import/csv/undo', [MemberController::class, 'undoImportBatch'])
         ->middleware('throttle:10,1')
         ->name('anggota.import.undo');
+    Route::get('/anggota/{id}/card', [MemberController::class, 'card'])->whereNumber('id')->name('anggota.card');
     Route::get('/anggota/{id}', [MemberController::class, 'show'])->whereNumber('id')->name('anggota.show');
     Route::get('/anggota/{id}/edit', [MemberController::class, 'edit'])->whereNumber('id')->name('anggota.edit');
     Route::put('/anggota/{id}', [MemberController::class, 'update'])->whereNumber('id')->name('anggota.update');
+});
+
+/*
+|--------------------------------------------------------------------------
+| VISITOR COUNTER / BUKU TAMU
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth', 'role.any:super_admin,admin,staff'])->group(function () {
+    Route::get('/visitor-counter', [VisitorCounterController::class, 'index'])->name('visitor_counter.index');
+    Route::post('/visitor-counter', [VisitorCounterController::class, 'store'])
+        ->middleware('throttle:120,1')
+        ->name('visitor_counter.store');
+    Route::post('/visitor-counter/{id}/checkout', [VisitorCounterController::class, 'checkout'])
+        ->whereNumber('id')
+        ->middleware('throttle:180,1')
+        ->name('visitor_counter.checkout');
+    Route::post('/visitor-counter/{id}/undo-checkout', [VisitorCounterController::class, 'undoCheckout'])
+        ->whereNumber('id')
+        ->middleware('throttle:180,1')
+        ->name('visitor_counter.undo_checkout');
+    Route::post('/visitor-counter/checkout-bulk', [VisitorCounterController::class, 'bulkCheckout'])
+        ->middleware('throttle:30,1')
+        ->name('visitor_counter.checkout_bulk');
+    Route::post('/visitor-counter/checkout-selected', [VisitorCounterController::class, 'checkoutSelected'])
+        ->middleware('throttle:60,1')
+        ->name('visitor_counter.checkout_selected');
+    Route::get('/visitor-counter/export.csv', [VisitorCounterController::class, 'exportCsv'])
+        ->middleware('throttle:30,1')
+        ->name('visitor_counter.export_csv');
+    Route::get('/visitor-counter/audit-export.csv', [VisitorCounterController::class, 'exportAuditCsv'])
+        ->middleware('throttle:30,1')
+        ->name('visitor_counter.export_audit_csv');
+    Route::get('/visitor-counter/audit-export.json', [VisitorCounterController::class, 'exportAuditJson'])
+        ->middleware('throttle:30,1')
+        ->name('visitor_counter.export_audit_json');
 });
 
 /*
