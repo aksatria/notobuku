@@ -8,8 +8,10 @@ NOTOBUKU adalah sistem manajemen perpustakaan dengan fokus interoperabilitas MAR
 - [Fitur Utama](Fitur-Utama)
 - [Keunggulan NOTOBUKU](Keunggulan-NOTOBUKU)
 - [SOP Harian Pustakawan Pemula](SOP-Harian-Pustakawan-Pemula)
+- [Panduan Visitor Counter](Panduan-Visitor-Counter)
 - [Panduan Peran User](Panduan-Peran-User)
 - [Operasional Harian](Operasional-Harian)
+- [Operational Changelog](../OPERATIONAL_CHANGELOG.md)
 - [MARC21 dan RDA](MARC21-dan-RDA)
 - [Testing dan Stabilitas](Testing-dan-Stabilitas)
 - [FAQ](FAQ)
@@ -22,9 +24,18 @@ NOTOBUKU adalah sistem manajemen perpustakaan dengan fokus interoperabilitas MAR
 | Pahami fitur | [Fitur Utama](Fitur-Utama) |
 | Lihat keunggulan | [Keunggulan NOTOBUKU](Keunggulan-NOTOBUKU) |
 | Operasional staf | [SOP Harian Pustakawan Pemula](SOP-Harian-Pustakawan-Pemula) |
+| Visitor counter | [Panduan Visitor Counter](Panduan-Visitor-Counter) |
 | Jawaban umum | [FAQ](FAQ) |
 
 ## Link Penting
 - Repository: `https://github.com/aksatria/notobuku`
 - User docs in-app: `/docs`
 - UAT checklist: `docs/UAT_PRODUKSI_ILS_CORE_CHECKLIST.md`
+
+## Update Operasional Terbaru
+- Visitor Counter sekarang mendukung:
+  - check-in / checkout / undo checkout (maks 5 menit)
+  - checkout terpilih dan checkout massal
+  - audit log dengan filter `aksi`, `role`, `keyword`, `sorting`, dan `baris per halaman`
+  - export audit `CSV` dan `JSON`
+- Lihat langkah pakai harian di [SOP Harian Pustakawan Pemula](SOP-Harian-Pustakawan-Pemula) bagian `F. Visitor Counter`.

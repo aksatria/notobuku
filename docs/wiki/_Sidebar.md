@@ -6,6 +6,7 @@
 - [Fitur Utama](Fitur-Utama)
 - [Keunggulan NOTOBUKU](Keunggulan-NOTOBUKU)
 - [SOP Harian Pustakawan Pemula](SOP-Harian-Pustakawan-Pemula)
+- [Panduan Visitor Counter](Panduan-Visitor-Counter)
 - [Panduan Peran User](Panduan-Peran-User)
 - [Operasional Harian](Operasional-Harian)
 - [MARC21 dan RDA](MARC21-dan-RDA)

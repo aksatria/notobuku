@@ -81,6 +81,50 @@ Checklist:
 - [ ] Backup/prosedur selesai
 - [ ] Semua akun logout
 
+## F. Visitor Counter (Log Kunjungan Onsite)
+Gunakan menu `Operasional -> Visitor Counter` untuk buku tamu onsite.
+
+### Check-in Visitor
+1. Pilih `Tipe Visitor`:
+- `Member`: isi `Kode Member`.
+- `Non-Member`: isi `Nama Visitor`.
+2. Isi `Cabang`, `Tujuan`, dan `Catatan` (opsional).
+3. Klik `Simpan Check-in`.
+
+Checklist:
+- [ ] Data visitor sesuai tipe
+- [ ] Cabang benar
+- [ ] Check-in tersimpan
+
+### Checkout / Undo
+1. Di `Daftar Kunjungan`, klik `Checkout` untuk visitor aktif.
+2. Jika salah checkout, klik `Undo` (hanya dalam 5 menit).
+3. Untuk banyak data sekaligus:
+- centang baris lalu `Checkout Terpilih`
+- atau `Checkout Semua Aktif` sesuai filter.
+
+Checklist:
+- [ ] Tidak ada visitor aktif yang terlewat di akhir layanan
+- [ ] Undo hanya dipakai untuk koreksi cepat
+
+### Audit Log Visitor Counter
+1. Gunakan panel `Riwayat Aksi`.
+2. Filter berdasarkan:
+- `Aksi`
+- `Role`
+- `Keyword` (actor/action/row id/metadata)
+- `Urutan` (terbaru/terlama)
+- `Baris per halaman`
+3. Gunakan:
+- `Export Audit CSV` untuk pelaporan rutin
+- `Export Audit JSON` untuk analisis teknis/integrasi
+- `View JSON` untuk melihat metadata lengkap per baris.
+
+Checklist:
+- [ ] Filter sesuai periode/cabang
+- [ ] Audit diexport saat rekap harian/mingguan
+- [ ] Anomali dicatat (actor, waktu, aksi, row id)
+
 ## Aturan Emas
 1. Jangan hapus data jika ragu; catat dan eskalasi.
 2. Selalu isi data katalog minimal.
