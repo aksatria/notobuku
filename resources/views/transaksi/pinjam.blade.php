@@ -132,8 +132,8 @@
       </div>
 
       <div class="nb-k-fieldBlock" style="margin-top:12px;">
-        <label class="nb-k-label">Scan Barcode</label>
-        <input type="text" id="barcode_input" class="nb-field" placeholder="Scan barcode lalu Enter" autocomplete="off">
+        <label class="nb-k-label">Pindai Barcode</label>
+        <input type="text" id="barcode_input" class="nb-field" placeholder="Pindai barcode lalu Enter" autocomplete="off">
       </div>
 
       <div class="tx-list" style="margin-top:12px;">
@@ -148,7 +148,7 @@
           </thead>
           <tbody id="items_body">
             <tr id="items_empty">
-              <td colspan="4" class="tx-empty">Belum ada item. Scan barcode untuk menambahkan.</td>
+              <td colspan="4" class="tx-empty">Belum ada item. Pindai barcode untuk menambahkan.</td>
             </tr>
           </tbody>
         </table>
@@ -444,7 +444,7 @@
     }
     if (barcodes.size === 0) {
       e.preventDefault();
-      alert('Scan minimal 1 barcode.');
+      alert('Pindai minimal 1 barcode.');
       barcodeInput.focus();
       return;
     }

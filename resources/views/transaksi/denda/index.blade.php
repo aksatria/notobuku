@@ -93,7 +93,7 @@
       <div class="rp-filter-grid">
         <div class="rp-field">
           <label>Cari Cepat</label>
-          <input class="rp-input" type="text" name="q" value="{{ $q }}" placeholder="Loan Code / Nama / Kode Member / Judul">
+          <input class="rp-input" type="text" name="q" value="{{ $q }}" placeholder="Kode Pinjaman / Nama / Kode Anggota / Judul">
         </div>
 
         <div class="rp-field">
@@ -115,7 +115,7 @@
         <a class="rp-btn op-btn" style="width:auto;" href="{{ route('transaksi.denda.index', ['mode' => $viewMode]) }}">Bersihkan</a>
       </div>
       <details class="rp-adv" @if(!$isCompactMode && (!empty($branch_id) || !empty($date_from) || !empty($date_to))) open @endif>
-        <summary>Filter lanjutan</summary>
+        <summary>Penyaring lanjutan</summary>
         <div class="rp-row" style="margin-top:10px;">
           @if(!empty($branches))
             <div class="rp-field w200">
@@ -183,10 +183,10 @@
               </td>
               <td>
                 <div class="rp-sub" style="margin:0;">
-                  <span class="rp-mono" style="font-weight:600;">Due:</span> {{ $dueText }}
+                  <span class="rp-mono" style="font-weight:600;">Jatuh:</span> {{ $dueText }}
                 </div>
                 <div class="rp-sub" style="margin:0; margin-top:2px;">
-                  <span class="rp-mono" style="font-weight:600;">Ret:</span> {{ $retText }}
+                  <span class="rp-mono" style="font-weight:600;">Kembali:</span> {{ $retText }}
                 </div>
               </td>
               <td style="text-align:center;">

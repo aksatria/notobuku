@@ -65,7 +65,7 @@
         <div class="nbcp-sub">Atur masa pinjam, denda, hari libur, dan uji simulasi tanpa rumit untuk pustakawan.</div>
       </div>
       <div class="nbcp-steps">
-        <span class="nbcp-step">1. Atur Rule Pinjam</span>
+        <span class="nbcp-step">1. Atur Aturan Pinjam</span>
         <span class="nbcp-step">2. Atur Hari Libur</span>
         <span class="nbcp-step">3. Cek Simulasi</span>
       </div>
@@ -74,7 +74,7 @@
 
   <section class="nbcp-card">
     <div class="nbcp-tabs" role="tablist">
-      <button type="button" class="nbcp-tab active" data-tab="rule">Rule Pinjam</button>
+      <button type="button" class="nbcp-tab active" data-tab="rule">Aturan Pinjam</button>
       <button type="button" class="nbcp-tab" data-tab="kalender">Kalender Layanan</button>
       <button type="button" class="nbcp-tab" data-tab="simulasi">Simulasi</button>
     </div>
@@ -85,7 +85,7 @@
         <div class="nbcp-field">
           <label>Tipe Anggota</label>
           <select name="member_type" required>
-            <option value="member">Member</option>
+            <option value="member">Anggota</option>
             <option value="student">Mahasiswa</option>
             <option value="staff">Staf</option>
           </select>
@@ -95,8 +95,8 @@
         <div class="nbcp-field"><label>Lama Perpanjang (hari)</label><input type="number" name="extend_days" value="7" min="1" required></div>
         <div class="nbcp-field"><label>Maks Perpanjang</label><input type="number" name="max_renewals" value="2" min="0" required></div>
         <div class="nbcp-field"><label>Denda per Hari (Rp)</label><input type="number" name="fine_rate_per_day" value="1000" min="0" required></div>
-        <div class="nbcp-field"><label>Nama Rule (opsional)</label><input name="name" placeholder="Contoh: Mahasiswa reguler"></div>
-        <div class="nbcp-actions" style="align-self:end"><button class="nbcp-btn" type="submit">Simpan Rule</button></div>
+        <div class="nbcp-field"><label>Nama Aturan (opsional)</label><input name="name" placeholder="Contoh: Mahasiswa reguler"></div>
+        <div class="nbcp-actions" style="align-self:end"><button class="nbcp-btn" type="submit">Simpan Aturan</button></div>
       </form>
 
       <details class="nbcp-advanced">
@@ -114,8 +114,8 @@
           <div class="nbcp-field"><label>Grace Days</label><input type="number" name="grace_days" value="0" min="0"></div>
           <div class="nbcp-field"><label>Prioritas</label><input type="number" name="priority" value="10" min="0"></div>
           <div class="nbcp-field"><label>Boleh perpanjang jika sedang direservasi</label><select name="can_renew_if_reserved"><option value="0">Tidak</option><option value="1">Ya</option></select></div>
-          <div class="nbcp-field"><label>Status Rule</label><select name="is_active"><option value="1">Aktif</option><option value="0">Nonaktif</option></select></div>
-          <div class="nbcp-actions" style="align-self:end"><button class="nbcp-btn light" type="submit">Simpan Rule Lanjutan</button></div>
+          <div class="nbcp-field"><label>Status Aturan</label><select name="is_active"><option value="1">Aktif</option><option value="0">Nonaktif</option></select></div>
+          <div class="nbcp-actions" style="align-self:end"><button class="nbcp-btn light" type="submit">Simpan Aturan Lanjutan</button></div>
         </form>
       </details>
 
@@ -125,7 +125,7 @@
         <table class="nbcp-table">
           <thead>
             <tr>
-              <th>Rule</th>
+              <th>Aturan</th>
               <th>Anggota</th>
               <th>Pinjam</th>
               <th>Perpanjang</th>
@@ -138,7 +138,7 @@
           <tbody>
           @forelse($rules as $r)
             <tr>
-              <td><strong>{{ $r->name ?: ('Rule #' . $r->id) }}</strong></td>
+              <td><strong>{{ $r->name ?: ('Aturan #' . $r->id) }}</strong></td>
               <td>{{ $r->member_type ?: 'Semua' }}</td>
               <td>{{ $r->default_days }} hari / {{ $r->max_items }} item</td>
               <td>{{ $r->extend_days }} hari, maks {{ $r->max_renewals }}x</td>
@@ -153,7 +153,7 @@
               </td>
             </tr>
           @empty
-            <tr><td colspan="8">Belum ada rule. Tambahkan 1 rule dasar untuk mulai.</td></tr>
+            <tr><td colspan="8">Belum ada aturan. Tambahkan 1 aturan dasar untuk mulai.</td></tr>
           @endforelse
           </tbody>
         </table>
@@ -219,7 +219,7 @@
 
       @if($sim)
         <div class="nbcp-sim">
-          <div><strong>Sumber policy:</strong> {{ $sim['policy']['source'] ?? '-' }} | <strong>Rule:</strong> {{ $sim['policy']['rule_name'] ?? '-' }}</div>
+          <div><strong>Sumber kebijakan:</strong> {{ $sim['policy']['source'] ?? '-' }} | <strong>Aturan:</strong> {{ $sim['policy']['rule_name'] ?? '-' }}</div>
           <div style="margin-top:4px"><strong>Hasil:</strong></div>
           <pre style="margin:6px 0 0;white-space:pre-wrap">{{ json_encode($sim['output'] ?? [], JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE) }}</pre>
         </div>

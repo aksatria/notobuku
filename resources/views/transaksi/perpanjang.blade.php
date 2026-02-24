@@ -263,10 +263,10 @@
     <div class="nb-k-headTop">
         <div style="min-width:260px;">
           <div class="nb-k-title">{{ $title }}</div>
-          <div class="nb-k-sub">Scan barcode item untuk memperpanjang jatuh tempo, review daftar, lalu simpan.</div>
+          <div class="nb-k-sub">Pindai barcode item untuk memperpanjang jatuh tempo, tinjau daftar, lalu simpan.</div>
           <div class="nb-k-badges">
             <span class="nb-k-badge info">Maks perpanjang: {{ (int) config('notobuku.loans.max_renewals', 2) }}x</span>
-            <span class="nb-k-badge">Tip: scan ulang untuk update status</span>
+            <span class="nb-k-badge">Tip: pindai ulang untuk memperbarui status</span>
           </div>
         </div>
 
@@ -301,16 +301,16 @@
         <div class="nb-card tx-card is-ok">
           <div class="tx-hd">
             <div>
-              <div class="t">Scan / Input Barcode</div>
-              <div class="s">Scan barcode lalu tekan <b>Enter</b> untuk menambahkan item ke daftar perpanjang.</div>
+              <div class="t">Pindai / Input Barcode</div>
+              <div class="s">Pindai barcode lalu tekan <b>Enter</b> untuk menambahkan item ke daftar perpanjang.</div>
             </div>
           </div>
 
           <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:end;">
             <div style="flex:1; min-width:260px;">
               <label class="nb-k-label">Barcode</label>
-              <input type="text" id="barcode_input" class="nb-field" placeholder="Scan barcode item..." autocomplete="off">
-              <div class="tx-mini" style="margin-top:8px;" id="scan_hint">Siap scan. Tekan Enter untuk menambah.</div>
+              <input type="text" id="barcode_input" class="nb-field" placeholder="Pindai barcode item..." autocomplete="off">
+              <div class="tx-mini" style="margin-top:8px;" id="scan_hint">Siap pindai. Tekan Enter untuk menambah.</div>
             </div>
 
             <div style="flex:0; min-width:44px;">
@@ -326,7 +326,7 @@
           <div class="tx-hd">
             <div>
               <div class="t">Daftar Item Diperpanjang</div>
-              <div class="s">Cek loan & jatuh tempo lama/baru. Hapus jika salah scan.</div>
+              <div class="s">Cek pinjaman & jatuh tempo lama/baru. Hapus jika salah pindai.</div>
             </div>
             <div class="tx-mini" id="count_info">0 item</div>
           </div>
@@ -340,9 +340,9 @@
                     <thead>
                       <tr>
                         <th class="tx-col-barcode">Barcode</th>
-                        <th class="tx-col-loan">Loan</th>
-                        <th class="tx-col-due">Due Lama</th>
-                        <th class="tx-col-newdue">Due Baru</th>
+                        <th class="tx-col-loan">Pinjaman</th>
+                        <th class="tx-col-due">Jatuh Tempo Lama</th>
+                        <th class="tx-col-newdue">Jatuh Tempo Baru</th>
                         <th class="tx-col-renew">Perpanjang</th>
                         <th class="tx-col-status">Status</th>
                         <th class="tx-col-action"></th>
@@ -354,7 +354,7 @@
                           <div class="tx-empty">
                             <div class="ico">🗓️</div>
                             <b>Belum ada item</b><br>
-                            Scan barcode untuk menambahkan ke perpanjang.
+                            Pindai barcode untuk menambahkan ke perpanjang.
                           </div>
                         </td>
                       </tr>
@@ -367,7 +367,7 @@
 
                 <div class="tx-footer">
                   <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">
-                    <div class="tx-mini">Tips: Tekan <b>Enter</b> untuk menambah item • Tekan <b>Esc</b> untuk fokus ke scan</div>
+                    <div class="tx-mini">Tips: Tekan <b>Enter</b> untuk menambah item • Tekan <b>Esc</b> untuk fokus ke pindai</div>
                     <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
                       <a href="{{ route('transaksi.perpanjang.form') }}" class="nb-k-ibtn reset" title="Atur Ulang" aria-label="Atur Ulang">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M12 5V2L8 6l4 4V7c3.31 0 6 2.69 6 6a6 6 0 0 1-10.39 4.16l-1.42 1.42A8 8 0 0 0 20 13c0-4.42-3.58-8-8-8Z"/></svg>

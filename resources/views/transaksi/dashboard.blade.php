@@ -237,13 +237,13 @@
     </div>
 
     <div class="nb-db-stat-card purple">
-      <div class="nb-db-stat-label">Open Loans</div>
+      <div class="nb-db-stat-label">Pinjaman Aktif</div>
       <div class="nb-db-stat-value">{{ $fmt($open_loans) }}</div>
       <div class="nb-db-stat-desc">Transaksi yang masih berjalan.</div>
     </div>
 
     <div class="nb-db-stat-card amber">
-      <div class="nb-db-stat-label">Overdue Items</div>
+      <div class="nb-db-stat-label">Item Terlambat</div>
       <div class="nb-db-stat-value">{{ $fmt($overdue_items) }}</div>
       <div class="nb-db-stat-desc">Item lewat jatuh tempo (belum kembali).</div>
     </div>
@@ -270,13 +270,13 @@
 
       <div style="margin-top:12px; display:flex; flex-direction:column; gap:10px;">
         <span class="nb-db-pill {{ $insightTone }}">
-          Overdue Ratio: {{ $fmt1($overdue_ratio) }}%
+          Rasio Terlambat: {{ $fmt1($overdue_ratio) }}%
         </span>
         <span class="nb-db-pill {{ $return_rate < 70 ? 'warn' : 'ok' }}">
-          Return Rate (bulan ini): {{ $fmt1($return_rate) }}%
+          Rasio Kembali (bulan ini): {{ $fmt1($return_rate) }}%
         </span>
         <span class="nb-db-pill {{ $on_time_rate < 70 ? 'warn' : 'ok' }}">
-          On-time Rate (bulan ini): {{ $fmt1($on_time_rate) }}%
+          Rasio Tepat Waktu (bulan ini): {{ $fmt1($on_time_rate) }}%
         </span>
       </div>
 
@@ -298,7 +298,7 @@
       </table>
 
       <div style="margin-top:14px; border-top:1px dashed #e5e7eb; padding-top:12px;">
-        <div class="nb-db-card-title" style="font-size:13px;">Observability Alert</div>
+        <div class="nb-db-card-title" style="font-size:13px;">Peringatan Observabilitas</div>
         <div class="nb-db-card-sub">p95 latency + failure reason top-N endpoint sirkulasi.</div>
         <div style="margin-top:10px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
           <span
@@ -306,15 +306,15 @@
             class="nb-db-pill {{ $obsClass === 'critical' ? 'bad' : ($obsClass === 'warning' ? 'warn' : 'ok') }}"
             data-metrics-url="{{ $obsMetricsUrl }}"
           >{{ $obsLabel }}</span>
-          <button id="circ-obs-refresh" type="button" class="nb-db-pill ok" style="cursor:pointer;">Refresh now</button>
+          <button id="circ-obs-refresh" type="button" class="nb-db-pill ok" style="cursor:pointer;">Muat Ulang</button>
         </div>
         <div id="circ-obs-sub" class="nb-db-card-sub" style="margin-top:8px;">
           p95 {{ $fmt($obsP95) }} ms, failure {{ $fmt2($obsFailureRate) }}%
         </div>
         <div id="circ-obs-reason" class="nb-db-card-sub" style="margin-top:4px;">
-          Top failure: {{ $obsTopReason }} ({{ $fmt($obsTopReasonCount) }})
+          Kegagalan teratas: {{ $obsTopReason }} ({{ $fmt($obsTopReasonCount) }})
         </div>
-        <div id="circ-obs-updated" class="nb-db-card-sub" style="margin-top:4px;">Last updated baru saja</div>
+        <div id="circ-obs-updated" class="nb-db-card-sub" style="margin-top:4px;">Terakhir diperbarui baru saja</div>
       </div>
     </div>
   </div>
@@ -323,7 +323,7 @@
   <div class="nb-db-main-grid" style="grid-template-columns: 1fr 1fr 1fr;">
     {{-- Aging Overdue --}}
     <div class="nb-db-card">
-      <div class="nb-db-card-title">Aging Overdue</div>
+      <div class="nb-db-card-title">Usia Keterlambatan</div>
       <div class="nb-db-card-sub">Sebaran keterlambatan untuk prioritas follow-up.</div>
 
       @php
@@ -370,11 +370,11 @@
 
     {{-- Top Titles --}}
     <div class="nb-db-card">
-      <div class="nb-db-card-title">Top Titles</div>
+      <div class="nb-db-card-title">Judul Teratas</div>
       <div class="nb-db-card-sub">Judul paling sering dipinjam (window {{ $range_days }} hari).</div>
 
       @if(empty($top_titles))
-        <div class="nb-db-empty">Belum ada data Top Titles.</div>
+        <div class="nb-db-empty">Belum ada data judul teratas.</div>
       @else
         <table class="nb-db-table">
           <thead>
@@ -408,7 +408,7 @@
 
     {{-- Top Overdue Members --}}
     <div class="nb-db-card">
-      <div class="nb-db-card-title">Top Overdue Members</div>
+      <div class="nb-db-card-title">Anggota Terlambat Teratas</div>
       <div class="nb-db-card-sub">Anggota dengan overdue terbanyak + keterlambatan terlama.</div>
 
       @if(empty($top_overdue_members))
@@ -417,8 +417,8 @@
         <table class="nb-db-table">
           <thead>
             <tr>
-              <th style="width:55%;">Member</th>
-              <th style="width:18%;">Overdue</th>
+              <th style="width:55%;">Anggota</th>
+              <th style="width:18%;">Terlambat</th>
               <th style="text-align:right;">Max hari</th>
             </tr>
           </thead>

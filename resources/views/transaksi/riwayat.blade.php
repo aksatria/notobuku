@@ -369,7 +369,7 @@
         <div class="nb-rw-filterbar">
           <div class="nb-rw-chips" style="flex: 1 1 100%; margin-bottom:2px;">
             <a class="nb-rw-chip" href="{{ route('transaksi.riwayat', array_merge(request()->query(), ['status' => 'open', 'tab' => 'transaksi'])) }}">Aktif</a>
-            <a class="nb-rw-chip" href="{{ route('transaksi.riwayat', array_merge(request()->query(), ['status' => 'overdue', 'tab' => 'transaksi'])) }}">Overdue</a>
+            <a class="nb-rw-chip" href="{{ route('transaksi.riwayat', array_merge(request()->query(), ['status' => 'overdue', 'tab' => 'transaksi'])) }}">Terlambat</a>
             <a class="nb-rw-chip" href="{{ route('transaksi.riwayat', array_merge(request()->query(), ['status' => 'closed', 'tab' => 'transaksi'])) }}">Selesai</a>
             <a class="nb-rw-chip" href="{{ route('transaksi.riwayat', ['tab' => 'transaksi']) }}">Semua</a>
           </div>
@@ -440,7 +440,7 @@
           <div class="nb-rw-chips" style="flex: 1 1 100%;">
             <label class="nb-rw-chip" title="Tampilkan yang terlambat / jatuh tempo">
               <input type="checkbox" name="overdue" value="1" @checked($overdue==='1') />
-              <span>Overdue saja</span>
+              <span>Terlambat saja</span>
             </label>
           </div>
 
@@ -584,7 +584,7 @@
                 <th>Kode</th>
                 <th>Anggota</th>
                 <th>Barcode</th>
-                <th>Due</th>
+                <th>Jatuh tempo</th>
                 <th>Kembali</th>
                 <th>Hari</th>
                 <th>Nominal</th>
@@ -602,7 +602,7 @@
                     <a class="nb-rw-link" href="{{ route('transaksi.riwayat.detail', ['id' => $f->loan_id]) }}">
                       {{ $f->loan_code }}
                     </a>
-                    <div class="nb-rw-muted">Loan Item #{{ (int)$f->loan_item_id }}</div>
+                    <div class="nb-rw-muted">Item Pinjaman #{{ (int)$f->loan_item_id }}</div>
                   </td>
                   <td>
                     <div style="font-weight:900; line-height:1.15;">{{ $f->member_name }}</div>

@@ -258,7 +258,7 @@
           <th>Jenis</th>
           <th>Tingkat</th>
           <th>Pinjam/Item</th>
-          <th>Member</th>
+          <th>Anggota</th>
           <th>Detail</th>
           <th>Usia</th>
           <th>Status</th>
@@ -283,7 +283,7 @@
             </td>
             <td>
               <div>{{ $row['member_code'] !== '' ? $row['member_code'] : '-' }}</div>
-              <div class="ex-mini">Member ID: {{ $row['member_id'] }}</div>
+              <div class="ex-mini">ID Anggota: {{ $row['member_id'] }}</div>
             </td>
             <td>
               <div>{{ $row['detail'] !== '' ? $row['detail'] : '-' }}</div>
