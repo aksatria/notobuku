@@ -470,7 +470,7 @@
           </div>
 
           <div class="mbadges">
-            <span class="mbadge info">Loan: {{ $loanCode }}</span>
+            <span class="mbadge info">Pinjaman: {{ $loanCode }}</span>
             <span class="mbadge ok">Pinjam: {{ $loanedAtText }}</span>
             <span class="mbadge info">Jatuh tempo: {{ $dueAtText }}</span>
             <span class="mbadge info">Cabang: {{ $branchName }}</span>
@@ -577,7 +577,7 @@
             </div>
             <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
               <button type="button" class="btn-wide" id="btn_change_paper" style="height:38px;">Ubah ukuran</button>
-              <button type="button" class="btn-wide ghost" id="btn_reset_paper" style="height:38px;">Reset</button>
+              <button type="button" class="btn-wide ghost" id="btn_reset_paper" style="height:38px;">Atur Ulang</button>
             </div>
           </div>
 
@@ -618,7 +618,7 @@
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
     </button>
     <div class="t">Sukses ✅</div>
-    <div class="s">Pengembalian berhasil disimpan. Loan: <b>{{ $loanCode }}</b> • {{ $newCount }} item baru dikembalikan</div>
+    <div class="s">Pengembalian berhasil disimpan. Pinjaman: <b>{{ $loanCode }}</b> • {{ $newCount }} item baru dikembalikan</div>
   </div>
 
   <script>

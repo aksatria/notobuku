@@ -619,7 +619,7 @@
 
           <div class="hr"></div>
 
-          <div class="row"><div>Loan</div><div class="big">{{ $loanCode }}</div></div>
+          <div class="row"><div>Pinjaman</div><div class="big">{{ $loanCode }}</div></div>
           <div class="row"><div>Anggota</div><div>{{ $anggotaCode }}</div></div>
           <div class="row" style="justify-content:flex-start; margin-top:4px;">
             <div style="font-weight:900;">{{ $anggotaName }}</div>
@@ -686,7 +686,7 @@
               <div class="brand">NOTOBUKU</div>
               <div class="meta">
                 <div><b>Nota Peminjaman</b></div>
-                <div>Loan: <b>{{ $loanCode }}</b> • Status: <b>{{ strtoupper($loanStatus) }}</b></div>
+                <div>Pinjaman: <b>{{ $loanCode }}</b> • Status: <b>{{ strtoupper($loanStatus) }}</b></div>
                 <div>Dicetak: {{ now()->format('d/m/Y H:i') }} • Petugas: {{ $createdBy }}</div>
               </div>
             </div>
@@ -875,7 +875,7 @@
           </div>
 
           <div class="mbadges">
-            <span class="mbadge info">Loan: {{ $loanCode }}</span>
+            <span class="mbadge info">Pinjaman: {{ $loanCode }}</span>
             <span class="mbadge ok">Pinjam: {{ $loanedAtText }}</span>
             <span class="mbadge info">Jatuh tempo: {{ $dueAtText }}</span>
             <span class="mbadge info">Cabang: {{ $branchName }}</span>
@@ -887,21 +887,21 @@
 
       <div class="qrBox">
         <div class="qrMeta">
-          <div class="h">QR Loan Code</div>
+          <div class="h">QR Kode Pinjaman</div>
           <div class="p">Scan QR ini untuk cari transaksi dengan cepat.</div>
           <div class="p" style="font-weight:900;">Data: {{ $qrData }}</div>
 
           <div style="margin-top:10px;">
             <label style="display:flex; align-items:center; gap:10px; font-weight:800; font-size:12.5px; color: rgba(11,37,69,.78);">
               <input type="checkbox" id="auto_redirect_toggle" style="width:18px; height:18px;">
-              Auto redirect ke “Transaksi Baru” setelah <span id="redir_sec">0</span> detik
+              Alihkan otomatis ke “Transaksi Baru” setelah <span id="redir_sec">0</span> detik
             </label>
             <div class="tx-mini" id="redir_hint" style="margin-top:6px;">(Opsional) Cocok untuk alur kerja cepat petugas.</div>
           </div>
         </div>
 
         <div class="qrImg">
-          <img src="{{ $qrUrl }}" alt="QR Loan Code" style="width:100%; height:100%; object-fit:cover;">
+          <img src="{{ $qrUrl }}" alt="QR Kode Pinjaman" style="width:100%; height:100%; object-fit:cover;">
         </div>
       </div>
 
@@ -930,7 +930,7 @@
                 <th class="tx-col-barcode">Barcode</th>
                 <th>Judul</th>
                 <th style="width:150px;">Call No</th>
-                <th class="tx-col-status">Status Item</th>
+                <th class="tx-col-status">Status</th>
                 <th class="tx-col-due">Jatuh Tempo</th>
               </tr>
             </thead>
@@ -1008,7 +1008,7 @@
             </div>
             <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
               <button type="button" class="btn-wide" id="btn_change_paper" style="height:38px;">Ubah ukuran</button>
-              <button type="button" class="btn-wide ghost" id="btn_reset_paper" style="height:38px;">Reset</button>
+              <button type="button" class="btn-wide ghost" id="btn_reset_paper" style="height:38px;">Atur Ulang</button>
             </div>
           </div>
 
@@ -1049,7 +1049,7 @@
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
     </button>
     <div class="t">Sukses ✅</div>
-    <div class="s">Transaksi pinjam berhasil dibuat. Loan: <b>{{ $loanCode }}</b> • {{ $itemsCount }} item</div>
+    <div class="s">Transaksi pinjam berhasil dibuat. Pinjaman: <b>{{ $loanCode }}</b> • {{ $itemsCount }} item</div>
   </div>
 
   {{-- TOAST: edukasi print --}}
