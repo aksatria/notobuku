@@ -87,7 +87,7 @@
     <div class="nb-k-headTop">
       <div style="min-width:260px;">
         <div class="nb-k-title">{{ $title }}</div>
-        <div class="nb-k-sub">Pilih member, scan barcode eksemplar, lalu simpan transaksi.</div>
+        <div class="nb-k-sub">Pilih anggota, pindai barcode eksemplar, lalu simpan transaksi.</div>
       </div>
       <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
         <a href="{{ route('katalog.index') }}" class="nb-k-ibtn reset" title="Katalog" aria-label="Katalog">
@@ -107,10 +107,10 @@
     <div class="nb-card" style="padding:14px; margin-top:12px;">
       <div class="nb-k-filter">
         <div class="nb-k-fieldBlock" id="member_block">
-          <label class="nb-k-label">Cari Member</label>
+          <label class="nb-k-label">Cari Anggota</label>
           <div class="nb-k-inputWrap">
             <div class="nb-k-ghost" id="member_ghost"></div>
-            <input type="text" id="member_search" class="nb-field" placeholder="Ketik minimal 2 huruf / kode member..." autocomplete="off">
+            <input type="text" id="member_search" class="nb-field" placeholder="Ketik minimal 2 huruf / kode anggota..." autocomplete="off">
           </div>
           <div id="member_results"></div>
         </div>
@@ -127,7 +127,7 @@
           <span class="mbadge info" id="m_policy">Limit: — • Perpanjang: —</span>
           <span class="mbadge info" id="m_due">Jatuh tempo: otomatis</span>
           <span class="mbadge warn" id="m_warn" style="display:none;">Hampir penuh</span>
-          <button type="button" class="mbadge btn" id="btn_change_member">Ganti Member</button>
+          <button type="button" class="mbadge btn" id="btn_change_member">Ganti Anggota</button>
         </div>
       </div>
 
@@ -160,7 +160,7 @@
       </div>
 
       <div class="tx-actions">
-        <button type="button" class="nb-btn nb-btn-danger" id="btn_reset">Reset</button>
+        <button type="button" class="nb-btn nb-btn-danger" id="btn_reset">Atur Ulang</button>
         <button type="submit" class="nb-btn nb-btn-primary">Simpan Transaksi</button>
       </div>
     </div>
@@ -259,7 +259,7 @@
       const parts = String(m.label).split('•').map(s=>s.trim());
       const name = parts[0] || m.label;
       const meta = parts[1] ? ('Kode: ' + parts[1]) : '';
-      const role = m.role ? ('Role: ' + String(m.role).toUpperCase()) : '';
+      const role = m.role ? ('Peran: ' + String(m.role).toUpperCase()) : '';
       const limit = m.max_items ? ('Limit: ' + String(m.max_items)) : '';
       const metaLine = [meta, role, limit].filter(Boolean).join(' • ');
 
@@ -351,7 +351,7 @@
 
   btnChangeMember.addEventListener('click', ()=>{
     if (barcodes.size > 0) {
-      const ok = confirm('Ganti member akan mengosongkan daftar item yang sudah discan. Lanjutkan?');
+      const ok = confirm('Ganti anggota akan mengosongkan daftar item yang sudah dipindai. Lanjutkan?');
       if (!ok) return;
       clearItems();
     }
@@ -365,7 +365,7 @@
 
   btnReset.addEventListener('click', ()=>{
     if (barcodes.size > 0) {
-      const ok = confirm('Reset akan mengosongkan daftar item. Lanjutkan?');
+      const ok = confirm('Atur ulang akan mengosongkan daftar item. Lanjutkan?');
       if (!ok) return;
     }
     clearItems();
@@ -388,7 +388,7 @@
     const code = this.value.trim();
     if (!code) return;
     if (!memberIdInput.value) {
-      alert('Pilih member terlebih dahulu.');
+      alert('Pilih anggota terlebih dahulu.');
       memberSearch.focus();
       return;
     }
@@ -438,7 +438,7 @@
   document.getElementById('form-pinjam').addEventListener('submit', (e)=>{
     if (!memberIdInput.value) {
       e.preventDefault();
-      alert('Pilih member terlebih dahulu.');
+      alert('Pilih anggota terlebih dahulu.');
       memberSearch.focus();
       return;
     }

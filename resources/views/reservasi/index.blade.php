@@ -530,7 +530,7 @@
     </div>
   </div>
 
-  {{-- Search + Filter --}}
+  {{-- Pencarian + Penyaring --}}
   <div class="nb-card" style="padding:14px;margin-bottom:14px;">
     <form method="GET" action="{{ route('reservasi.index') }}" class="resv-bar">
       <input type="hidden" name="filter" value="{{ $filter }}">
@@ -549,12 +549,12 @@
       </div>
 
       <div style="min-width:220px;">
-        <div class="nb-field-label">Filter</div>
+        <div class="nb-field-label">Penyaring</div>
         <div class="nb-input nb-input-strong" style="height:52px;display:flex;align-items:center;">
           <select
             onchange="location=this.value"
             style="border:0;outline:none;background:transparent;color:inherit;font-weight:450;cursor:pointer;width:100%;"
-            aria-label="Filter reservasi"
+            aria-label="Penyaring reservasi"
           >
             <option value="{{ route('reservasi.index',['filter'=>'all','q'=>$q]) }}" {{ $filter==='all'?'selected':'' }}>Semua</option>
             <option value="{{ route('reservasi.index',['filter'=>'queued','q'=>$q]) }}" {{ $filter==='queued'?'selected':'' }}>Menunggu</option>
@@ -568,13 +568,13 @@
         <div style="height:20px;"></div>
         <button class="nb-btn nb-btn-soft" type="submit" style="height:52px;">Cari</button>
         @if(trim((string)$q) !== '')
-          <a class="nb-btn nb-btn-soft" href="{{ route('reservasi.index',['filter'=>$filter]) }}" style="height:52px;display:inline-flex;align-items:center;">Reset</a>
+          <a class="nb-btn nb-btn-soft" href="{{ route('reservasi.index',['filter'=>$filter]) }}" style="height:52px;display:inline-flex;align-items:center;">Atur Ulang</a>
         @endif
       </div>
     </form>
   </div>
 
-  {{-- Create (Barcode) --}}
+  {{-- Buat (Barcode) --}}
   @if($canCreate)
     <div id="buat-reservasi" class="nb-card" style="padding:14px;margin-bottom:14px;">
       <div class="nb-page-head" style="margin-bottom:10px;">
@@ -607,7 +607,7 @@
             <input
               name="barcode"
               value="{{ old('barcode', old('biblio_id')) }}"
-              placeholder="scan / ketik barcode…"
+              placeholder="pindai / ketik barcode…"
               required
               inputmode="numeric"
               style="border:0;outline:none;width:100%;background:transparent;color:inherit;font-weight:450;"

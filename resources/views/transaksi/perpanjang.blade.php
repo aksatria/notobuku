@@ -369,7 +369,7 @@
                   <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">
                     <div class="tx-mini">Tips: Tekan <b>Enter</b> untuk menambah item • Tekan <b>Esc</b> untuk fokus ke scan</div>
                     <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                      <a href="{{ route('transaksi.perpanjang.form') }}" class="nb-k-ibtn reset" title="Reset" aria-label="Reset">
+                      <a href="{{ route('transaksi.perpanjang.form') }}" class="nb-k-ibtn reset" title="Atur Ulang" aria-label="Atur Ulang">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M12 5V2L8 6l4 4V7c3.31 0 6 2.69 6 6a6 6 0 0 1-10.39 4.16l-1.42 1.42A8 8 0 0 0 20 13c0-4.42-3.58-8-8-8Z"/></svg>
                       </a>
 
@@ -394,7 +394,7 @@
 
 @if(session('success'))
   <div class="nb-toast" id="toast_ok">
-    <button class="x" type="button" id="toast_close" aria-label="Close">
+    <button class="x" type="button" id="toast_close" aria-label="Tutup">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
     </button>
     <div class="t">Sukses ✅</div>
