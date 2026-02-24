@@ -26,7 +26,7 @@
           <div class="dt-title">Detail Transaksi</div>
           <div class="dt-sub">
             Kode: <span class="dt-mono">{{ $loan->loan_code ?? '-' }}</span>
-            • Member: <strong>{{ $loan->member_name ?? '-' }}</strong>
+            • Anggota: <strong>{{ $loan->member_name ?? '-' }}</strong>
             • Cabang: <strong>{{ $loan->branch_name ?? '-' }}</strong>
           </div>
         </div>
@@ -118,7 +118,7 @@
               <td style="white-space:nowrap;">
                 {{ $dueDate ? $dueDate->format('d M Y') : '-' }}
                 @if($isOverdue)
-                  <span class="dt-chip bad" style="margin-left:6px;">Overdue</span>
+                  <span class="dt-chip bad" style="margin-left:6px;">Terlambat</span>
                 @endif
               </td>
               <td style="white-space:nowrap;">
@@ -674,7 +674,7 @@
     const remain = Math.max((amount - paidPart), 0);
 
     document.getElementById('payLoanItemId').value = loanItemId;
-    document.getElementById('payMeta').textContent = `Loan Item #${loanItemId} • ${barcode} • Sisa: Rp ${rupiah(remain)}`;
+    document.getElementById('payMeta').textContent = `Item Pinjaman #${loanItemId} • ${barcode} • Sisa: Rp ${rupiah(remain)}`;
 
     const payAmountEl = document.getElementById('payAmount');
     payAmountEl.value = '';
@@ -697,7 +697,7 @@
     const loanItemId = row.getAttribute('data-loan-item-id');
     const barcode = row.getAttribute('data-barcode') || '-';
     document.getElementById('voidLoanItemId').value = loanItemId;
-    document.getElementById('voidMeta').textContent = `Loan Item #${loanItemId} • ${barcode}`;
+    document.getElementById('voidMeta').textContent = `Item Pinjaman #${loanItemId} • ${barcode}`;
     document.getElementById('voidNotes').value = '';
     openBackdrop();
     document.getElementById('drawerVoid').style.display = 'block';

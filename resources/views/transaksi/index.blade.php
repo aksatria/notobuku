@@ -41,28 +41,28 @@
       <a class="op-btn" href="{{ $legacyUrls['perpanjang'] ?? '#' }}">Perpanjang lama</a>
     </div>
     <div class="uc-quick">
-      <div class="uc-steps" id="txu_mode_steps">Langkah cepat: Pilih member → Scan barcode item → Simpan pinjam.</div>
+      <div class="uc-steps" id="txu_mode_steps">Langkah cepat: Pilih anggota → Pindai barcode item → Simpan pinjam.</div>
       <div class="uc-shortcuts" id="txu_shortcuts_hint">Shortcut: <kbd>F2</kbd> ganti mode, <kbd>F8</kbd> simpan, <kbd>Esc</kbd> bersihkan.</div>
     </div>
 
     <div class="uc-body">
       <div class="uc-main">
         <div class="uc-field" id="txu_member_block">
-          <label id="txu_member_label">Cari Member</label>
-          <input class="uc-input" type="text" id="txu_member_search" placeholder="Nama/kode member...">
+          <label id="txu_member_label">Cari Anggota</label>
+          <input class="uc-input" type="text" id="txu_member_search" placeholder="Nama/kode anggota...">
           <div id="txu_member_results"></div>
           <input type="hidden" id="txu_member_id">
           <div class="uc-hint" id="txu_member_meta"></div>
         </div>
 
         <div class="uc-field uc-scan-sticky" id="txu_scan_field">
-          <label id="txu_barcode_label">Scan Barcode</label>
-          <input class="uc-input" type="text" id="txu_barcode" placeholder="Scan lalu Enter" autocomplete="off">
+          <label id="txu_barcode_label">Pindai Barcode</label>
+          <input class="uc-input" type="text" id="txu_barcode" placeholder="Pindai lalu Enter" autocomplete="off">
           <div class="uc-tip" id="txu_scan_tip_wrap">
             <button type="button" class="uc-tip-btn" id="txu_scan_tip_btn" aria-describedby="txu_scan_tip_text" title="Contoh scan valid">?</button>
             <span id="txu_scan_tip_text">Contoh: BK-REF-000123 (barcode item).</span>
           </div>
-          <div class="uc-hint" id="txu_mode_help">Scan item yang akan dipinjam.</div>
+          <div class="uc-hint" id="txu_mode_help">Pindai item yang akan dipinjam.</div>
         </div>
 
         <div class="uc-table-wrap">
@@ -90,7 +90,7 @@
         <div class="uc-actions">
           <button type="button" class="op-btn" id="txu_undo">Batalkan item terakhir</button>
           <button type="button" class="op-btn" id="txu_clear">Bersihkan</button>
-          <button type="button" class="op-btn" id="txu_flush">Sync Queue</button>
+          <button type="button" class="op-btn" id="txu_flush">Sinkronkan Antrean</button>
           <button type="button" class="op-btn primary" id="txu_commit">Terapkan</button>
         </div>
         <div class="uc-error-panel" id="txu_error_panel" hidden>
@@ -266,13 +266,13 @@
   const SYNC_MAX_DELAY_MS = 300000;
   const MODE_COPY = {
     checkout: {
-      memberLabel: 'Cari Member',
-      memberPlaceholder: 'Nama/kode member yang meminjam...',
-      barcodeLabel: 'Scan Barcode Pinjam',
-      barcodePlaceholder: 'Scan barcode item untuk dipinjam',
-      modeHelp: 'Scan satu per satu item yang akan dipinjam oleh member terpilih.',
-      scanTip: 'Contoh scan valid: BK-REF-000123 (barcode item tersedia).',
-      steps: 'Langkah cepat: Pilih member → Scan barcode item → Simpan pinjam.',
+      memberLabel: 'Cari Anggota',
+      memberPlaceholder: 'Nama/kode anggota yang meminjam...',
+      barcodeLabel: 'Pindai Barcode Pinjam',
+      barcodePlaceholder: 'Pindai barcode item untuk dipinjam',
+      modeHelp: 'Pindai satu per satu item yang akan dipinjam oleh anggota terpilih.',
+      scanTip: 'Contoh pindai valid: BK-REF-000123 (barcode item tersedia).',
+      steps: 'Langkah cepat: Pilih anggota → Pindai barcode item → Simpan pinjam.',
       empty: 'Belum ada item pinjam.',
       notesLabel: 'Catatan Pinjam',
       notesPlaceholder: 'Contoh: diproses oleh meja layanan 1',
@@ -280,13 +280,13 @@
       logMode: 'Pinjam',
     },
     return: {
-      memberLabel: 'Member (otomatis dari pinjaman)',
-      memberPlaceholder: 'Tidak perlu isi member pada mode kembali',
-      barcodeLabel: 'Scan Barcode Kembali',
-      barcodePlaceholder: 'Scan barcode item yang dikembalikan',
+      memberLabel: 'Anggota (otomatis dari pinjaman)',
+      memberPlaceholder: 'Tidak perlu isi anggota pada mode kembali',
+      barcodeLabel: 'Pindai Barcode Kembali',
+      barcodePlaceholder: 'Pindai barcode item yang dikembalikan',
       modeHelp: 'Sistem akan mencari pinjaman aktif dari barcode lalu menyiapkan pengembalian.',
-      scanTip: 'Contoh scan valid: BK-REF-000123 (barcode item yang sedang dipinjam).',
-      steps: 'Langkah cepat: Scan barcode item → Cek status pinjaman aktif → Simpan pengembalian.',
+      scanTip: 'Contoh pindai valid: BK-REF-000123 (barcode item yang sedang dipinjam).',
+      steps: 'Langkah cepat: Pindai barcode item → Cek status pinjaman aktif → Simpan pengembalian.',
       empty: 'Belum ada item kembali.',
       notesLabel: 'Catatan Pengembalian',
       notesPlaceholder: 'Contoh: ada kerusakan sampul ringan',
@@ -294,13 +294,13 @@
       logMode: 'Kembali',
     },
     renew: {
-      memberLabel: 'Member (otomatis dari pinjaman)',
-      memberPlaceholder: 'Tidak perlu isi member pada mode perpanjang',
-      barcodeLabel: 'Scan Barcode Perpanjang',
-      barcodePlaceholder: 'Scan barcode item yang akan diperpanjang',
+      memberLabel: 'Anggota (otomatis dari pinjaman)',
+      memberPlaceholder: 'Tidak perlu isi anggota pada mode perpanjang',
+      barcodeLabel: 'Pindai Barcode Perpanjang',
+      barcodePlaceholder: 'Pindai barcode item yang akan diperpanjang',
       modeHelp: 'Sistem akan cek hak perpanjangan, batas renew, dan jatuh tempo baru.',
-      scanTip: 'Contoh scan valid: BK-REF-000123 (barcode item dengan pinjaman aktif).',
-      steps: 'Langkah cepat: Scan barcode item → Review batas perpanjang → Simpan perpanjangan.',
+      scanTip: 'Contoh pindai valid: BK-REF-000123 (barcode item dengan pinjaman aktif).',
+      steps: 'Langkah cepat: Pindai barcode item → Tinjau batas perpanjang → Simpan perpanjangan.',
       empty: 'Belum ada item perpanjang.',
       notesLabel: 'Catatan Perpanjang',
       notesPlaceholder: 'Contoh: disetujui karena antrian kosong',
@@ -353,10 +353,10 @@
       return { title: 'Duplikat Request', hint: 'Tunggu sebentar lalu scan ulang sekali saja.' };
     }
     if (msg.includes('tidak valid') || msg.includes('wajib') || msg.includes('tidak ditemukan')) {
-      return { title: 'Validasi Data', hint: 'Cek barcode/member, lalu ulangi scan sesuai mode aktif.' };
+      return { title: 'Validasi Data', hint: 'Cek barcode/anggota, lalu ulangi scan sesuai mode aktif.' };
     }
     if (msg.includes('akses') || msg.includes('ditolak') || msg.includes('forbidden')) {
-      return { title: 'Hak Akses', hint: 'Gunakan akun staff/admin pada cabang yang sesuai.' };
+      return { title: 'Hak Akses', hint: 'Gunakan akun petugas/admin pada cabang yang sesuai.' };
     }
     return { title: 'Operasional', hint: 'Coba lagi. Jika berulang, laporkan ke admin sistem.' };
   }
@@ -598,9 +598,9 @@
     const isBatch = singleIndex === null;
 
     if (event.action === 'checkout' && Number(event.payload.member_id || 0) <= 0) {
-      log('Pilih member dulu untuk transaksi pinjam.');
-      const cls = classifyError('validasi member');
-      setErrorPanel(cls.title, 'Member belum dipilih untuk mode pinjam.', cls.hint);
+      log('Pilih anggota dulu untuk transaksi pinjam.');
+      const cls = classifyError('validasi anggota');
+      setErrorPanel(cls.title, 'Anggota belum dipilih untuk mode pinjam.', cls.hint);
       tone(false);
       return;
     }
@@ -790,9 +790,9 @@
         await commit(STATE.rows.length - 1);
       }
     } catch (e) {
-      log(`Scan gagal: ${e.message || 'unknown error'}`);
+      log(`Pindai gagal: ${e.message || 'kesalahan tidak diketahui'}`);
       const cls = classifyError(e.message || '');
-      setErrorPanel(cls.title, String(e.message || 'Scan gagal.'), cls.hint);
+      setErrorPanel(cls.title, String(e.message || 'Pindai gagal.'), cls.hint);
       tone(false);
     } finally {
       STATE.scanLock = false;
@@ -928,7 +928,7 @@
     el.queue.textContent = 'Queue: OFF';
     el.sync.textContent = 'Sinkron: OFF';
     el.sync.className = 'uc-chip warn';
-    el.flush.textContent = 'Sync Queue OFF';
+    el.flush.textContent = 'Sinkronkan Antrean NONAKTIF';
     el.flush.disabled = true;
   }
 
@@ -950,4 +950,5 @@
 })();
 </script>
 @endsection
+
 
