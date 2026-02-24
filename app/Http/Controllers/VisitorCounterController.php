@@ -19,6 +19,7 @@ class VisitorCounterController extends Controller
             'visitor_counter.checkout',
             'visitor_counter.checkout_bulk',
             'visitor_counter.checkout_selected',
+            'visitor_counter.undo_checkout_selected',
             'visitor_counter.undo_checkout',
             'visitor_counter.checkout_skipped',
             'visitor_counter.undo_checkout_skipped',
@@ -34,6 +35,45 @@ class VisitorCounterController extends Controller
     private function allowedAuditSorts(): array
     {
         return ['latest', 'oldest'];
+    }
+
+    private function auditActionLabels(): array
+    {
+        return [
+            'visitor_counter.checkin' => 'Masuk',
+            'visitor_counter.checkout' => 'Keluar',
+            'visitor_counter.checkout_bulk' => 'Keluar massal',
+            'visitor_counter.checkout_selected' => 'Keluar terpilih',
+            'visitor_counter.undo_checkout_selected' => 'Batalkan keluar terpilih',
+            'visitor_counter.undo_checkout' => 'Batalkan keluar',
+            'visitor_counter.checkout_skipped' => 'Keluar dilewati',
+            'visitor_counter.undo_checkout_skipped' => 'Batalkan keluar dilewati',
+            'visitor_counter.undo_checkout_denied' => 'Batalkan keluar ditolak',
+        ];
+    }
+
+    private function auditRoleLabels(): array
+    {
+        return [
+            'super_admin' => 'Super Admin',
+            'admin' => 'Admin',
+            'staff' => 'Petugas',
+            'member' => 'Anggota',
+        ];
+    }
+
+    private function resolveAuditActionLabel(?string $action): string
+    {
+        $action = (string) ($action ?? '');
+        $labels = $this->auditActionLabels();
+        return $labels[$action] ?? $action;
+    }
+
+    private function resolveAuditRoleLabel(?string $role): string
+    {
+        $role = (string) ($role ?? '');
+        $labels = $this->auditRoleLabels();
+        return $labels[$role] ?? $role;
     }
 
     private function institutionId(): int
@@ -73,14 +113,27 @@ class VisitorCounterController extends Controller
         return [$date, $date, $date, 'custom'];
     }
 
-    private function buildFilteredBaseQuery(int $institutionId, string $dateFrom, string $dateTo, int $branchId, string $keyword = '', bool $activeOnly = false)
+    private function buildFilteredBaseQuery(
+        int $institutionId,
+        string $dateFrom,
+        string $dateTo,
+        int $branchId,
+        string $keyword = '',
+        bool $activeOnly = false,
+        bool $undoReadyOnly = false
+    )
     {
+        $undoWindowStart = now()->subMinutes(5);
         return VisitorCounter::query()
             ->where('visitor_counters.institution_id', $institutionId)
             ->whereDate('visitor_counters.checkin_at', '>=', $dateFrom)
             ->whereDate('visitor_counters.checkin_at', '<=', $dateTo)
             ->when($branchId > 0, fn ($q) => $q->where('visitor_counters.branch_id', $branchId))
             ->when($activeOnly, fn ($q) => $q->whereNull('visitor_counters.checkout_at'))
+            ->when($undoReadyOnly, function ($q) use ($undoWindowStart) {
+                $q->whereNotNull('visitor_counters.checkout_at')
+                    ->where('visitor_counters.checkout_at', '>=', $undoWindowStart);
+            })
             ->leftJoin('members as m', 'm.id', '=', 'visitor_counters.member_id')
             ->leftJoin('branches as b', 'b.id', '=', 'visitor_counters.branch_id')
             ->when($keyword !== '', function ($q) use ($keyword) {
@@ -207,6 +260,10 @@ class VisitorCounterController extends Controller
         $branchId = $this->normalizeBranchFilter((int) $request->query('branch_id', 0), $allowedBranchId);
         $keyword = trim((string) $request->query('q', ''));
         $activeOnly = $request->boolean('active_only');
+        $undoReady = $request->boolean('undo_ready');
+        if ($undoReady) {
+            $activeOnly = false;
+        }
         $perPage = (int) $request->query('per_page', 20);
         if (!in_array($perPage, [20, 50, 100], true)) {
             $perPage = 20;
@@ -243,7 +300,7 @@ class VisitorCounterController extends Controller
             $branches = $branchesQuery->orderBy('name')->get();
         }
 
-        $base = $this->buildFilteredBaseQuery($institutionId, $dateFrom, $dateTo, $branchId, $keyword, $activeOnly);
+        $base = $this->buildFilteredBaseQuery($institutionId, $dateFrom, $dateTo, $branchId, $keyword, $activeOnly, $undoReady);
 
         $rows = (clone $base)
             ->select([
@@ -274,7 +331,10 @@ class VisitorCounterController extends Controller
                     'visitor_counter.checkout_bulk',
                     'visitor_counter.checkout_selected',
                 ])->count('a.id'),
-                'undo' => (clone $auditBase)->where('a.action', 'visitor_counter.undo_checkout')->count('a.id'),
+                'undo' => (clone $auditBase)->whereIn('a.action', [
+                    'visitor_counter.undo_checkout',
+                    'visitor_counter.undo_checkout_selected',
+                ])->count('a.id'),
             ];
 
             $auditRows = $auditBase
@@ -313,6 +373,7 @@ class VisitorCounterController extends Controller
             'branchId' => $branchId > 0 ? (string) $branchId : '',
             'keyword' => $keyword,
             'activeOnly' => $activeOnly,
+            'undoReady' => $undoReady,
             'perPage' => $perPage,
             'stats' => $stats,
             'auditRows' => $auditRows,
@@ -325,6 +386,8 @@ class VisitorCounterController extends Controller
             'allowedAuditActions' => $allowedAuditActions,
             'allowedAuditRoles' => $allowedAuditRoles,
             'allowedAuditSorts' => $allowedAuditSorts,
+            'auditActionLabels' => $this->auditActionLabels(),
+            'auditRoleLabels' => $this->auditRoleLabels(),
         ]);
     }
 
@@ -365,7 +428,7 @@ class VisitorCounterController extends Controller
         return response()->streamDownload(function () use ($rows) {
             $out = fopen('php://output', 'w');
             fwrite($out, "\xEF\xBB\xBF");
-            fputcsv($out, ['created_at', 'action', 'actor', 'role', 'auditable_id', 'branch_id', 'ip', 'metadata']);
+            fputcsv($out, ['created_at', 'action', 'action_label', 'actor', 'role', 'role_label', 'auditable_id', 'branch_id', 'ip', 'metadata']);
 
             foreach ($rows as $row) {
                 $metadata = [];
@@ -380,8 +443,10 @@ class VisitorCounterController extends Controller
                 fputcsv($out, [
                     (string) ($row->created_at ?? ''),
                     (string) ($row->action ?? ''),
+                    $this->resolveAuditActionLabel((string) ($row->action ?? '')),
                     (string) ($row->actor_name ?? ''),
                     (string) ($row->actor_role ?? ''),
+                    $this->resolveAuditRoleLabel((string) ($row->actor_role ?? '')),
                     (string) ($row->auditable_id ?? ''),
                     $branchId,
                     (string) ($row->ip ?? ''),
@@ -443,8 +508,10 @@ class VisitorCounterController extends Controller
                     'id' => (int) ($row->id ?? 0),
                     'created_at' => (string) ($row->created_at ?? ''),
                     'action' => (string) ($row->action ?? ''),
+                    'action_label' => $this->resolveAuditActionLabel((string) ($row->action ?? '')),
                     'actor_name' => (string) ($row->actor_name ?? ''),
                     'actor_role' => (string) ($row->actor_role ?? ''),
+                    'actor_role_label' => $this->resolveAuditRoleLabel((string) ($row->actor_role ?? '')),
                     'auditable_type' => (string) ($row->auditable_type ?? ''),
                     'auditable_id' => $row->auditable_id !== null ? (int) $row->auditable_id : null,
                     'ip' => (string) ($row->ip ?? ''),
@@ -476,6 +543,7 @@ class VisitorCounterController extends Controller
         [$date, $dateFrom, $dateTo, $datePreset] = $this->resolveDateFilter($rawDate, $rawPreset);
         $branchId = $this->normalizeBranchFilter((int) $request->input('branch_id', 0), $allowedBranchId);
         $keyword = trim((string) $request->input('q', ''));
+        $undoReady = $request->boolean('undo_ready');
         $perPage = (int) $request->input('per_page', 20);
 
         $ids = $this->buildFilteredBaseQuery($institutionId, $dateFrom, $dateTo, $branchId, $keyword, true)
@@ -490,8 +558,15 @@ class VisitorCounterController extends Controller
                 'branch_id' => $branchId > 0 ? $branchId : null,
                 'q' => $keyword !== '' ? $keyword : null,
                 'active_only' => 1,
+                'undo_ready' => $undoReady ? 1 : null,
                 'per_page' => $perPage,
-            ])->with('success', 'Tidak ada visitor aktif untuk di-checkout.');
+            ])->with('vc_bulk_result', [
+                'operation' => 'checkout_bulk',
+                'selected_count' => 0,
+                'updated_count' => 0,
+                'skipped_count' => 0,
+                'denied_count' => 0,
+            ])->with('success', 'Tidak ada pengunjung aktif untuk dicatat keluar.');
         }
 
         VisitorCounter::query()
@@ -517,8 +592,15 @@ class VisitorCounterController extends Controller
             'preset' => $datePreset !== 'custom' ? $datePreset : null,
             'branch_id' => $branchId > 0 ? $branchId : null,
             'q' => $keyword !== '' ? $keyword : null,
+            'undo_ready' => $undoReady ? 1 : null,
             'per_page' => $perPage,
-        ])->with('success', 'Checkout massal berhasil dijalankan.');
+        ])->with('vc_bulk_result', [
+            'operation' => 'checkout_bulk',
+            'selected_count' => count($ids),
+            'updated_count' => count($ids),
+            'skipped_count' => 0,
+            'denied_count' => 0,
+        ])->with('success', 'Pencatatan keluar massal berhasil dijalankan.');
     }
 
     public function checkoutSelected(Request $request)
@@ -531,6 +613,10 @@ class VisitorCounterController extends Controller
         $branchId = $this->normalizeBranchFilter((int) $request->input('branch_id', 0), $allowedBranchId);
         $keyword = trim((string) $request->input('q', ''));
         $activeOnly = $request->boolean('active_only');
+        $undoReady = $request->boolean('undo_ready');
+        if ($undoReady) {
+            $activeOnly = false;
+        }
         $perPage = (int) $request->input('per_page', 20);
 
         $ids = collect($request->input('ids', []))
@@ -547,7 +633,14 @@ class VisitorCounterController extends Controller
                 'branch_id' => $branchId > 0 ? $branchId : null,
                 'q' => $keyword !== '' ? $keyword : null,
                 'active_only' => $activeOnly ? 1 : null,
+                'undo_ready' => $undoReady ? 1 : null,
                 'per_page' => $perPage,
+            ])->with('vc_bulk_result', [
+                'operation' => 'checkout_selected',
+                'selected_count' => 0,
+                'updated_count' => 0,
+                'skipped_count' => 0,
+                'denied_count' => 0,
             ])->with('success', 'Tidak ada baris yang dipilih.');
         }
 
@@ -569,7 +662,17 @@ class VisitorCounterController extends Controller
             'branch_id' => $branchId > 0 ? $branchId : null,
             'keyword' => $keyword !== '' ? $keyword : null,
             'active_only' => $activeOnly,
+            'undo_ready' => $undoReady,
         ]);
+
+        $skipped = max(0, count($ids) - (int) $updated);
+        $message = $updated > 0
+            ? 'Keluar terpilih: berhasil ' . $updated . ' baris'
+            : 'Keluar terpilih: tidak ada perubahan';
+        if ($skipped > 0) {
+            $message .= ', skip ' . $skipped . ' baris';
+        }
+        $message .= '.';
 
         return redirect()->route('visitor_counter.index', [
             'date' => $date,
@@ -577,10 +680,130 @@ class VisitorCounterController extends Controller
             'branch_id' => $branchId > 0 ? $branchId : null,
             'q' => $keyword !== '' ? $keyword : null,
             'active_only' => $activeOnly ? 1 : null,
+            'undo_ready' => $undoReady ? 1 : null,
             'per_page' => $perPage,
-        ])->with('success', $updated > 0
-            ? 'Checkout terpilih berhasil (' . $updated . ' baris).'
-            : 'Baris terpilih sudah checkout semua.');
+        ])->with('vc_bulk_result', [
+            'operation' => 'checkout_selected',
+            'selected_count' => count($ids),
+            'updated_count' => (int) $updated,
+            'skipped_count' => (int) $skipped,
+            'denied_count' => 0,
+        ])->with('success', $message);
+    }
+
+    public function undoSelected(Request $request)
+    {
+        $institutionId = $this->institutionId();
+        $allowedBranchId = $this->branchScope();
+        $rawDate = trim((string) $request->input('date', ''));
+        $rawPreset = trim((string) $request->input('preset', 'custom'));
+        [$date, , , $datePreset] = $this->resolveDateFilter($rawDate, $rawPreset);
+        $branchId = $this->normalizeBranchFilter((int) $request->input('branch_id', 0), $allowedBranchId);
+        $keyword = trim((string) $request->input('q', ''));
+        $activeOnly = $request->boolean('active_only');
+        $undoReady = $request->boolean('undo_ready');
+        if ($undoReady) {
+            $activeOnly = false;
+        }
+        $perPage = (int) $request->input('per_page', 20);
+
+        $ids = collect($request->input('ids', []))
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        if (empty($ids)) {
+            return redirect()->route('visitor_counter.index', [
+                'date' => $date,
+                'preset' => $datePreset !== 'custom' ? $datePreset : null,
+                'branch_id' => $branchId > 0 ? $branchId : null,
+                'q' => $keyword !== '' ? $keyword : null,
+                'active_only' => $activeOnly ? 1 : null,
+                'undo_ready' => $undoReady ? 1 : null,
+                'per_page' => $perPage,
+            ])->with('vc_bulk_result', [
+                'operation' => 'undo_selected',
+                'selected_count' => 0,
+                'updated_count' => 0,
+                'skipped_count' => 0,
+                'denied_count' => 0,
+            ])->with('success', 'Tidak ada baris yang dipilih.');
+        }
+
+        $rows = VisitorCounter::query()
+            ->where('institution_id', $institutionId)
+            ->when($allowedBranchId !== null, fn ($q) => $q->where('branch_id', $allowedBranchId))
+            ->whereIn('id', $ids)
+            ->get(['id', 'checkout_at', 'branch_id']);
+
+        $undoWindowStart = now()->subMinutes(5);
+        $eligibleIds = [];
+        $skippedCount = 0;
+        $deniedCount = 0;
+
+        foreach ($rows as $row) {
+            if (!$row->checkout_at) {
+                $skippedCount++;
+                continue;
+            }
+            if ($row->checkout_at < $undoWindowStart) {
+                $deniedCount++;
+                continue;
+            }
+            $eligibleIds[] = (int) $row->id;
+        }
+
+        $updated = 0;
+        if (!empty($eligibleIds)) {
+            $updated = VisitorCounter::query()
+                ->where('institution_id', $institutionId)
+                ->when($allowedBranchId !== null, fn ($q) => $q->where('branch_id', $allowedBranchId))
+                ->whereIn('id', $eligibleIds)
+                ->update([
+                    'checkout_at' => null,
+                    'updated_at' => now(),
+                ]);
+        }
+
+        $this->writeAudit('visitor_counter.undo_checkout_selected', VisitorCounter::class, null, [
+            'selected_count' => count($ids),
+            'updated_count' => (int) $updated,
+            'skipped_count' => (int) $skippedCount,
+            'denied_count' => (int) $deniedCount,
+            'date' => $date,
+            'preset' => $datePreset,
+            'branch_id' => $branchId > 0 ? $branchId : null,
+            'keyword' => $keyword !== '' ? $keyword : null,
+            'active_only' => $activeOnly,
+            'undo_ready' => $undoReady,
+        ]);
+
+        $message = 'Pembatalan terpilih: berhasil ' . (int) $updated . ' baris';
+        if ($skippedCount > 0) {
+            $message .= ', belum keluar ' . (int) $skippedCount;
+        }
+        if ($deniedCount > 0) {
+            $message .= ', lewat batas 5 menit ' . (int) $deniedCount;
+        }
+        $message .= '.';
+
+        return redirect()->route('visitor_counter.index', [
+            'date' => $date,
+            'preset' => $datePreset !== 'custom' ? $datePreset : null,
+            'branch_id' => $branchId > 0 ? $branchId : null,
+            'q' => $keyword !== '' ? $keyword : null,
+            'active_only' => $activeOnly ? 1 : null,
+            'undo_ready' => $undoReady ? 1 : null,
+            'per_page' => $perPage,
+        ])->with('vc_bulk_result', [
+            'operation' => 'undo_selected',
+            'selected_count' => count($ids),
+            'updated_count' => (int) $updated,
+            'skipped_count' => (int) $skippedCount,
+            'denied_count' => (int) $deniedCount,
+        ])->with('success', $message);
     }
 
     public function exportCsv(Request $request): StreamedResponse
@@ -593,8 +816,12 @@ class VisitorCounterController extends Controller
         $branchId = $this->normalizeBranchFilter((int) $request->query('branch_id', 0), $allowedBranchId);
         $keyword = trim((string) $request->query('q', ''));
         $activeOnly = $request->boolean('active_only');
+        $undoReady = $request->boolean('undo_ready');
+        if ($undoReady) {
+            $activeOnly = false;
+        }
 
-        $rows = $this->buildFilteredBaseQuery($institutionId, $dateFrom, $dateTo, $branchId, $keyword, $activeOnly)
+        $rows = $this->buildFilteredBaseQuery($institutionId, $dateFrom, $dateTo, $branchId, $keyword, $activeOnly, $undoReady)
             ->select([
                 'visitor_counters.visitor_type',
                 'visitor_counters.visitor_name',
@@ -690,7 +917,7 @@ class VisitorCounterController extends Controller
 
             if (!$member) {
                 return back()->withInput()->withErrors([
-                    'member_code' => 'Member tidak ditemukan.',
+                    'member_code' => 'Anggota tidak ditemukan.',
                 ]);
             }
 
@@ -719,7 +946,7 @@ class VisitorCounterController extends Controller
             'purpose' => (string) ($row->purpose ?? ''),
         ]);
 
-        return back()->with('success', 'Visitor check-in berhasil dicatat.');
+        return back()->with('success', 'Pengunjung masuk berhasil dicatat.');
     }
 
     public function checkout(int $id)
@@ -736,7 +963,7 @@ class VisitorCounterController extends Controller
                 'reason' => 'already_checked_out',
                 'branch_id' => (int) ($row->branch_id ?? 0) ?: null,
             ]);
-            return back()->with('success', 'Visitor sudah checkout.');
+            return back()->with('success', 'Visitor sudah tercatat keluar.');
         }
 
         $row->checkout_at = now();
@@ -746,7 +973,7 @@ class VisitorCounterController extends Controller
             'checkout_at' => (string) $row->checkout_at,
         ]);
 
-        return back()->with('success', 'Checkout visitor berhasil.');
+        return back()->with('success', 'Keluar pengunjung berhasil dicatat.');
     }
 
     public function undoCheckout(int $id)
@@ -763,7 +990,7 @@ class VisitorCounterController extends Controller
                 'reason' => 'not_checked_out',
                 'branch_id' => (int) ($row->branch_id ?? 0) ?: null,
             ]);
-            return back()->with('success', 'Visitor belum checkout.');
+            return back()->with('success', 'Visitor belum tercatat keluar.');
         }
 
         $maxUndoAt = now()->subMinutes(5);
@@ -773,7 +1000,7 @@ class VisitorCounterController extends Controller
                 'branch_id' => (int) ($row->branch_id ?? 0) ?: null,
                 'checkout_at' => (string) $row->checkout_at,
             ]);
-            return back()->with('success', 'Batas undo checkout (5 menit) sudah lewat.');
+            return back()->with('success', 'Batas pembatalan keluar (5 menit) sudah lewat.');
         }
 
         $row->checkout_at = null;
@@ -782,6 +1009,6 @@ class VisitorCounterController extends Controller
             'branch_id' => (int) ($row->branch_id ?? 0) ?: null,
         ]);
 
-        return back()->with('success', 'Undo checkout berhasil.');
+        return back()->with('success', 'Pembatalan keluar berhasil.');
     }
 }

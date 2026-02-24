@@ -368,14 +368,14 @@ class SearchSynonymController extends Controller
             'dup_terms' => array_values(array_unique($dupTerms)),
         ]);
 
-        return back()->with('status', 'Preview siap. Periksa lalu klik Konfirmasi Import.');
+        return back()->with('status', 'Pratinjau siap. Periksa lalu klik Konfirmasi Impor.');
     }
 
     public function cancelPreview(Request $request)
     {
         abort_unless($this->canManageCatalog(), 403);
         $request->session()->forget('synonym_import_preview');
-        return back()->with('status', 'Preview dibatalkan.');
+        return back()->with('status', 'Pratinjau dibatalkan.');
     }
 
     public function confirmImport(Request $request)
@@ -387,7 +387,7 @@ class SearchSynonymController extends Controller
         $overwrite = (string) $request->input('overwrite', '') === '1';
         $payload = $request->session()->pull('synonym_import_preview');
         if (!$payload || empty($payload['rows'])) {
-            return back()->withErrors(['csv_file' => 'Preview tidak ditemukan.']);
+            return back()->withErrors(['csv_file' => 'Pratinjau tidak ditemukan.']);
         }
 
         $branchId = $payload['branch_id'] ?? null;
@@ -492,7 +492,7 @@ class SearchSynonymController extends Controller
         abort_unless($this->canManageCatalog(), 403);
         $payload = $request->session()->get('synonym_import_preview');
         if (!$payload || empty($payload['rows'])) {
-            return back()->withErrors(['csv_file' => 'Preview tidak ditemukan.']);
+            return back()->withErrors(['csv_file' => 'Pratinjau tidak ditemukan.']);
         }
 
         $rows = $payload['rows'] ?? [];
@@ -527,7 +527,7 @@ class SearchSynonymController extends Controller
         abort_unless($this->canManageCatalog(), 403);
         $payload = $request->session()->get('synonym_import_preview');
         if (!$payload || empty($payload['rows'])) {
-            return back()->withErrors(['csv_file' => 'Preview tidak ditemukan.']);
+            return back()->withErrors(['csv_file' => 'Pratinjau tidak ditemukan.']);
         }
 
         $rows = $payload['rows'] ?? [];
@@ -562,7 +562,7 @@ class SearchSynonymController extends Controller
         abort_unless($this->canManageCatalog(), 403);
         $payload = $request->session()->get('synonym_import_preview');
         if (!$payload || empty($payload['rows'])) {
-            return back()->withErrors(['csv_file' => 'Preview tidak ditemukan.']);
+            return back()->withErrors(['csv_file' => 'Pratinjau tidak ditemukan.']);
         }
 
         $rows = $payload['rows'] ?? [];
@@ -582,7 +582,7 @@ class SearchSynonymController extends Controller
 
         return response($out, 200, [
             'Content-Type' => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => 'attachment; filename=\"preview-sinonim.csv\"',
+            'Content-Disposition' => 'attachment; filename=\"pratinjau-sinonim.csv\"',
         ]);
     }
 
@@ -724,4 +724,5 @@ class SearchSynonymController extends Controller
         return back()->with('status', 'Sinonim ditolak.');
     }
 }
+
 

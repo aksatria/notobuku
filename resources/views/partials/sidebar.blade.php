@@ -14,6 +14,8 @@
   $isStaff = in_array($role, ['super_admin','admin','staff'], true);
   $isAdmin = in_array($role, ['super_admin','admin'], true);
   $isMember = !$isStaff;
+  $institutionId = (int) ($user->institution_id ?? 1);
+  if ($institutionId <= 0) { $institutionId = 1; }
 
   // =========================
   // MENU UTAMA (ROLE-AWARE)
@@ -47,8 +49,8 @@
   // OPERASIONAL (SUBMENU) - STAFF ONLY
   // =========================
   $operasionalActive = request()->routeIs('transaksi.*')
-    || request()->routeIs('anggota.*')
     || request()->routeIs('laporan.*')
+    || request()->routeIs('visitor_counter.*')
     || request()->routeIs('serial_issues.*')
     || request()->routeIs('stock_takes.*')
     || request()->routeIs('copy_cataloging.*')
@@ -79,16 +81,16 @@
       'icon'  => '#nb-icon-rotate',
     ],
     [
-      'route' => 'anggota.index',
-      'match' => ['anggota.*'],
-      'label' => 'Anggota',
-      'icon'  => '#nb-icon-users',
-    ],
-    [
       'route' => 'laporan.index',
       'match' => ['laporan.*'],
       'label' => 'Laporan',
       'icon'  => '#nb-icon-chart',
+    ],
+    [
+      'route' => 'visitor_counter.index',
+      'match' => ['visitor_counter.*'],
+      'label' => 'Masuk/Keluar Pengunjung',
+      'icon'  => '#nb-icon-users',
     ],
     [
       'route' => 'serial_issues.index',
@@ -109,6 +111,31 @@
       'icon'  => '#nb-icon-search',
     ],
   ];
+
+  // =========================
+  // KEANGGOTAAN (SUBMENU) - STAFF ONLY
+  // =========================
+  $keanggotaanActive = request()->routeIs('anggota.*');
+  $keanggotaanItems = [
+    [
+      'route' => 'anggota.index',
+      'match' => ['anggota.index', 'anggota.create', 'anggota.show', 'anggota.edit', 'anggota.update'],
+      'label' => 'Data Anggota',
+      'icon'  => '#nb-icon-users',
+    ],
+    [
+      'route' => 'anggota.index',
+      'match' => ['anggota.import.*', 'anggota.metrics.*', 'anggota.template.*'],
+      'label' => 'Import & Metrics',
+      'icon'  => '#nb-icon-chart',
+    ],
+    [
+      'route' => 'anggota.index',
+      'match' => ['anggota.card'],
+      'label' => 'Cetak Kartu',
+      'icon'  => '#nb-icon-book',
+    ],
+  ];
   if ($isAdmin) {
     array_unshift($operasionalItems, [
       'route' => 'admin.dashboard',
@@ -116,6 +143,13 @@
       'label' => 'Dashboard Admin',
       'icon'  => '#nb-icon-home',
     ]);
+
+    $operasionalItems[] = [
+      'route' => 'admin.search_analytics',
+      'match' => ['admin.search_analytics'],
+      'label' => 'Analytics Pencarian',
+      'icon'  => '#nb-icon-chart',
+    ];
 
     $operasionalItems[] = [
       'route' => 'transaksi.policies.index',
@@ -219,6 +253,7 @@
       $switchBranches = collect();
     }
   }
+
 @endphp
 
 <style>
@@ -319,6 +354,21 @@
   .nb-sb-sub a.nb-sb-sub-active{
     background: rgba(251,140,0,.20);
     border-color: rgba(251,140,0,.35);
+    box-shadow: inset 3px 0 0 #fb8c00;
+  }
+
+  .nb-sb-group-caret{
+    margin-left:auto;
+    width:14px;
+    height:14px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    color:rgba(255,255,255,.82);
+    transition: transform .15s ease;
+  }
+  .nb-sb-group[open] .nb-sb-group-caret{
+    transform: rotate(90deg);
   }
 
   /* Switch cabang inline (dropdown) */
@@ -551,6 +601,7 @@
                   style="color:{{ $operasionalActive ? '#fff' : 'rgba(255,255,255,.86)' }}; font-size:13px;">
               Operasional
             </span>
+            <span class="nb-sb-group-caret" aria-hidden="true">▸</span>
           </summary>
 
           {{-- Switch cabang inline (super_admin) --}}
@@ -602,6 +653,52 @@
         </details>
       </div>
 
+      {{-- KEANGGOTAAN (STAFF ONLY) --}}
+      <div style="margin-top:10px;">
+        <details class="nb-sb-group {{ $keanggotaanActive ? 'nb-sb-group-active' : '' }}" {{ $keanggotaanActive ? 'open' : '' }}>
+          <summary class="nb-sb-group-head">
+            @php $ic = $keanggotaanActive ? '#fff' : '#42a5f5'; @endphp
+            <span class="nb-sb-ico" style="width:20px;height:20px; display:inline-flex; color:{{ $ic }}; flex-shrink:0;">
+              <svg style="width:20px;height:20px" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                <use href="#nb-icon-users"></use>
+              </svg>
+            </span>
+
+            <span class="nb-sb-label nb-sb-fw-600"
+                  style="color:{{ $keanggotaanActive ? '#fff' : 'rgba(255,255,255,.86)' }}; font-size:13px;">
+              Keanggotaan
+            </span>
+            <span class="nb-sb-group-caret" aria-hidden="true">▸</span>
+          </summary>
+
+          <div class="nb-sb-sub">
+            @foreach($keanggotaanItems as $ti)
+              @php
+                $subActive = false;
+                if (!empty($ti['match']) && is_array($ti['match'])) {
+                  foreach ($ti['match'] as $p) {
+                    if (request()->routeIs($p)) { $subActive = true; break; }
+                  }
+                } else {
+                  $subActive = request()->routeIs($ti['route']);
+                }
+              @endphp
+
+              <a href="{{ route($ti['route']) }}" class="{{ $subActive ? 'nb-sb-sub-active' : '' }}">
+                <span style="width:18px;height:18px; display:inline-flex; color:{{ $subActive ? '#fff' : 'rgba(255,255,255,.72)' }}; flex-shrink:0;">
+                  <svg style="width:18px;height:18px" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <use href="{{ $ti['icon'] }}"></use>
+                  </svg>
+                </span>
+                <span style="color:{{ $subActive ? '#fff' : 'rgba(255,255,255,.86)' }}; font-size:12.5px;">
+                  {{ $ti['label'] }}
+                </span>
+              </a>
+            @endforeach
+          </div>
+        </details>
+      </div>
+
       {{-- PENGADAAN (STAFF ONLY) --}}
       <div style="margin-top:10px;">
         <details class="nb-sb-group {{ $pengadaanActive ? 'nb-sb-group-active' : '' }}" {{ $pengadaanActive ? 'open' : '' }}>
@@ -617,6 +714,7 @@
                   style="color:{{ $pengadaanActive ? '#fff' : 'rgba(255,255,255,.86)' }}; font-size:13px;">
               Pengadaan
             </span>
+            <span class="nb-sb-group-caret" aria-hidden="true">▸</span>
           </summary>
 
           <div class="nb-sb-sub">

@@ -375,7 +375,7 @@
           </div>
           <div class="nb-rw-field w-220">
             <div class="nb-rw-label">Cari</div>
-            <input class="nb-rw-input" type="text" name="q" value="{{ $q }}" placeholder="Kode transaksi / nama / kode member" />
+            <input class="nb-rw-input" type="text" name="q" value="{{ $q }}" placeholder="Kode transaksi / nama / kode anggota" />
           </div>
 
           <div class="nb-rw-field">
@@ -413,7 +413,7 @@
             <select class="nb-rw-select" name="sort">
               <option value="loaned_at" @selected($sort==='loaned_at')>Tanggal</option>
               <option value="loan_code" @selected($sort==='loan_code')>Kode</option>
-              <option value="member" @selected($sort==='member')>Member</option>
+              <option value="member" @selected($sort==='member')>Anggota</option>
               <option value="branch" @selected($sort==='branch')>Cabang</option>
               <option value="due_at" @selected($sort==='due_at')>Jatuh tempo</option>
               <option value="status" @selected($sort==='status')>Status</option>
@@ -456,7 +456,7 @@
         <div class="nb-rw-filterbar">
           <div class="nb-rw-field w-220">
             <div class="nb-rw-label">Cari</div>
-            <input class="nb-rw-input" type="text" name="fine_q" value="{{ $fineQ }}" placeholder="Kode transaksi / nama / kode member / barcode" />
+            <input class="nb-rw-input" type="text" name="fine_q" value="{{ $fineQ }}" placeholder="Kode transaksi / nama / kode anggota / barcode" />
           </div>
 
           <div class="nb-rw-field">
@@ -507,7 +507,7 @@
             <thead>
               <tr>
                 <th>Kode</th>
-                <th>Member</th>
+                <th>Anggota</th>
                 <th>Cabang</th>
                 <th>Dipinjam</th>
                 <th>Jatuh tempo</th>
@@ -565,7 +565,7 @@
                   <td style="white-space:nowrap; text-align:right;">
                     <a class="nb-rw-btn" style="padding:8px 10px;" href="{{ route('transaksi.riwayat.detail', ['id' => $l->id]) }}">Detail</a>
                     {{-- Route print slip mengikuti routes: transaksi.riwayat.print (GET /transaksi/riwayat/{id}/print?size=80|58) --}}
-                    <a class="nb-rw-btn" style="padding:8px 10px;" href="{{ route('transaksi.riwayat.print', ['id' => $l->id, 'size' => '80']) }}">Print</a>
+                    <a class="nb-rw-btn" style="padding:8px 10px;" href="{{ route('transaksi.riwayat.print', ['id' => $l->id, 'size' => '80']) }}">Cetak</a>
                   </td>
                 </tr>
               @empty
@@ -582,7 +582,7 @@
             <thead>
               <tr>
                 <th>Kode</th>
-                <th>Member</th>
+                <th>Anggota</th>
                 <th>Barcode</th>
                 <th>Due</th>
                 <th>Kembali</th>
@@ -691,7 +691,7 @@
                     $nearFull = $limit > 0 && (int)($l->items_open ?? 0) >= max(1, $limit - 1);
                   @endphp
                   <div class="nb-rw-kv" style="align-items:center;">
-                    <div class="k">Role/Limit</div>
+                    <div class="k">Peran/Limit</div>
                     <div class="v" style="white-space:normal;">
                       <span class="nb-rw-mini {{ $nearFull ? 'warn' : '' }}">
                         {{ strtoupper((string)$role) }} • Limit {{ $limit ?: '-' }}
@@ -716,7 +716,7 @@
                     @endphp
                     @if($printUrl)
                       <a class="nb-btn" href="{{ $printUrl }}" style="border-radius:14px; justify-content:center; border:1px solid rgba(17,24,39,.12); background:#fff;">
-                        Print
+                        Cetak
                       </a>
                     @endif
                   </div>
@@ -813,6 +813,9 @@
   </div>
 </div>
 @endsection
+
+
+
 
 
 

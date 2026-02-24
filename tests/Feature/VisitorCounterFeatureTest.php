@@ -206,6 +206,101 @@ class VisitorCounterFeatureTest extends TestCase
         $response->assertDontSee('PerPageRow-001');
     }
 
+    public function test_index_can_filter_undo_ready_rows_only(): void
+    {
+        [$institutionId, $branchId, , $admin] = $this->seedContext();
+        $today = Carbon::today()->toDateString();
+
+        DB::table('visitor_counters')->insert([
+            [
+                'institution_id' => $institutionId,
+                'branch_id' => $branchId,
+                'visitor_type' => 'non_member',
+                'visitor_name' => 'Undo Ready Row',
+                'purpose' => 'Undo test',
+                'checkin_at' => Carbon::parse($today . ' 09:00:00'),
+                'checkout_at' => now()->subMinutes(3),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'institution_id' => $institutionId,
+                'branch_id' => $branchId,
+                'visitor_type' => 'non_member',
+                'visitor_name' => 'Undo Expired Row',
+                'purpose' => 'Undo test',
+                'checkin_at' => Carbon::parse($today . ' 09:10:00'),
+                'checkout_at' => now()->subMinutes(9),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'institution_id' => $institutionId,
+                'branch_id' => $branchId,
+                'visitor_type' => 'non_member',
+                'visitor_name' => 'Undo Active Row',
+                'purpose' => 'Undo test',
+                'checkin_at' => Carbon::parse($today . ' 09:20:00'),
+                'checkout_at' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('visitor_counter.index', [
+            'date' => $today,
+            'undo_ready' => 1,
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('Undo Ready Row');
+        $response->assertDontSee('Undo Expired Row');
+        $response->assertDontSee('Undo Active Row');
+    }
+
+    public function test_index_prioritizes_undo_ready_when_active_only_and_undo_ready_are_both_set(): void
+    {
+        [$institutionId, $branchId, , $admin] = $this->seedContext();
+        $today = Carbon::today()->toDateString();
+
+        DB::table('visitor_counters')->insert([
+            [
+                'institution_id' => $institutionId,
+                'branch_id' => $branchId,
+                'visitor_type' => 'non_member',
+                'visitor_name' => 'Both Undo Ready Row',
+                'purpose' => 'Undo test',
+                'checkin_at' => Carbon::parse($today . ' 09:00:00'),
+                'checkout_at' => now()->subMinutes(2),
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+            [
+                'institution_id' => $institutionId,
+                'branch_id' => $branchId,
+                'visitor_type' => 'non_member',
+                'visitor_name' => 'Both Active Row',
+                'purpose' => 'Undo test',
+                'checkin_at' => Carbon::parse($today . ' 09:10:00'),
+                'checkout_at' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ],
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('visitor_counter.index', [
+            'date' => $today,
+            'active_only' => 1,
+            'undo_ready' => 1,
+        ]));
+
+        $response->assertOk();
+        $response->assertSee('Both Undo Ready Row');
+        $response->assertDontSee('Both Active Row');
+        $response->assertDontSee('name="active_only" value="1" checked', false);
+        $response->assertSee('name="undo_ready" value="1" checked', false);
+    }
+
     public function test_store_validation_for_member_and_non_member_rules(): void
     {
         [, , , $admin] = $this->seedContext();
@@ -378,7 +473,7 @@ class VisitorCounterFeatureTest extends TestCase
                 'branch_id' => $branchId,
             ])
             ->assertRedirect()
-            ->assertSessionHas('success', 'Checkout massal berhasil dijalankan.');
+            ->assertSessionHas('success', 'Pencatatan keluar massal berhasil dijalankan.');
     }
 
     public function test_bulk_checkout_sets_success_flash_message_when_no_active_rows(): void
@@ -392,7 +487,7 @@ class VisitorCounterFeatureTest extends TestCase
                 'branch_id' => $branchId,
             ])
             ->assertRedirect()
-            ->assertSessionHas('success', 'Tidak ada visitor aktif untuk di-checkout.');
+            ->assertSessionHas('success', 'Tidak ada pengunjung aktif untuk dicatat keluar.');
     }
 
     public function test_single_checkout_updates_row_and_sets_success_message(): void
@@ -415,7 +510,7 @@ class VisitorCounterFeatureTest extends TestCase
         $this->actingAs($admin)
             ->post(route('visitor_counter.checkout', ['id' => $id]))
             ->assertRedirect()
-            ->assertSessionHas('success', 'Checkout visitor berhasil.');
+            ->assertSessionHas('success', 'Keluar pengunjung berhasil dicatat.');
 
         $this->assertNotNull(DB::table('visitor_counters')->where('id', $id)->value('checkout_at'));
     }
@@ -440,7 +535,7 @@ class VisitorCounterFeatureTest extends TestCase
         $this->actingAs($admin)
             ->post(route('visitor_counter.checkout', ['id' => $id]))
             ->assertRedirect()
-            ->assertSessionHas('success', 'Visitor sudah checkout.');
+            ->assertSessionHas('success', 'Visitor sudah tercatat keluar.');
     }
 
     public function test_undo_checkout_within_5_minutes_resets_checkout_at(): void
@@ -463,7 +558,7 @@ class VisitorCounterFeatureTest extends TestCase
         $this->actingAs($admin)
             ->post(route('visitor_counter.undo_checkout', ['id' => $id]))
             ->assertRedirect()
-            ->assertSessionHas('success', 'Undo checkout berhasil.');
+            ->assertSessionHas('success', 'Pembatalan keluar berhasil.');
 
         $this->assertNull(DB::table('visitor_counters')->where('id', $id)->value('checkout_at'));
     }
@@ -488,7 +583,7 @@ class VisitorCounterFeatureTest extends TestCase
         $this->actingAs($admin)
             ->post(route('visitor_counter.undo_checkout', ['id' => $id]))
             ->assertRedirect()
-            ->assertSessionHas('success', 'Batas undo checkout (5 menit) sudah lewat.');
+            ->assertSessionHas('success', 'Batas pembatalan keluar (5 menit) sudah lewat.');
 
         $this->assertNotNull(DB::table('visitor_counters')->where('id', $id)->value('checkout_at'));
     }
@@ -513,7 +608,7 @@ class VisitorCounterFeatureTest extends TestCase
         $this->actingAs($admin)
             ->post(route('visitor_counter.undo_checkout', ['id' => $id]))
             ->assertRedirect()
-            ->assertSessionHas('success', 'Visitor belum checkout.');
+            ->assertSessionHas('success', 'Visitor belum tercatat keluar.');
 
         $this->assertNull(DB::table('visitor_counters')->where('id', $id)->value('checkout_at'));
     }
@@ -589,7 +684,8 @@ class VisitorCounterFeatureTest extends TestCase
                 'ids' => [$idA, $idC],
             ])
             ->assertRedirect()
-            ->assertSessionHas('success', 'Checkout terpilih berhasil (2 baris).');
+            ->assertSessionHas('vc_bulk_result.updated_count', 2)
+            ->assertSessionHas('success', fn ($msg) => is_string($msg) && str_contains($msg, 'berhasil 2 baris'));
 
         $this->assertNotNull(DB::table('visitor_counters')->where('id', $idA)->value('checkout_at'));
         $this->assertNull(DB::table('visitor_counters')->where('id', $idB)->value('checkout_at'));
@@ -603,6 +699,78 @@ class VisitorCounterFeatureTest extends TestCase
 
         $this->actingAs($admin)
             ->post(route('visitor_counter.checkout_selected'), [
+                'date' => $today,
+                'branch_id' => $branchId,
+                'ids' => [],
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success', 'Tidak ada baris yang dipilih.');
+    }
+
+    public function test_undo_selected_updates_only_recent_checked_out_rows(): void
+    {
+        [$institutionId, $branchId, , $admin] = $this->seedContext();
+        $today = Carbon::today()->toDateString();
+
+        $recentId = (int) DB::table('visitor_counters')->insertGetId([
+            'institution_id' => $institutionId,
+            'branch_id' => $branchId,
+            'visitor_type' => 'non_member',
+            'visitor_name' => 'Undo Recent',
+            'purpose' => 'Undo',
+            'checkin_at' => Carbon::parse($today . ' 09:00:00'),
+            'checkout_at' => now()->subMinutes(2),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $expiredId = (int) DB::table('visitor_counters')->insertGetId([
+            'institution_id' => $institutionId,
+            'branch_id' => $branchId,
+            'visitor_type' => 'non_member',
+            'visitor_name' => 'Undo Expired',
+            'purpose' => 'Undo',
+            'checkin_at' => Carbon::parse($today . ' 09:10:00'),
+            'checkout_at' => now()->subMinutes(8),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $notCheckedOutId = (int) DB::table('visitor_counters')->insertGetId([
+            'institution_id' => $institutionId,
+            'branch_id' => $branchId,
+            'visitor_type' => 'non_member',
+            'visitor_name' => 'Undo Skipped',
+            'purpose' => 'Undo',
+            'checkin_at' => Carbon::parse($today . ' 09:20:00'),
+            'checkout_at' => null,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('visitor_counter.undo_selected'), [
+                'date' => $today,
+                'ids' => [$recentId, $expiredId, $notCheckedOutId],
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('vc_bulk_result.updated_count', 1)
+            ->assertSessionHas('vc_bulk_result.denied_count', 1)
+            ->assertSessionHas('success', fn ($msg) => is_string($msg)
+                && str_contains($msg, 'berhasil 1 baris')
+                && str_contains($msg, 'belum keluar 1')
+                && str_contains($msg, 'lewat batas 5 menit 1'));
+
+        $this->assertNull(DB::table('visitor_counters')->where('id', $recentId)->value('checkout_at'));
+        $this->assertNotNull(DB::table('visitor_counters')->where('id', $expiredId)->value('checkout_at'));
+        $this->assertNull(DB::table('visitor_counters')->where('id', $notCheckedOutId)->value('checkout_at'));
+    }
+
+    public function test_undo_selected_without_ids_returns_feedback_message(): void
+    {
+        [, $branchId, , $admin] = $this->seedContext();
+        $today = Carbon::today()->toDateString();
+
+        $this->actingAs($admin)
+            ->post(route('visitor_counter.undo_selected'), [
                 'date' => $today,
                 'branch_id' => $branchId,
                 'ids' => [],
@@ -865,7 +1033,9 @@ class VisitorCounterFeatureTest extends TestCase
         $response->assertOk();
         $this->assertStringContainsString('text/csv', strtolower((string) $response->headers->get('content-type', '')));
         $csv = (string) $response->streamedContent();
+        $this->assertStringContainsString('action_label', $csv);
         $this->assertStringContainsString('visitor_counter.checkout_bulk', $csv);
+        $this->assertStringContainsString('Keluar massal', $csv);
         $this->assertStringNotContainsString('visitor_counter.checkin', $csv);
     }
 
@@ -1144,5 +1314,7 @@ class VisitorCounterFeatureTest extends TestCase
         $this->assertStringContainsString('application/json', strtolower((string) $response->headers->get('content-type', '')));
         $response->assertJsonPath('count', 1);
         $response->assertJsonPath('items.0.action', 'visitor_counter.checkout_bulk');
+        $response->assertJsonPath('items.0.action_label', 'Keluar massal');
+        $response->assertJsonPath('items.0.actor_role_label', 'Admin');
     }
 }

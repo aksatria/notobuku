@@ -206,7 +206,7 @@
           <option value="{{ $branch->id }}">{{ $branch->name }}</option>
         @endforeach
       </select>
-      <button class="nb-btn primary" type="submit">Preview CSV</button>
+      <button class="nb-btn primary" type="submit">Pratinjau CSV</button>
       <a class="nb-btn" href="{{ route('admin.search_synonyms.template') }}">Download Template</a>
       <span class="nb-syn-sub">Format: istilah, sinonim1; sinonim2</span>
     </form>
@@ -234,24 +234,24 @@
     <div class="nb-syn-card">
       <div class="nb-syn-header">
         <div>
-          <div class="nb-syn-title">Preview Import</div>
+          <div class="nb-syn-title">Pratinjau Impor</div>
           <div class="nb-syn-sub">Cabang: {{ $previewBranchName }} - {{ count($previewRows) }} baris - Perkiraan duplikat: {{ $dupEstimate }}</div>
         </div>
         <div class="nb-syn-actions">
-          <a class="nb-btn" href="{{ route('admin.search_synonyms.preview_csv') }}">Export Semua CSV</a>
-          <a class="nb-btn" href="{{ route('admin.search_synonyms.errors') }}">Export Error CSV</a>
-          <a class="nb-btn" href="{{ route('admin.search_synonyms.dups') }}">Export Duplikat CSV</a>
+          <a class="nb-btn" href="{{ route('admin.search_synonyms.preview_csv') }}">Ekspor Semua CSV</a>
+          <a class="nb-btn" href="{{ route('admin.search_synonyms.errors') }}">Ekspor CSV Error</a>
+          <a class="nb-btn" href="{{ route('admin.search_synonyms.dups') }}">Ekspor CSV Duplikat</a>
           <form method="POST" action="{{ route('admin.search_synonyms.confirm') }}">
             @csrf
             <label class="nb-syn-sub" style="display:flex;align-items:center;gap:6px;">
               <input type="checkbox" name="overwrite" value="1">
               Overwrite sinonim lama
             </label>
-            <button class="nb-btn primary" type="submit">Konfirmasi Import</button>
+            <button class="nb-btn primary" type="submit">Konfirmasi Impor</button>
           </form>
           <form method="POST" action="{{ route('admin.search_synonyms.cancel') }}">
             @csrf
-            <button class="nb-btn" type="submit">Batal Preview</button>
+            <button class="nb-btn" type="submit">Batalkan Pratinjau</button>
           </form>
         </div>
       </div>
@@ -489,3 +489,4 @@
   </div>
 </div>
 @endsection
+

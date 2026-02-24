@@ -179,19 +179,19 @@
   <div class="card">
     <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
       <div>
-        <div style="font-weight:700;">Import Metrics (30 hari)</div>
-        <div class="muted">Ringkasan operasional import anggota dari audit log.</div>
+        <div style="font-weight:700;">Metrik Impor (30 hari)</div>
+        <div class="muted">Ringkasan operasional impor anggota dari audit log.</div>
       </div>
     </div>
     <div class="kpi">
-      <div class="kpi-item"><div class="kpi-label">Run Import (7d)</div><div class="kpi-value">{{ number_format((int) $importMetrics['last_7d_import_runs']) }}</div></div>
-      <div class="kpi-item"><div class="kpi-label">Run Undo (7d)</div><div class="kpi-value">{{ number_format((int) $importMetrics['last_7d_undo_runs']) }}</div></div>
-      <div class="kpi-item"><div class="kpi-label">Run Import</div><div class="kpi-value">{{ number_format((int) $importMetrics['last_30d_import_runs']) }}</div></div>
-      <div class="kpi-item"><div class="kpi-label">Run Undo</div><div class="kpi-value">{{ number_format((int) $importMetrics['last_30d_undo_runs']) }}</div></div>
-      <div class="kpi-item"><div class="kpi-label">Inserted</div><div class="kpi-value">{{ number_format((int) $importMetrics['last_30d_inserted']) }}</div></div>
-      <div class="kpi-item"><div class="kpi-label">Updated</div><div class="kpi-value">{{ number_format((int) $importMetrics['last_30d_updated']) }}</div></div>
-      <div class="kpi-item"><div class="kpi-label">Skipped</div><div class="kpi-value">{{ number_format((int) $importMetrics['last_30d_skipped']) }}</div></div>
-      <div class="kpi-item"><div class="kpi-label">Override Email Dup</div><div class="kpi-value">{{ number_format((int) $importMetrics['last_30d_override_email_dup']) }}</div></div>
+      <div class="kpi-item"><div class="kpi-label">Run Impor (7d)</div><div class="kpi-value">{{ number_format((int) $importMetrics['last_7d_import_runs']) }}</div></div>
+      <div class="kpi-item"><div class="kpi-label">Run Batalkan (7d)</div><div class="kpi-value">{{ number_format((int) $importMetrics['last_7d_undo_runs']) }}</div></div>
+      <div class="kpi-item"><div class="kpi-label">Run Impor</div><div class="kpi-value">{{ number_format((int) $importMetrics['last_30d_import_runs']) }}</div></div>
+      <div class="kpi-item"><div class="kpi-label">Run Batalkan</div><div class="kpi-value">{{ number_format((int) $importMetrics['last_30d_undo_runs']) }}</div></div>
+      <div class="kpi-item"><div class="kpi-label">Ditambahkan</div><div class="kpi-value">{{ number_format((int) $importMetrics['last_30d_inserted']) }}</div></div>
+      <div class="kpi-item"><div class="kpi-label">Diperbarui</div><div class="kpi-value">{{ number_format((int) $importMetrics['last_30d_updated']) }}</div></div>
+      <div class="kpi-item"><div class="kpi-label">Dilewati</div><div class="kpi-value">{{ number_format((int) $importMetrics['last_30d_skipped']) }}</div></div>
+      <div class="kpi-item"><div class="kpi-label">Override Email Duplikat</div><div class="kpi-value">{{ number_format((int) $importMetrics['last_30d_override_email_dup']) }}</div></div>
     </div>
     <div class="mini-chart" id="member-import-mini-chart"
       data-chart-url="{{ $chartMetricsUrl }}"
@@ -199,7 +199,7 @@
       data-daily30='@json($daily30)'>
       <div class="mini-chart-head">
         <div>
-          <div style="font-weight:700;">Mini Chart Aktivitas Import</div>
+          <div style="font-weight:700;">Mini Chart Aktivitas Impor</div>
           <div class="muted">Auto-refresh tiap 30 detik</div>
         </div>
         <div class="mini-chart-right">
@@ -208,9 +208,9 @@
             <button type="button" data-window="30" class="active">30d</button>
           </div>
           <div class="mini-chart-legend">
-            <button type="button" data-series="import_runs"><span class="mini-chart-dot" style="background:#1e88e5;"></span>Import</button>
-            <button type="button" data-series="undo_runs"><span class="mini-chart-dot" style="background:#fb8c00;"></span>Undo</button>
-            <button type="button" data-series="inserted"><span class="mini-chart-dot" style="background:#2e7d32;"></span>Inserted</button>
+            <button type="button" data-series="import_runs"><span class="mini-chart-dot" style="background:#1e88e5;"></span>Impor</button>
+            <button type="button" data-series="undo_runs"><span class="mini-chart-dot" style="background:#fb8c00;"></span>Batalkan</button>
+            <button type="button" data-series="inserted"><span class="mini-chart-dot" style="background:#2e7d32;"></span>Ditambahkan</button>
           </div>
         </div>
       </div>
@@ -231,16 +231,16 @@
         <label>Action</label>
         <select class="nb-field" name="action">
           <option value="" @selected($historyAction === '')>Semua</option>
-          <option value="member_import" @selected($historyAction === 'member_import')>Import</option>
-          <option value="member_import_undo" @selected($historyAction === 'member_import_undo')>Undo</option>
+          <option value="member_import" @selected($historyAction === 'member_import')>Impor</option>
+          <option value="member_import_undo" @selected($historyAction === 'member_import_undo')>Batalkan</option>
         </select>
       </div>
       <div class="field">
         <label>Limit</label>
         <input type="number" class="nb-field" name="limit" min="1" max="2000" value="{{ $historyLimit }}">
       </div>
-      <button class="btn" type="submit">Export Riwayat CSV</button>
-      <button class="btn" type="submit" formaction="{{ route('anggota.import.history.xlsx') }}">Export Riwayat XLSX</button>
+      <button class="btn" type="submit">Ekspor Riwayat CSV</button>
+      <button class="btn" type="submit" formaction="{{ route('anggota.import.history.xlsx') }}">Ekspor Riwayat XLSX</button>
     </form>
 
     @if(!empty($importMetrics['recent']))
@@ -252,9 +252,9 @@
               <th>Aksi</th>
               <th>User</th>
               <th>Status</th>
-              <th>Inserted</th>
-              <th>Updated</th>
-              <th>Skipped</th>
+              <th>Ditambahkan</th>
+              <th>Diperbarui</th>
+              <th>Dilewati</th>
               <th>Override</th>
             </tr>
           </thead>
@@ -281,14 +281,14 @@
     <form method="POST" action="{{ route('anggota.import.preview') }}" enctype="multipart/form-data" class="grid" style="grid-template-columns:2fr auto;">
       @csrf
       <div class="field">
-        <label>Preview Import Anggota via CSV</label>
+        <label>Pratinjau Impor Anggota via CSV</label>
         <input class="nb-field" type="file" name="csv_file" accept=".csv,text/csv">
         @error('csv_file')<div class="err">{{ $message }}</div>@enderror
       </div>
-      <button class="btn btn-primary" type="submit">Preview CSV</button>
+      <button class="btn btn-primary" type="submit">Pratinjau CSV</button>
     </form>
-    <div class="warn">Alur baru: Preview -> Konfirmasi import. Bisa undo batch terakhir.</div>
-    <div class="muted">Batas preview import: 3000 baris per file.</div>
+    <div class="warn">Alur baru: Pratinjau -> Konfirmasi impor. Bisa undo batch terakhir.</div>
+    <div class="muted">Batas pratinjau impor: 3000 baris per file.</div>
   </div>
 
   @if(!empty($importPreview))
@@ -302,7 +302,7 @@
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
         <div>
-          <div style="font-weight:700;">Preview Import CSV</div>
+          <div style="font-weight:700;">Pratinjau Impor CSV</div>
           <div class="muted">
             Total: {{ $sum['total'] }} | Valid: {{ $sum['valid'] }} | Error: {{ $sum['errors'] }} | Insert: {{ $sum['will_insert'] }} | Update: {{ $sum['will_update'] }}
           </div>
@@ -310,10 +310,10 @@
             Duplicate email rows: {{ $sum['duplicate_email_rows'] ?? 0 }} | Duplicate phone rows: {{ $sum['duplicate_phone_rows'] ?? 0 }}
           </div>
           <div class="warn">
-            Hybrid rule: duplicate email = hard-block, duplicate phone = warning-only.
+            Aturan hybrid: email duplikat = blokir keras, telepon duplikat = peringatan saja.
           </div>
           @if(($sum['duplicate_email_rows'] ?? 0) > 0 && !$canForceEmailDup)
-            <div class="err">Konfirmasi akan ditolak sampai duplicate email diperbaiki di CSV.</div>
+            <div class="err">Konfirmasi akan ditolak sampai email duplikat diperbaiki di CSV.</div>
           @endif
         </div>
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
@@ -323,16 +323,16 @@
             @if(($sum['duplicate_email_rows'] ?? 0) > 0 && $canForceEmailDup)
               <label style="display:flex; align-items:center; gap:6px; margin-bottom:6px; font-size:12px;">
                 <input type="checkbox" name="force_email_duplicate" value="1">
-                Override duplicate email (staff/admin)
+                Override email duplikat (petugas/admin)
               </label>
             @endif
-            <button class="btn btn-primary" type="submit" @disabled(($sum['valid'] ?? 0) <= 0)>Konfirmasi Import</button>
+            <button class="btn btn-primary" type="submit" @disabled(($sum['valid'] ?? 0) <= 0)>Konfirmasi Impor</button>
           </form>
-          <a class="btn" href="{{ route('anggota.import.errors') }}">Error CSV</a>
-          <a class="btn" href="{{ route('anggota.import.summary') }}">Preview Summary CSV</a>
+          <a class="btn" href="{{ route('anggota.import.errors') }}">CSV Error</a>
+          <a class="btn" href="{{ route('anggota.import.summary') }}">Ringkasan Pratinjau CSV</a>
           <form method="POST" action="{{ route('anggota.import.cancel') }}">
             @csrf
-            <button class="btn" type="submit">Batalkan Preview</button>
+            <button class="btn" type="submit">Batalkan Pratinjau</button>
           </form>
         </div>
       </div>
@@ -384,7 +384,7 @@
         </table>
       </div>
       @if(count($rows) > 50)
-        <div class="muted" style="margin-top:6px;">Menampilkan 50 baris pertama dari {{ count($rows) }} baris preview.</div>
+        <div class="muted" style="margin-top:6px;">Menampilkan 50 baris pertama dari {{ count($rows) }} baris pratinjau.</div>
       @endif
     </div>
   @endif
@@ -393,12 +393,12 @@
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
         <div>
-          <div style="font-weight:700;">Undo Import Batch Terakhir</div>
-          <div class="muted">Kembalikan perubahan import anggota terakhir yang Anda lakukan.</div>
+          <div style="font-weight:700;">Batalkan Batch Impor Terakhir</div>
+          <div class="muted">Kembalikan perubahan impor anggota terakhir yang Anda lakukan.</div>
         </div>
-        <form method="POST" action="{{ route('anggota.import.undo') }}" onsubmit="return confirm('Undo batch import anggota terakhir?');">
+        <form method="POST" action="{{ route('anggota.import.undo') }}" onsubmit="return confirm('Batalkan batch impor anggota terakhir?');">
           @csrf
-          <button class="btn" type="submit">Undo Batch</button>
+          <button class="btn" type="submit">Batalkan Batch</button>
         </form>
       </div>
     </div>
@@ -490,7 +490,7 @@
   if (!canvas) return;
 
   const palette = { import_runs: '#1e88e5', undo_runs: '#fb8c00', inserted: '#2e7d32' };
-  const labels = { import_runs: 'Import', undo_runs: 'Undo', inserted: 'Inserted' };
+  const labels = { import_runs: 'Impor', undo_runs: 'Batalkan', inserted: 'Ditambahkan' };
   const activeSeries = { import_runs: true, undo_runs: true, inserted: true };
   let activeWindow = 30;
   let payload = {
@@ -672,3 +672,4 @@
 })();
 </script>
 @endsection
+

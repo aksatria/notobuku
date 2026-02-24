@@ -11,9 +11,9 @@
   $loanCode    = (string)($loan->loan_code ?? '-');
   $loanStatus  = (string)($loan->status ?? 'open');
 
-  $memberName  = (string)($loan->member_name ?? '-');
-  $memberCode  = (string)($loan->member_code ?? '-');
-  $memberPhone = (string)($loan->member_phone ?? '-');
+  $anggotaName  = (string)($loan->anggota_name ?? '-');
+  $anggotaCode  = (string)($loan->anggota_code ?? '-');
+  $anggotaPhone = (string)($loan->anggota_phone ?? '-');
 
   $branchName  = (string)($loan->branch_name ?? '-');
   $createdBy   = (string)($loan->created_by_name ?? '-');
@@ -37,10 +37,10 @@
   elseif ($st === 'closed') $statusCls = 'sb ok';
   elseif ($st === 'overdue') $statusCls = 'sb bad';
 
-  // member initials
+  // anggota initials
   $init = 'MB';
-  if ($memberName && $memberName !== '-') {
-    $parts = preg_split('/\s+/', trim($memberName));
+  if ($anggotaName && $anggotaName !== '-') {
+    $parts = preg_split('/\s+/', trim($anggotaName));
     $parts = array_values(array_filter($parts));
     $init = strtoupper(substr($parts[0] ?? 'M', 0, 1) . substr($parts[1] ?? 'B', 0, 1));
   }
@@ -130,7 +130,7 @@
   .tx-mini{ font-size:12.5px; color: rgba(11,37,69,.60); font-weight:500; }
   html.dark .tx-mini{ color: rgba(226,232,240,.60); }
 
-  /* Member summary */
+  /* Anggota summary */
   .mcard{
     margin-top:12px;
     padding:12px;
@@ -620,9 +620,9 @@
           <div class="hr"></div>
 
           <div class="row"><div>Loan</div><div class="big">{{ $loanCode }}</div></div>
-          <div class="row"><div>Member</div><div>{{ $memberCode }}</div></div>
+          <div class="row"><div>Anggota</div><div>{{ $anggotaCode }}</div></div>
           <div class="row" style="justify-content:flex-start; margin-top:4px;">
-            <div style="font-weight:900;">{{ $memberName }}</div>
+            <div style="font-weight:900;">{{ $anggotaName }}</div>
           </div>
 
           <div class="hr"></div>
@@ -704,10 +704,10 @@
 
           <div class="kpi">
             <div class="box">
-              <div class="lbl">Member</div>
-              <div class="val">{{ $memberName }}</div>
+              <div class="lbl">Anggota</div>
+              <div class="val">{{ $anggotaName }}</div>
               <div style="margin-top:4px; font-size:11px; font-weight:800; color:#374151;">
-                Kode: {{ $memberCode }} • HP: {{ $memberPhone }}
+                Kode: {{ $anggotaCode }} • HP: {{ $anggotaPhone }}
               </div>
             </div>
             <div class="box">
@@ -817,7 +817,7 @@
       <div style="min-width:260px;">
         <div class="nb-k-title">{{ $title }}</div>
         <div class="nb-k-sub">
-          Transaksi peminjaman berhasil dibuat. Kamu bisa preview/print slip (thermal) atau nota (A4).
+          Transaksi peminjaman berhasil dibuat. Kamu bisa pratinjau/cetak slip (termal) atau nota (A4).
         </div>
       </div>
 
@@ -825,21 +825,21 @@
         {{-- Slip --}}
         <button type="button" class="btn-wide" id="btn_preview_slip">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M12 5c5 0 9 5.5 9 7s-4 7-9 7-9-5.5-9-7 4-7 9-7Zm0 2c-3.57 0-6.84 3.77-6.98 5 .14 1.23 3.41 5 6.98 5s6.84-3.77 6.98-5c-.14-1.23-3.41-5-6.98-5Z"/></svg>
-          Preview Slip
+          Pratinjau Slip
         </button>
         <button type="button" class="btn-wide" id="btn_print_slip">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M19 8H5a3 3 0 0 0-3 3v4h4v4h12v-4h4v-4a3 3 0 0 0-3-3ZM8 19v-5h8v5H8Zm10-7H6v-1a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1Z"/></svg>
-          Print Slip
+          Cetak Slip
         </button>
 
         {{-- Nota --}}
         <button type="button" class="btn-wide ghost" id="btn_preview_nota">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M6 2h9l5 5v15a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm8 1.5V8h4.5L14 3.5ZM7 12h10v2H7v-2Zm0 4h10v2H7v-2Zm0-8h6v2H7V8Z"/></svg>
-          Preview Nota
+          Pratinjau Nota
         </button>
         <button type="button" class="btn-wide ghost" id="btn_print_nota">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M19 8H5a3 3 0 0 0-3 3v4h4v4h12v-4h4v-4a3 3 0 0 0-3-3ZM8 19v-5h8v5H8Zm10-7H6v-1a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1Z"/></svg>
-          Print Nota
+          Cetak Nota
         </button>
 
         <a href="{{ route('transaksi.index') }}" class="btn-wide">
@@ -860,7 +860,7 @@
       <div class="tx-hd">
         <div>
           <div class="t">Ringkasan Transaksi</div>
-          <div class="s">Kode transaksi, member, jatuh tempo, dan petugas.</div>
+          <div class="s">Kode transaksi, anggota, jatuh tempo, dan petugas.</div>
         </div>
         <div class="tx-mini">{{ $itemsCount }} item</div>
       </div>
@@ -870,14 +870,14 @@
           <div class="mava">{{ $init }}</div>
 
           <div style="min-width:240px;">
-            <div class="mname">{{ $memberName }}</div>
-            <div class="mmeta">Kode: {{ $memberCode }} • HP: {{ $memberPhone }}</div>
+            <div class="mname">{{ $anggotaName }}</div>
+            <div class="mmeta">Kode: {{ $anggotaCode }} • HP: {{ $anggotaPhone }}</div>
           </div>
 
           <div class="mbadges">
             <span class="mbadge info">Loan: {{ $loanCode }}</span>
             <span class="mbadge ok">Pinjam: {{ $loanedAtText }}</span>
-            <span class="mbadge info">Due: {{ $dueAtText }}</span>
+            <span class="mbadge info">Jatuh tempo: {{ $dueAtText }}</span>
             <span class="mbadge info">Cabang: {{ $branchName }}</span>
             <span class="mbadge info">Petugas: {{ $createdBy }}</span>
             <span class="{{ $statusCls }}"><span class="dot"></span>{{ strtoupper($loanStatus) }}</span>
@@ -984,7 +984,7 @@
   <div class="nb-modal no-print" id="modal_preview" aria-hidden="true">
     <div class="nb-modalCard" role="dialog" aria-modal="true">
       <div class="nb-modalTop">
-        <div class="nb-modalTitle" id="modal_title">Preview</div>
+        <div class="nb-modalTitle" id="modal_title">Pratinjau</div>
         <button class="btn-wide" type="button" id="modal_close" style="height:38px;">Tutup</button>
       </div>
 
@@ -992,9 +992,9 @@
         <div class="nb-modalSide">
           <div class="nb-ctrlBlock">
             <div class="nb-ctrlLabel">Jenis Dokumen</div>
-            <div class="nb-ctrlHint">Slip = printer thermal (58/80mm). Nota = A4/normal.</div>
+            <div class="nb-ctrlHint">Slip = printer termal (58/80mm). Nota = A4/normal.</div>
             <select class="nb-select" id="preview_type">
-              <option value="slip">Slip (Thermal)</option>
+              <option value="slip">Slip (Termal)</option>
               <option value="nota">Nota (A4)</option>
             </select>
           </div>
@@ -1030,14 +1030,14 @@
               Jika masih muncul URL/tanggal/halaman saat print: matikan <b>Headers and footers</b> di dialog print.
             </div>
             <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
-              <button type="button" class="btn-wide primary" id="btn_modal_print" style="height:38px;">Print dari Preview</button>
+              <button type="button" class="btn-wide primary" id="btn_modal_print" style="height:38px;">Cetak dari Pratinjau</button>
               <button type="button" class="btn-wide" id="btn_open_new" style="height:38px;">Buka Tab Baru</button>
             </div>
           </div>
         </div>
 
         <div class="nb-modalMain">
-          <iframe class="nb-iframe" id="preview_iframe" title="Preview"></iframe>
+          <iframe class="nb-iframe" id="preview_iframe" title="Pratinjau"></iframe>
         </div>
       </div>
     </div>
@@ -1045,7 +1045,7 @@
 
   {{-- TOAST: sukses --}}
   <div class="nb-toast no-print" id="toast_ok" style="display:none;">
-    <button class="x" type="button" id="toast_close" aria-label="Close">
+    <button class="x" type="button" id="toast_close" aria-label="Tutup">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
     </button>
     <div class="t">Sukses ✅</div>
@@ -1054,10 +1054,10 @@
 
   {{-- TOAST: edukasi print --}}
   <div class="nb-toast info no-print" id="toast_print_tip" style="display:none;">
-    <button class="x" type="button" id="toast_tip_close" aria-label="Close">
+    <button class="x" type="button" id="toast_tip_close" aria-label="Tutup">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
     </button>
-    <div class="t">Tips Print 🖨️</div>
+    <div class="t">Tips Cetak 🖨️</div>
     <div class="s">
       Kalau muncul teks URL/tanggal/nomor halaman di hasil print: buka <b>More settings</b> lalu matikan <b>Headers and footers</b>.
     </div>
@@ -1212,7 +1212,7 @@
       if(iframe) iframe.src = url;
 
       if(modalTitle){
-        modalTitle.textContent = (t === 'nota') ? 'Preview Nota (A4)' : ('Preview Slip (' + getPaper() + 'mm)');
+        modalTitle.textContent = (t === 'nota') ? 'Pratinjau Nota (A4)' : ('Pratinjau Slip (' + getPaper() + 'mm)');
       }
 
       if(blockPaper){
@@ -1330,3 +1330,6 @@
   @endif
 </div>
 @endsection
+
+
+

@@ -55,7 +55,7 @@
 </head>
 <body>
   <div class="btns">
-    <button class="btn" onclick="window.print()">Print</button>
+    <button class="btn" onclick="window.print()">Cetak</button>
     <button class="btn" onclick="window.close()">Tutup</button>
   </div>
 
@@ -77,8 +77,8 @@
       @endphp
 
       <div class="row"><div class="k">Kode</div><div class="v b">{{ $loan->loan_code ?? '-' }}</div></div>
-      <div class="row"><div class="k">Member</div><div class="v">{{ $loan->member_name ?? '-' }}</div></div>
-      <div class="row"><div class="k">ID</div><div class="v">{{ $loan->member_code ?? '-' }}</div></div>
+      <div class="row"><div class="k">Anggota</div><div class="v">{{ $loan->anggota_name ?? '-' }}</div></div>
+      <div class="row"><div class="k">ID</div><div class="v">{{ $loan->anggota_code ?? '-' }}</div></div>
 
       <div class="hr2"></div>
 
@@ -110,12 +110,12 @@
           @endif
 
           <div class="small muted" style="margin-top:3px;">
-            Due: {{ $liDue ? $liDue->format('d/m H:i') : '-' }}
+            Jatuh tempo: {{ $liDue ? $liDue->format('d/m H:i') : '-' }}
             @if($returnedAt)
-              • Ret: {{ $returnedAt->format('d/m H:i') }}
+              • Kembali: {{ $returnedAt->format('d/m H:i') }}
             @endif
             @if($isLate)
-              • <span style="font-weight:900;">LATE</span>
+              • <span style="font-weight:900;">TERLAMBAT</span>
             @endif
           </div>
         </div>
@@ -142,3 +142,5 @@
   </script>
 </body>
 </html>
+
+

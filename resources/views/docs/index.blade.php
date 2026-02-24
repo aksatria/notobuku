@@ -5,7 +5,13 @@
 @section('content')
 @php
   $role = (string) (auth()->user()->role ?? 'member');
-  $roleLabel = $role === 'super_admin' ? 'Super Admin' : ucfirst($role);
+  $roleLabel = match ($role) {
+    'super_admin' => 'Super Admin',
+    'admin' => 'Admin',
+    'staff' => 'Petugas',
+    'member' => 'Anggota',
+    default => ucfirst((string) $role),
+  };
   $isStaffRole = in_array($role, ['super_admin', 'admin', 'staff'], true);
 @endphp
 
@@ -57,18 +63,18 @@
 
 <div class="doc-wrap px-4 pb-16 pt-10">
   <div class="doc-card">
-    <div class="doc-muted" style="font-weight:700;">NOTOBUKU - User Documentation</div>
+    <div class="doc-muted" style="font-weight:700;">NOTOBUKU - Dokumentasi Pengguna</div>
     <h1 style="margin:6px 0 0; font-size:26px; font-weight:900;">Panduan Penggunaan Aplikasi</h1>
     <p class="doc-muted" style="margin-top:8px;">Panduan lengkap per peran. Anda login sebagai <strong>{{ $roleLabel }}</strong>.</p>
 
-    <div class="doc-tabs" role="tablist" aria-label="Dokumentasi tabs">
-      <button class="doc-tab" type="button" role="tab" aria-selected="true" data-doc-tab="overview">Overview</button>
+    <div class="doc-tabs" role="tablist" aria-label="Tab dokumentasi">
+      <button class="doc-tab" type="button" role="tab" aria-selected="true" data-doc-tab="overview">Ringkasan</button>
       <button class="doc-tab" type="button" role="tab" aria-selected="false" data-doc-tab="panduan">Panduan Lengkap</button>
       <button class="doc-tab" type="button" role="tab" aria-selected="false" data-doc-tab="marc">MARC/RDA</button>
       <button class="doc-tab" type="button" role="tab" aria-selected="false" data-doc-tab="katalog">Field Katalog</button>
       <button class="doc-tab" type="button" role="tab" aria-selected="false" data-doc-tab="superadmin">Super Admin</button>
-      <button class="doc-tab" type="button" role="tab" aria-selected="false" data-doc-tab="staff">Staff/Admin</button>
-      <button class="doc-tab" type="button" role="tab" aria-selected="false" data-doc-tab="member">Member</button>
+      <button class="doc-tab" type="button" role="tab" aria-selected="false" data-doc-tab="staff">Petugas/Admin</button>
+      <button class="doc-tab" type="button" role="tab" aria-selected="false" data-doc-tab="member">Anggota</button>
       <button class="doc-tab" type="button" role="tab" aria-selected="false" data-doc-tab="ops">SOP & FAQ</button>
     </div>
   </div>
@@ -87,7 +93,7 @@
       <div class="doc-card doc-tone-blue">
         <h3 style="margin:0; font-size:16px; font-weight:900;">Mulai Cepat</h3>
         <ol style="margin:10px 0 0 18px; font-size:13px; line-height:1.6;">
-          <li>Buka menu sesuai role.</li>
+          <li>Buka menu sesuai peran.</li>
           <li>Gunakan <code>Ctrl+K</code> untuk cari menu.</li>
           <li>Cek notifikasi untuk tugas tertunda.</li>
         </ol>
@@ -97,32 +103,32 @@
         <ul style="margin:10px 0 0; padding-left:14px; font-size:13px; line-height:1.6;">
           <li>Kode unik konsisten (member_code/barcode/issue_code).</li>
           <li>Gunakan format tanggal valid.</li>
-          <li>Selalu preview sebelum import massal.</li>
+          <li>Selalu lakukan pratinjau sebelum impor massal.</li>
         </ul>
       </div>
       <div class="doc-card doc-tone-amber">
         <h3 style="margin:0; font-size:16px; font-weight:900;">Troubleshooting</h3>
         <ul style="margin:10px 0 0; padding-left:14px; font-size:13px; line-height:1.6;">
           <li>Data kosong: cek filter tanggal/cabang/status.</li>
-          <li>Import gagal: unduh error CSV, perbaiki, ulang preview.</li>
-          <li>Tombol hilang: cek role user.</li>
+          <li>Impor gagal: unduh error CSV, perbaiki, ulang pratinjau.</li>
+          <li>Tombol hilang: cek peran pengguna.</li>
         </ul>
       </div>
     </div>
 
     <div class="doc-card doc-tone-slate" style="margin-top:12px;">
-      <h3 style="margin:0; font-size:16px; font-weight:900;">Matriks Akses Role</h3>
+      <h3 style="margin:0; font-size:16px; font-weight:900;">Matriks Akses Peran</h3>
       <div style="overflow:auto; margin-top:8px;">
         <table class="doc-table">
           <thead>
-            <tr><th>Fitur</th><th>Super Admin</th><th>Staff/Admin</th><th>Member</th></tr>
+            <tr><th>Fitur</th><th>Super Admin</th><th>Petugas/Admin</th><th>Anggota</th></tr>
           </thead>
           <tbody>
             <tr><td>Katalog lihat</td><td>Ya</td><td>Ya</td><td>Ya</td></tr>
             <tr><td>Katalog kelola</td><td>Ya</td><td>Ya</td><td>Tidak</td></tr>
             <tr><td>Transaksi sirkulasi</td><td>Ya</td><td>Ya</td><td>Tidak</td></tr>
-            <tr><td>Import anggota</td><td>Ya</td><td>Ya</td><td>Tidak</td></tr>
-            <tr><td>Laporan export</td><td>Ya</td><td>Ya</td><td>Tidak</td></tr>
+            <tr><td>Impor anggota</td><td>Ya</td><td>Ya</td><td>Tidak</td></tr>
+            <tr><td>Laporan ekspor</td><td>Ya</td><td>Ya</td><td>Tidak</td></tr>
             <tr><td>Serial claim workflow</td><td>Ya</td><td>Ya</td><td>Tidak</td></tr>
             <tr><td>Stock opname</td><td>Ya</td><td>Ya</td><td>Tidak</td></tr>
             <tr><td>Copy cataloging (SRU/Z39.50/P2P)</td><td>Ya</td><td>Ya</td><td>Tidak</td></tr>
@@ -154,7 +160,7 @@
         <h3 style="margin:0; font-size:16px; font-weight:900;">2) Sirkulasi</h3>
         <p style="margin-top:8px; font-size:13px;"><strong>Fungsi:</strong> Proses pinjam, kembali, perpanjang, serta pengelolaan denda.</p>
         <ol style="margin:8px 0 0 18px; font-size:13px; line-height:1.7;">
-          <li><strong>Pinjam:</strong> pilih member -> scan barcode item -> simpan transaksi.</li>
+          <li><strong>Pinjam:</strong> pilih anggota -> scan barcode item -> simpan transaksi.</li>
           <li><strong>Kembali:</strong> scan barcode item -> konfirmasi pengembalian -> cek keterlambatan.</li>
           <li><strong>Perpanjang:</strong> cari pinjaman aktif -> proses perpanjangan sesuai aturan.</li>
           <li><strong>Denda:</strong> buka menu denda untuk recalculation, pembayaran, atau void.</li>
@@ -166,9 +172,9 @@
         <p style="margin-top:8px; font-size:13px;"><strong>Fungsi:</strong> Kelola data anggota secara manual maupun massal (CSV).</p>
         <ol style="margin:8px 0 0 18px; font-size:13px; line-height:1.7;">
           <li>Tambah/edit anggota dari menu <strong>Anggota</strong>.</li>
-          <li>Untuk import massal: upload CSV -> <strong>Preview</strong> -> cek duplikat/error -> <strong>Confirm</strong>.</li>
-          <li>Unduh <strong>Error CSV</strong> jika ada baris invalid.</li>
-          <li>Jika salah import, gunakan <strong>Undo batch terakhir</strong>.</li>
+          <li>Untuk impor massal: upload CSV -> <strong>Pratinjau</strong> -> cek duplikat/error -> <strong>Konfirmasi</strong>.</li>
+          <li>Unduh <strong>CSV Error</strong> jika ada baris invalid.</li>
+          <li>Jika salah impor, gunakan <strong>Batalkan batch terakhir</strong>.</li>
         </ol>
       </div>
 
@@ -249,7 +255,7 @@
       <h3 style="margin:0; font-size:16px; font-weight:900;">Kenapa Dipakai</h3>
       <ul style="margin:8px 0 0; padding-left:14px; font-size:13px; line-height:1.7;">
         <li>Konsistensi data antar pustakawan dan antar cabang.</li>
-        <li>Interoperabilitas lintas sistem (import/export, OAI/SRU, union catalog).</li>
+        <li>Interoperabilitas lintas sistem (impor/ekspor, OAI/SRU, union catalog).</li>
         <li>Pencarian OPAC lebih akurat dan minim duplikasi metadata.</li>
         <li>Naikkan kualitas praktik perpustakaan ke standar profesional.</li>
       </ul>
@@ -360,7 +366,7 @@
           <thead><tr><th>Fitur</th><th>Fungsi</th><th>Cara Pemakaian</th></tr></thead>
           <tbody>
             <tr><td>Switch Cabang</td><td>Ubah konteks kerja lintas cabang</td><td>Sidebar -> pilih cabang -> cek indikator aktif</td></tr>
-            <tr><td>Laporan</td><td>Audit operasional periodik</td><td>Laporan -> set filter -> Terapkan -> export CSV/XLSX</td></tr>
+            <tr><td>Laporan</td><td>Audit operasional periodik</td><td>Laporan -> set filter -> Terapkan -> ekspor CSV/XLSX</td></tr>
             <tr><td>Interop Health</td><td>Monitor integrasi OAI/SRU</td><td>Dashboard Admin -> lihat kartu health -> Refresh now saat perlu</td></tr>
           </tbody>
         </table>
@@ -370,17 +376,17 @@
 
   <section class="doc-panel" data-doc-panel="staff" role="tabpanel">
     <div class="doc-card doc-tone-green">
-      <h3 style="margin:0; font-size:16px; font-weight:900;">Fitur, Fungsi, Cara Pakai - Staff/Admin</h3>
+      <h3 style="margin:0; font-size:16px; font-weight:900;">Fitur, Fungsi, Cara Pakai - Petugas/Admin</h3>
       <div style="overflow:auto; margin-top:8px;">
         <table class="doc-table">
           <thead><tr><th>Fitur</th><th>Fungsi</th><th>Cara Pemakaian</th></tr></thead>
           <tbody>
-            <tr><td>Pinjam</td><td>Mencatat peminjaman</td><td>Transaksi -> Pinjam -> cari member -> scan barcode -> Simpan</td></tr>
+            <tr><td>Pinjam</td><td>Mencatat peminjaman</td><td>Transaksi -> Pinjam -> cari anggota -> scan barcode -> Simpan</td></tr>
             <tr><td>Kembali</td><td>Menutup pinjaman + proses denda</td><td>Transaksi -> Kembali -> scan barcode -> konfirmasi -> Simpan</td></tr>
-            <tr><td>Import CSV Anggota</td><td>Input anggota massal</td><td>Anggota -> Import -> Preview -> cek duplikat/error -> Confirm</td></tr>
-            <tr><td>Undo Batch</td><td>Membatalkan import terakhir</td><td>Anggota -> Undo batch terakhir -> konfirmasi</td></tr>
+            <tr><td>Impor CSV Anggota</td><td>Input anggota massal</td><td>Anggota -> Impor -> Pratinjau -> cek duplikat/error -> Konfirmasi</td></tr>
+            <tr><td>Batalkan Batch</td><td>Membatalkan impor terakhir</td><td>Anggota -> Batalkan batch terakhir -> konfirmasi</td></tr>
             <tr><td>Serial Workflow</td><td>Kontrol issue serial</td><td>Serial Issue -> tambah -> Claim/Missing/Receive</td></tr>
-            <tr><td>Stock Opname</td><td>Audit stok fisik koleksi</td><td>Stock Opname -> buat sesi -> Mulai -> scan barcode -> Selesaikan -> export CSV</td></tr>
+            <tr><td>Stock Opname</td><td>Audit stok fisik koleksi</td><td>Stock Opname -> buat sesi -> Mulai -> scan barcode -> Selesaikan -> ekspor CSV</td></tr>
             <tr><td>Copy Cataloging</td><td>Ambil metadata bibliografi dari sumber eksternal</td><td>Copy Cataloging -> pilih sumber -> cari -> impor record -> review metadata di Katalog</td></tr>
           </tbody>
         </table>
@@ -390,13 +396,13 @@
 
   <section class="doc-panel" data-doc-panel="member" role="tabpanel">
     <div class="doc-card doc-tone-violet">
-      <h3 style="margin:0; font-size:16px; font-weight:900;">Fitur, Fungsi, Cara Pakai - Member</h3>
+      <h3 style="margin:0; font-size:16px; font-weight:900;">Fitur, Fungsi, Cara Pakai - Anggota</h3>
       <div style="overflow:auto; margin-top:8px;">
         <table class="doc-table">
           <thead><tr><th>Fitur</th><th>Fungsi</th><th>Cara Pemakaian</th></tr></thead>
           <tbody>
             <tr><td>Katalog</td><td>Cari dan lihat detail buku</td><td>Buka Katalog -> ketik kata kunci -> buka detail judul</td></tr>
-            <tr><td>Pinjaman Saya</td><td>Pantau pinjaman aktif/riwayat</td><td>Menu Member -> Pinjaman -> cek status & due date</td></tr>
+            <tr><td>Pinjaman Saya</td><td>Pantau pinjaman aktif/riwayat</td><td>Menu Anggota -> Pinjaman -> cek status & due date</td></tr>
             <tr><td>Reservasi</td><td>Mengantri judul yang dibutuhkan</td><td>Pilih judul -> buat reservasi -> pantau notifikasi</td></tr>
             <tr><td>Notifikasi</td><td>Update transaksi akun</td><td>Buka Notifikasi -> baca -> tandai selesai</td></tr>
             <tr><td>Pustakawan Digital</td><td>Rekomendasi bacaan</td><td>Buka fitur -> ajukan pertanyaan -> simpan hasil</td></tr>
@@ -413,7 +419,7 @@
         <ul style="margin:8px 0 0; padding-left:14px; font-size:13px; line-height:1.7;">
           <li><strong>Harian:</strong> cek notifikasi/error, rekonsiliasi transaksi, review serial terlambat.</li>
           <li><strong>Mingguan:</strong> review overdue/denda, kualitas data anggota, validasi laporan cabang, dan sesi stock opname aktif.</li>
-          <li><strong>Bulanan:</strong> export arsip laporan, rekap import history, audit serial claim.</li>
+          <li><strong>Bulanan:</strong> ekspor arsip laporan, rekap riwayat impor, audit serial claim.</li>
         </ul>
         @if($isStaffRole)
           <div style="margin-top:10px;">
@@ -425,8 +431,8 @@
         <h3 style="margin:0; font-size:16px; font-weight:900;">FAQ Cepat</h3>
         <ul style="margin:8px 0 0; padding-left:14px; font-size:13px; line-height:1.7;">
           <li><strong>Data laporan kosong?</strong> Cek filter tanggal/cabang/status.</li>
-          <li><strong>Import gagal?</strong> Unduh error CSV, perbaiki, preview ulang.</li>
-          <li><strong>Tombol tidak tampil?</strong> Verifikasi role akun.</li>
+          <li><strong>Impor gagal?</strong> Unduh error CSV, perbaiki, pratinjau ulang.</li>
+          <li><strong>Tombol tidak tampil?</strong> Verifikasi peran akun.</li>
           <li><strong>Lapor bug?</strong> Sertakan waktu, menu, langkah, dan screenshot.</li>
         </ul>
       </div>
@@ -465,3 +471,5 @@
   })();
 </script>
 @endsection
+
+

@@ -174,6 +174,39 @@ class MemberController extends Controller
         ]);
     }
 
+    public function card(int $id)
+    {
+        $institutionId = $this->institutionId();
+        $member = Member::query()
+            ->where('institution_id', $institutionId)
+            ->findOrFail($id);
+
+        $status = strtolower((string) ($member->status ?? 'inactive'));
+        $statusLabel = match ($status) {
+            'active' => 'AKTIF',
+            'suspended' => 'SUSPENDED',
+            default => 'INACTIVE',
+        };
+
+        $qrData = implode('|', array_filter([
+            (string) ($member->member_code ?? ''),
+            (string) ($member->full_name ?? ''),
+            (string) ($member->id ?? ''),
+        ]));
+        if ($qrData === '') {
+            $qrData = 'member:' . (string) ($member->id ?? '0');
+        }
+        $qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=' . urlencode($qrData);
+
+        return view('anggota.card', [
+            'member' => $member,
+            'statusLabel' => $statusLabel,
+            'qrUrl' => $qrUrl,
+            'hasMemberType' => Schema::hasColumn('members', 'member_type'),
+            'hasEmail' => Schema::hasColumn('members', 'email'),
+        ]);
+    }
+
     public function edit(int $id)
     {
         $institutionId = $this->institutionId();
@@ -402,31 +435,31 @@ class MemberController extends Controller
         ];
         $request->session()->put('member_import_preview', $payload);
 
-        return redirect()->route('anggota.index')->with('success', 'Preview import siap. Periksa ringkasan lalu konfirmasi.');
+        return redirect()->route('anggota.index')->with('success', 'Pratinjau impor siap. Periksa ringkasan lalu konfirmasi.');
     }
 
     public function cancelImportPreview(Request $request)
     {
         $request->session()->forget('member_import_preview');
-        return redirect()->route('anggota.index')->with('success', 'Preview import dibatalkan.');
+        return redirect()->route('anggota.index')->with('success', 'Pratinjau impor dibatalkan.');
     }
 
     public function confirmImportCsv(Request $request)
     {
         $payload = $request->session()->get('member_import_preview');
         if (!$payload || empty($payload['rows']) || !is_array($payload['rows'])) {
-            return redirect()->route('anggota.index')->withErrors(['csv_file' => 'Preview import tidak ditemukan.']);
+            return redirect()->route('anggota.index')->withErrors(['csv_file' => 'Pratinjau impor tidak ditemukan.']);
         }
 
         $institutionId = $this->institutionId();
         if ((int) ($payload['institution_id'] ?? 0) !== $institutionId) {
-            return redirect()->route('anggota.index')->withErrors(['csv_file' => 'Preview import tidak sesuai institusi aktif.']);
+            return redirect()->route('anggota.index')->withErrors(['csv_file' => 'Pratinjau impor tidak sesuai institusi aktif.']);
         }
 
         $confirmToken = (string) $request->input('confirm_token', '');
         $sessionToken = (string) ($payload['confirm_token'] ?? '');
         if ($confirmToken === '' || $sessionToken === '' || !hash_equals($sessionToken, $confirmToken)) {
-            return redirect()->route('anggota.index')->withErrors(['csv_file' => 'Token konfirmasi tidak valid. Ulangi preview import.']);
+            return redirect()->route('anggota.index')->withErrors(['csv_file' => 'Token konfirmasi tidak valid. Ulangi pratinjau impor.']);
         }
         $usedTokens = $this->cleanupUsedImportTokens($request);
         if (isset($usedTokens[$sessionToken])) {
@@ -1014,7 +1047,7 @@ class MemberController extends Controller
                 fclose($handle);
                 return [
                     'ok' => false,
-                    'message' => 'Melebihi batas import preview (' . self::IMPORT_PREVIEW_MAX_ROWS . ' baris). Pecah file CSV.',
+                    'message' => 'Melebihi batas pratinjau impor (' . self::IMPORT_PREVIEW_MAX_ROWS . ' baris). Pecah file CSV.',
                 ];
             }
             $memberCode = trim((string) ($csvRow[$headerMap['member_code']] ?? ''));

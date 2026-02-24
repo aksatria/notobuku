@@ -38,11 +38,11 @@
           @if(isset($loan->id) && \Illuminate\Support\Facades\Route::has('transaksi.riwayat.print'))
             <a href="{{ route('transaksi.riwayat.print', ['id' => $loan->id, 'size' => 58]) }}"
                class="nb-btn" target="_blank" rel="noopener">
-              Print 58mm
+              Cetak 58mm
             </a>
             <a href="{{ route('transaksi.riwayat.print', ['id' => $loan->id, 'size' => 80]) }}"
                class="nb-btn" target="_blank" rel="noopener">
-              Print 80mm
+              Cetak 80mm
             </a>
           @endif
         </div>
@@ -721,3 +721,5 @@
   calcKPI();
 </script>
 @endsection
+
+

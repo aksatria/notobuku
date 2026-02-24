@@ -11,9 +11,9 @@
   $loanCode    = (string)($loan->loan_code ?? '-');
   $loanStatus  = (string)($loan->status ?? 'open');
 
-  $memberName  = (string)($loan->member_name ?? '-');
-  $memberCode  = (string)($loan->member_code ?? '-');
-  $memberPhone = (string)($loan->member_phone ?? '-');
+  $anggotaName  = (string)($loan->anggota_name ?? '-');
+  $anggotaCode  = (string)($loan->anggota_code ?? '-');
+  $anggotaPhone = (string)($loan->anggota_phone ?? '-');
 
   $branchName  = (string)($loan->branch_name ?? '-');
   $createdBy   = (string)($loan->created_by_name ?? '-');
@@ -44,10 +44,10 @@
   elseif ($st === 'closed') $statusCls = 'sb ok';
   elseif ($st === 'overdue') $statusCls = 'sb bad';
 
-  // member initials
+  // anggota initials
   $init = 'MB';
-  if ($memberName && $memberName !== '-') {
-    $parts = preg_split('/\s+/', trim($memberName));
+  if ($anggotaName && $anggotaName !== '-') {
+    $parts = preg_split('/\s+/', trim($anggotaName));
     $parts = array_values(array_filter($parts));
     $init = strtoupper(substr($parts[0] ?? 'M', 0, 1) . substr($parts[1] ?? 'B', 0, 1));
   }
@@ -123,7 +123,7 @@
   .tx-mini{ font-size:12.5px; color: rgba(11,37,69,.60); font-weight:450; }
   html.dark .tx-mini{ color: rgba(226,232,240,.60); }
 
-  /* Member summary */
+  /* Anggota summary */
   .mcard{
     margin-top:12px;
     padding:12px;
@@ -422,7 +422,7 @@
       <div style="min-width:260px;">
         <div class="nb-k-title">{{ $title }}</div>
         <div class="nb-k-sub">
-          Pengembalian berhasil disimpan. Kamu bisa preview/print slip (thermal) atau lihat detail transaksi.
+          Pengembalian berhasil disimpan. Kamu bisa pratinjau/cetak slip (termal) atau lihat detail transaksi.
         </div>
       </div>
 
@@ -430,11 +430,11 @@
         {{-- Slip --}}
         <button type="button" class="btn-wide" id="btn_preview_slip">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M12 5c5 0 9 5.5 9 7s-4 7-9 7-9-5.5-9-7 4-7 9-7Zm0 2c-3.57 0-6.84 3.77-6.98 5 .14 1.23 3.41 5 6.98 5s6.84-3.77 6.98-5c-.14-1.23-3.41-5-6.98-5Z"/></svg>
-          Preview Slip
+          Pratinjau Slip
         </button>
         <button type="button" class="btn-wide" id="btn_print_slip">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="currentColor" d="M19 8H5a3 3 0 0 0-3 3v4h4v4h12v-4h4v-4a3 3 0 0 0-3-3ZM8 19v-5h8v5H8Zm10-7H6v-1a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1Z"/></svg>
-          Print Slip
+          Cetak Slip
         </button>
 
         <a href="{{ route('transaksi.kembali.form') }}" class="btn-wide">
@@ -455,7 +455,7 @@
       <div class="tx-hd">
         <div>
           <div class="t">Ringkasan Pengembalian</div>
-          <div class="s">Kode transaksi, member, status, dan waktu.</div>
+          <div class="s">Kode transaksi, anggota, status, dan waktu.</div>
         </div>
         <div class="tx-mini">{{ $itemsCount }} item</div>
       </div>
@@ -465,14 +465,14 @@
           <div class="mava">{{ $init }}</div>
 
           <div style="min-width:240px;">
-            <div class="mname">{{ $memberName }}</div>
-            <div class="mmeta">Kode: {{ $memberCode }} • HP: {{ $memberPhone }}</div>
+            <div class="mname">{{ $anggotaName }}</div>
+            <div class="mmeta">Kode: {{ $anggotaCode }} • HP: {{ $anggotaPhone }}</div>
           </div>
 
           <div class="mbadges">
             <span class="mbadge info">Loan: {{ $loanCode }}</span>
             <span class="mbadge ok">Pinjam: {{ $loanedAtText }}</span>
-            <span class="mbadge info">Due: {{ $dueAtText }}</span>
+            <span class="mbadge info">Jatuh tempo: {{ $dueAtText }}</span>
             <span class="mbadge info">Cabang: {{ $branchName }}</span>
             <span class="mbadge info">Petugas: {{ $createdBy }}</span>
             @if($closedAtText !== '-')
@@ -562,7 +562,7 @@
   <div class="nb-modal no-print" id="modal_preview" aria-hidden="true">
     <div class="nb-modalCard" role="dialog" aria-modal="true">
       <div class="nb-modalTop">
-        <div class="nb-modalTitle" id="modal_title">Preview Slip</div>
+        <div class="nb-modalTitle" id="modal_title">Pratinjau Slip</div>
         <button class="btn-wide" type="button" id="modal_close" style="height:38px;">Tutup</button>
       </div>
 
@@ -599,14 +599,14 @@
               Jika masih muncul URL/tanggal/halaman saat print: matikan <b>Headers and footers</b> di dialog print.
             </div>
             <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
-              <button type="button" class="btn-wide primary" id="btn_modal_print" style="height:38px;">Print dari Preview</button>
+              <button type="button" class="btn-wide primary" id="btn_modal_print" style="height:38px;">Cetak dari Pratinjau</button>
               <button type="button" class="btn-wide" id="btn_open_new" style="height:38px;">Buka Tab Baru</button>
             </div>
           </div>
         </div>
 
         <div class="nb-modalMain">
-          <iframe class="nb-iframe" id="preview_iframe" title="Preview Slip"></iframe>
+          <iframe class="nb-iframe" id="preview_iframe" title="Pratinjau Slip"></iframe>
         </div>
       </div>
     </div>
@@ -614,7 +614,7 @@
 
   {{-- TOAST: sukses --}}
   <div class="nb-toast no-print" id="toast_ok" style="display:none;">
-    <button class="x" type="button" id="toast_close" aria-label="Close">
+    <button class="x" type="button" id="toast_close" aria-label="Tutup">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
     </button>
     <div class="t">Sukses ✅</div>
@@ -693,7 +693,7 @@
 
     function refreshIframe(){
       const paper = getPaper();
-      if(modalTitle) modalTitle.textContent = 'Preview Slip (' + paper + 'mm)';
+      if(modalTitle) modalTitle.textContent = 'Pratinjau Slip (' + paper + 'mm)';
       if(iframe) iframe.src = buildPrintUrl(paper);
     }
 
@@ -770,3 +770,6 @@
 
 </div>
 @endsection
+
+
+

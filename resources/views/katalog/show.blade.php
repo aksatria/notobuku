@@ -1313,9 +1313,9 @@
           </div>
           @if($isPdf)
             <details style="margin-top:-6px;" data-pdf-url="{{ $inlineUrl }}" data-pdf-canvas="pdf_canvas_{{ $att->id }}">
-              <summary class="nb-btn" style="display:inline-flex; border-radius:12px; margin-bottom:8px;">Preview PDF</summary>
+              <summary class="nb-btn" style="display:inline-flex; border-radius:12px; margin-bottom:8px;">Pratinjau PDF</summary>
               <div style="border:1px solid var(--nb-border); border-radius:12px; overflow:hidden; padding:10px;">
-                <div class="nb-muted-2" style="font-size:12px; margin-bottom:8px;">Preview PDF (halaman 1).</div>
+                <div class="nb-muted-2" style="font-size:12px; margin-bottom:8px;">Pratinjau PDF (halaman 1).</div>
                 <div class="nb-ks-pdf-toolbar" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:10px;">
                   <button type="button" class="nb-btn nb-ks-pdf-prev">Prev</button>
                   <button type="button" class="nb-btn nb-ks-pdf-next">Next</button>
@@ -1428,6 +1428,7 @@
               <form method="POST" action="{{ route('reservasi.store') }}">
                 @csrf
                 <input type="hidden" name="biblio_id" value="{{ (int)($biblio->id ?? 0) }}">
+                <input type="hidden" name="cta_source" value="detail_page">
                 @if($reserveInstitutionId > 0)
                   <input type="hidden" name="institution_id" value="{{ $reserveInstitutionId }}">
                 @endif
@@ -1520,6 +1521,7 @@
                       <form method="POST" action="{{ route('reservasi.store') }}" style="margin-top:8px;">
                         @csrf
                         <input type="hidden" name="biblio_id" value="{{ (int)($biblio->id ?? 0) }}">
+                        <input type="hidden" name="cta_source" value="detail_page">
                         @if($reserveInstitutionId > 0)
                           <input type="hidden" name="institution_id" value="{{ $reserveInstitutionId }}">
                         @endif
@@ -1736,7 +1738,7 @@
         }).then(function () {
           updateLabels();
         }).catch(function () {
-          canvas.parentElement.innerHTML = '<div class="nb-muted-2">Preview gagal dimuat. Silakan unduh file.</div>';
+          canvas.parentElement.innerHTML = '<div class="nb-muted-2">Pratinjau gagal dimuat. Silakan unduh file.</div>';
         });
       };
 
@@ -1751,7 +1753,7 @@
           renderPage();
         }).catch(function () {
           el.dataset.rendered = '0';
-          canvas.parentElement.innerHTML = '<div class="nb-muted-2">Preview gagal dimuat. Silakan unduh file.</div>';
+          canvas.parentElement.innerHTML = '<div class="nb-muted-2">Pratinjau gagal dimuat. Silakan unduh file.</div>';
         });
       };
 
@@ -1818,6 +1820,8 @@
   });
 </script>
 @endsection
+
+
 
 
 
