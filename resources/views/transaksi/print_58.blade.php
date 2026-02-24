@@ -74,6 +74,11 @@
         $dueAt    = !empty($loan->due_at) ? \Carbon\Carbon::parse($loan->due_at) : null;
         $closedAt = !empty($loan->closed_at) ? \Carbon\Carbon::parse($loan->closed_at) : null;
         $status = (string)($loan->status ?? '');
+        $statusLabel = match(strtolower($status)){
+          'closed' => 'selesai',
+          'overdue' => 'terlambat',
+          default => 'berjalan',
+        };
       @endphp
 
       <div class="row"><div class="k">Kode</div><div class="v b">{{ $loan->loan_code ?? '-' }}</div></div>
@@ -82,14 +87,14 @@
 
       <div class="hr2"></div>
 
-      <div class="row"><div class="k">Status</div><div class="v"><span class="badge">{{ strtoupper($status ?: 'open') }}</span></div></div>
+      <div class="row"><div class="k">Status</div><div class="v"><span class="badge">{{ strtoupper($statusLabel) }}</span></div></div>
       <div class="row"><div class="k">Pinjam</div><div class="v">{{ $loanedAt ? $loanedAt->format('d/m H:i') : '-' }}</div></div>
       <div class="row"><div class="k">Jatuh</div><div class="v">{{ $dueAt ? $dueAt->format('d/m H:i') : '-' }}</div></div>
       <div class="row"><div class="k">Tutup</div><div class="v">{{ $closedAt ? $closedAt->format('d/m H:i') : '-' }}</div></div>
 
       <div class="hr"></div>
 
-      <div class="b">Item ({{ count($items ?? []) }})</div>
+      <div class="b">Daftar Item ({{ count($items ?? []) }})</div>
 
       @foreach(($items ?? []) as $it)
         @php

@@ -86,10 +86,14 @@
         $closedAt = !empty($loan->closed_at) ? \Carbon\Carbon::parse($loan->closed_at) : null;
 
         $status = (string)($loan->status ?? '');
-        $badge = $status ?: 'open';
+        $statusLabel = match(strtolower($status)){
+          'closed' => 'selesai',
+          'overdue' => 'terlambat',
+          default => 'berjalan',
+        };
       @endphp
 
-      <div class="row"><div class="k">Status</div><div class="v"><span class="badge">{{ strtoupper($badge) }}</span></div></div>
+      <div class="row"><div class="k">Status</div><div class="v"><span class="badge">{{ strtoupper($statusLabel) }}</span></div></div>
       <div class="row"><div class="k">Pinjam</div><div class="v">{{ $loanedAt ? $loanedAt->format('d/m/Y H:i') : '-' }}</div></div>
       <div class="row"><div class="k">Jatuh</div><div class="v">{{ $dueAt ? $dueAt->format('d/m/Y H:i') : '-' }}</div></div>
       <div class="row"><div class="k">Tutup</div><div class="v">{{ $closedAt ? $closedAt->format('d/m/Y H:i') : '-' }}</div></div>
