@@ -14,8 +14,8 @@
     <div class="nb-card" style="padding:16px;">
         <form method="POST" action="{{ route('reservasi.rules.store') }}" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;">
             @csrf
-            <input name="label" required placeholder="Label rule" class="nb-input" style="padding:10px;border:1px solid #cbd5e1;border-radius:10px;">
-            <input name="branch_id" placeholder="Branch ID (opsional)" class="nb-input" style="padding:10px;border:1px solid #cbd5e1;border-radius:10px;">
+            <input name="label" required placeholder="Label aturan" class="nb-input" style="padding:10px;border:1px solid #cbd5e1;border-radius:10px;">
+            <input name="branch_id" placeholder="ID cabang (opsional)" class="nb-input" style="padding:10px;border:1px solid #cbd5e1;border-radius:10px;">
             <input name="member_type" placeholder="member_type (mis: dosen)" class="nb-input" style="padding:10px;border:1px solid #cbd5e1;border-radius:10px;">
             <input name="collection_type" placeholder="collection_type (mis: buku)" class="nb-input" style="padding:10px;border:1px solid #cbd5e1;border-radius:10px;">
             <input name="max_active_reservations" type="number" min="1" max="100" value="5" placeholder="Maks aktif" class="nb-input" style="padding:10px;border:1px solid #cbd5e1;border-radius:10px;">
@@ -35,7 +35,7 @@
                 <th style="padding:10px;border-bottom:1px solid #e2e8f0;text-align:left;">Label</th>
                 <th style="padding:10px;border-bottom:1px solid #e2e8f0;text-align:left;">Scope</th>
                 <th style="padding:10px;border-bottom:1px solid #e2e8f0;text-align:right;">Kuota</th>
-                <th style="padding:10px;border-bottom:1px solid #e2e8f0;text-align:right;">Max Antrean</th>
+                <th style="padding:10px;border-bottom:1px solid #e2e8f0;text-align:right;">Maks Antrean</th>
                 <th style="padding:10px;border-bottom:1px solid #e2e8f0;text-align:right;">Hold</th>
                 <th style="padding:10px;border-bottom:1px solid #e2e8f0;text-align:right;">Prioritas</th>
                 <th style="padding:10px;border-bottom:1px solid #e2e8f0;text-align:center;">Status</th>
@@ -59,7 +59,7 @@
                     <td style="padding:10px;border-bottom:1px solid #e2e8f0;text-align:center;">
                         <form method="POST" action="{{ route('reservasi.rules.toggle', $r->id) }}">
                             @csrf
-                            <button class="nb-btn nb-btn-soft" type="submit">Toggle</button>
+                            <button class="nb-btn nb-btn-soft" type="submit">Ubah</button>
                         </form>
                     </td>
                 </tr>

@@ -135,7 +135,7 @@
         <input type="text" name="q" value="{{ $filters['q'] ?? '' }}" placeholder="kode pinjam / anggota / barcode / detail" @disabled(empty($dates))>
       </div>
       <details class="ex-adv" @if(!$isCompactMode && empty($dates)) open @endif>
-        <summary>Filter lanjutan</summary>
+        <summary>Penyaring lanjutan</summary>
         <div class="ex-adv-grid">
           <div class="ex-field">
             <label>Jenis Kasus</label>
@@ -161,11 +161,11 @@
         <a
           class="ex-btn"
           href="{{ route('transaksi.exceptions.export.csv', array_merge($modeFilterParams, ['mode' => $viewMode])) }}"
-        >Export CSV</a>
+        >Ekspor CSV</a>
         <a
           class="ex-btn"
           href="{{ route('transaksi.exceptions.export.xlsx', array_merge($modeFilterParams, ['mode' => $viewMode])) }}"
-        >Export XLSX</a>
+        >Ekspor XLSX</a>
         <a class="ex-btn" href="{{ route('transaksi.exceptions.index', ['mode' => $viewMode]) }}">Bersihkan</a>
       </div>
     </form>
@@ -221,19 +221,19 @@
         </div>
         <div class="ex-field ex-bulk-note">
           <label>Catatan Aksi Massal</label>
-          <input type="text" name="ack_note" placeholder="catatan bulk (opsional)">
+          <input type="text" name="ack_note" placeholder="catatan massal (opsional)">
         </div>
         <button type="submit" class="ex-btn primary ex-bulk-apply" id="bulk-submit" @disabled(!$ackEnabled)>Terapkan</button>
         <div class="ex-field ex-bulk-assign">
           <label>Tetapkan PIC Massal</label>
           <select name="bulk_owner_user_id" id="bulk-owner-user-id">
-            <option value="">Pilih PIC untuk selected...</option>
+            <option value="">Pilih PIC untuk data terpilih...</option>
             @foreach($owners as $owner)
               <option value="{{ $owner['id'] }}">{{ $owner['name'] }} ({{ strtoupper($owner['role']) }})</option>
             @endforeach
           </select>
         </div>
-        <button type="button" class="ex-btn ex-bulk-assign-btn" id="bulk-assign-owner" @disabled(!$ackEnabled)>Set PIC</button>
+        <button type="button" class="ex-btn ex-bulk-assign-btn" id="bulk-assign-owner" @disabled(!$ackEnabled)>Tetapkan PIC</button>
       </div>
       <div class="ex-bulk-info">
         <span class="ex-bulk-meta">Terpilih: <span id="bulk-count">0</span> item</span>
@@ -255,12 +255,12 @@
       <thead>
         <tr>
           <th><input type="checkbox" id="toggle-all"></th>
-          <th>Type</th>
-          <th>Severity</th>
-          <th>Loan/Item</th>
+          <th>Jenis</th>
+          <th>Tingkat</th>
+          <th>Pinjam/Item</th>
           <th>Member</th>
           <th>Detail</th>
-          <th>Age</th>
+          <th>Usia</th>
           <th>Status</th>
           <th>PIC</th>
           <th>Aksi</th>
@@ -287,7 +287,7 @@
             </td>
             <td>
               <div>{{ $row['detail'] !== '' ? $row['detail'] : '-' }}</div>
-              <div class="ex-mini">Detected: {{ $row['detected_at'] !== '' ? $row['detected_at'] : '-' }}</div>
+              <div class="ex-mini">Terdeteksi: {{ $row['detected_at'] !== '' ? $row['detected_at'] : '-' }}</div>
             </td>
             @php
               $ageHours = (int) ($row['age_hours'] ?? 0);
@@ -324,16 +324,16 @@
               @endphp
               <span class="ex-pill {{ $status }}">{{ $statusLabel }}</span>
               @if(($row['ack_by_name'] ?? '') !== '')
-                <div class="ex-mini">Ack: {{ $row['ack_by_name'] }} {{ $row['ack_at'] !== '' ? '(' . $row['ack_at'] . ')' : '' }}</div>
+                <div class="ex-mini">Diakui: {{ $row['ack_by_name'] }} {{ $row['ack_at'] !== '' ? '(' . $row['ack_at'] . ')' : '' }}</div>
               @endif
               @if(($row['resolved_by_name'] ?? '') !== '')
-                <div class="ex-mini">Resolved: {{ $row['resolved_by_name'] }} {{ $row['resolved_at'] !== '' ? '(' . $row['resolved_at'] . ')' : '' }}</div>
+                <div class="ex-mini">Selesai: {{ $row['resolved_by_name'] }} {{ $row['resolved_at'] !== '' ? '(' . $row['resolved_at'] . ')' : '' }}</div>
               @endif
             </td>
             <td>
               <div>{{ ($row['owner_name'] ?? '') !== '' ? $row['owner_name'] : '-' }}</div>
               @if(($row['owner_assigned_at'] ?? '') !== '')
-                <div class="ex-mini">Assigned: {{ $row['owner_assigned_at'] }}</div>
+                <div class="ex-mini">Ditetapkan: {{ $row['owner_assigned_at'] }}</div>
               @endif
               <form method="POST" action="{{ route('transaksi.exceptions.assign_owner') }}" style="display:grid; gap:6px; margin-top:6px;">
                 @csrf
@@ -362,7 +362,7 @@
                       </option>
                     @endforeach
                   </select>
-                  <button class="ex-btn" type="submit" @disabled(!$ackEnabled || $isResolved)>Set PIC</button>
+                  <button class="ex-btn" type="submit" @disabled(!$ackEnabled || $isResolved)>Tetapkan PIC</button>
                   @if($currentUserId > 0)
                     <button
                       class="ex-btn"
@@ -370,7 +370,7 @@
                       name="owner_user_id"
                       value="{{ $currentUserId }}"
                       @disabled(!$ackEnabled || $isResolved || (int) ($row['owner_user_id'] ?? 0) === $currentUserId)
-                    >Assign me</button>
+                    >Tetapkan saya</button>
                   @endif
                 </div>
               </form>
@@ -394,15 +394,15 @@
                 <input type="hidden" name="barcode" value="{{ $row['barcode'] }}">
                 <input type="hidden" name="member_id" value="{{ $row['member_id'] }}">
                 <input type="hidden" name="detail" value="{{ $row['detail'] }}">
-                <textarea name="ack_note" rows="2" placeholder="catatan ack/resolved">{{ $row['ack_note'] ?? '' }}</textarea>
+                <textarea name="ack_note" rows="2" placeholder="catatan pengakuan/selesai">{{ $row['ack_note'] ?? '' }}</textarea>
                 <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                  <button class="ex-btn warn" type="submit" @disabled(!$ackEnabled || $isResolved)>Acknowledge</button>
+                  <button class="ex-btn warn" type="submit" @disabled(!$ackEnabled || $isResolved)>Akui</button>
                   <button
                     class="ex-btn ok"
                     type="submit"
                     formaction="{{ route('transaksi.exceptions.resolve') }}"
                     @disabled(!$ackEnabled || $isResolved)
-                  >Resolve</button>
+                  >Selesaikan</button>
                 </div>
               </form>
             </td>
@@ -413,7 +413,7 @@
               <div class="ex-empty">
                 Tidak ada data exception untuk filter ini.
                 <div style="margin-top:8px;">
-                  <a class="ex-btn" href="{{ route('transaksi.exceptions.index', ['mode' => $viewMode]) }}">Reset filter</a>
+                  <a class="ex-btn" href="{{ route('transaksi.exceptions.index', ['mode' => $viewMode]) }}">Atur ulang penyaring</a>
                 </div>
               </div>
             </td>

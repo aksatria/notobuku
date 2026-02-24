@@ -446,7 +446,7 @@
 
           <div class="nb-rw-filteractions" style="margin-left:auto;">
             <button type="submit" class="nb-rw-apply">Terapkan</button>
-            <a class="nb-rw-reset" href="{{ route('transaksi.riwayat', ['tab'=>'transaksi']) }}">Reset</a>
+            <a class="nb-rw-reset" href="{{ route('transaksi.riwayat', ['tab'=>'transaksi']) }}">Atur Ulang</a>
           </div>
         </div>
       </form>
@@ -479,7 +479,7 @@
 
           <div class="nb-rw-filteractions" style="margin-left:auto;">
             <button type="submit" class="nb-rw-apply">Terapkan</button>
-            <a class="nb-rw-reset" href="{{ route('transaksi.riwayat', ['tab'=>'denda']) }}">Reset</a>
+            <a class="nb-rw-reset" href="{{ route('transaksi.riwayat', ['tab'=>'denda']) }}">Atur Ulang</a>
           </div>
 
           <div style="flex: 1 1 100%; display:flex; gap:10px; flex-wrap:wrap; margin-top:2px;">
