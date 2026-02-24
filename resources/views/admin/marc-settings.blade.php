@@ -354,7 +354,7 @@
               <div class="grid grid-cols-3 gap-2 font-semibold">
                 <div>Aturan</div>
                 <div>Terpublikasi</div>
-                <div>Draft</div>
+                <div>Draf</div>
               </div>
               @foreach($policyDiff as $row)
                 @php
@@ -783,7 +783,7 @@ Klik "Buat Pratinjau" untuk melihat MARCXML.</pre>
                     color: #b91c1c;
                     border: 1px solid rgba(185,28,28,.25);
                   ">
-            Reset ke Default
+            Reset ke Bawaan
           </button>
         </div>
       </div>

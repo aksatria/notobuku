@@ -1215,7 +1215,7 @@
           <div class="nb-admin-opac-analytics">
             <div class="nb-admin-auto-kpi">
               <div class="nb-admin-auto-kpi-item">
-                <div class="label">Total Search</div>
+                <div class="label">Total Pencarian</div>
                 <div class="value" id="opac-ana-total">{{ number_format($opacSearchTotal, 0, ',', '.') }}</div>
               </div>
               <div class="nb-admin-auto-kpi-item">
