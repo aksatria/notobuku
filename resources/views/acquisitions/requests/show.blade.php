@@ -1,6 +1,6 @@
 @extends('layouts.notobuku')
 
-@section('title', 'Detail Request Pengadaan')
+@section('title', 'Detail Permintaan Pengadaan')
 
 @section('content')
 @php
@@ -70,7 +70,7 @@
     <div class="saas-head">
       <div>
         <h1 class="saas-title">{{ $request->title }}</h1>
-        <div class="saas-sub">Penulis: {{ $request->author_text ?: '-' }} � ISBN: {{ $request->isbn ?: '-' }}</div>
+        <div class="saas-sub">Penulis: {{ $request->author_text ?: '-' }} â€¢ ISBN: {{ $request->isbn ?: '-' }}</div>
       </div>
       <div style="display:flex; gap:10px; flex-wrap:wrap;">
         <a class="nb-btn" href="{{ route('acquisitions.requests.index') }}">Kembali</a>
@@ -99,10 +99,10 @@
       </div>
       <div>
         <div class="saas-label">Sumber</div>
-        <div class="saas-value">{{ $request->source === 'member_request' ? 'Member Request' : 'Staff Manual' }}</div>
+        <div class="saas-value">{{ $request->source === 'member_request' ? 'Permintaan Anggota' : 'Input Staf' }}</div>
       </div>
       <div>
-        <div class="saas-label">Requester</div>
+        <div class="saas-label">Peminta</div>
         <div class="saas-value">{{ $request->requester?->name ?? '-' }}</div>
       </div>
       <div>
@@ -111,19 +111,19 @@
       </div>
       @if($request->book_request_id)
         <div>
-          <div class="saas-label">Book Request</div>
+          <div class="saas-label">Permintaan Buku</div>
           <div class="saas-value">#{{ $request->book_request_id }}</div>
         </div>
       @endif
       @if($request->purchaseOrder)
         <div>
-          <div class="saas-label">Purchase Order</div>
+          <div class="saas-label">Pesanan Pembelian</div>
           <div class="saas-value"><a class="nb-btn" href="{{ route('acquisitions.pos.show', $request->purchaseOrder->id) }}">{{ $request->purchaseOrder->po_number }}</a></div>
         </div>
       @endif
       @if($request->purchase_order_line_id)
         <div>
-          <div class="saas-label">PO Line ID</div>
+          <div class="saas-label">ID Baris PO</div>
           <div class="saas-value">{{ $request->purchase_order_line_id }}</div>
         </div>
       @endif
@@ -133,7 +133,7 @@
       </div>
       @if($request->reject_reason)
         <div class="span-2">
-          <div class="saas-label">Alasan Reject</div>
+          <div class="saas-label">Alasan Penolakan</div>
           <div class="saas-value">{{ $request->reject_reason }}</div>
         </div>
       @endif
@@ -144,19 +144,19 @@
     <div style="font-weight:600; margin-bottom:10px;">Aktivitas</div>
     <div class="saas-grid">
       <div>
-        <div class="saas-label">Reviewed By</div>
-        <div class="saas-value">{{ $request->reviewer?->name ?? 'Belum direview' }}</div>
-        <div class="saas-sub">{{ $request->reviewed_at ? $request->reviewed_at->format('Y-m-d H:i') : '�' }}</div>
+        <div class="saas-label">Ditinjau Oleh</div>
+        <div class="saas-value">{{ $request->reviewer?->name ?? 'Belum ditinjau' }}</div>
+        <div class="saas-sub">{{ $request->reviewed_at ? $request->reviewed_at->format('Y-m-d H:i') : 'â€”' }}</div>
       </div>
       <div>
-        <div class="saas-label">Approved By</div>
-        <div class="saas-value">{{ $request->approver?->name ?? 'Belum di-approve' }}</div>
-        <div class="saas-sub">{{ $request->approved_at ? $request->approved_at->format('Y-m-d H:i') : '�' }}</div>
+        <div class="saas-label">Disetujui Oleh</div>
+        <div class="saas-value">{{ $request->approver?->name ?? 'Belum disetujui' }}</div>
+        <div class="saas-sub">{{ $request->approved_at ? $request->approved_at->format('Y-m-d H:i') : 'â€”' }}</div>
       </div>
       <div>
-        <div class="saas-label">Rejected By</div>
+        <div class="saas-label">Ditolak Oleh</div>
         <div class="saas-value">{{ $request->rejector?->name ?? 'Belum ditolak' }}</div>
-        <div class="saas-sub">{{ $request->rejected_at ? $request->rejected_at->format('Y-m-d H:i') : '�' }}</div>
+        <div class="saas-sub">{{ $request->rejected_at ? $request->rejected_at->format('Y-m-d H:i') : 'â€”' }}</div>
       </div>
     </div>
   </div>
@@ -171,7 +171,7 @@
           @php $u = $auditUsers[$a->user_id] ?? null; @endphp
           <div class="audit-item">
             <div style="font-weight:600;">{{ $a->action }}</div>
-            <div class="saas-sub">{{ $a->created_at ? $a->created_at->format('Y-m-d H:i') : '-' }} � {{ $u?->name ?? '-' }}</div>
+            <div class="saas-sub">{{ $a->created_at ? $a->created_at->format('Y-m-d H:i') : '-' }} â€¢ {{ $u?->name ?? '-' }}</div>
             @if(!empty($a->meta))
               @php $rows = $formatMeta($a->meta); @endphp
               @if(!empty($rows))
@@ -193,7 +193,7 @@
 
   @if($request->status === 'requested')
     <div class="saas-card">
-      <div style="font-weight:600; margin-bottom:10px;">Review</div>
+      <div style="font-weight:600; margin-bottom:10px;">Tinjau</div>
       <form method="POST" action="{{ route('acquisitions.requests.review', $request->id) }}">
         @csrf
         <div class="saas-grid">
@@ -207,14 +207,14 @@
           </div>
         </div>
         <div style="height:10px;"></div>
-        <button class="nb-btn nb-btn-primary" type="submit">Tandai Reviewed</button>
+        <button class="nb-btn nb-btn-primary" type="submit">Tandai Ditinjau</button>
       </form>
     </div>
   @endif
 
   @if(in_array($request->status, ['requested', 'reviewed'], true))
     <div class="saas-card">
-      <div style="font-weight:600; margin-bottom:10px;">Approve / Reject</div>
+      <div style="font-weight:600; margin-bottom:10px;">Setujui / Tolak</div>
       <div class="saas-grid">
         <form method="POST" action="{{ route('acquisitions.requests.approve', $request->id) }}">
           @csrf
@@ -223,17 +223,17 @@
             <input class="nb-field" type="number" step="0.01" name="estimated_price">
           </div>
           <div style="height:10px;"></div>
-          <button class="nb-btn nb-btn-success" type="submit">Approve</button>
+          <button class="nb-btn nb-btn-success" type="submit">Setujui</button>
         </form>
 
         <form method="POST" action="{{ route('acquisitions.requests.reject', $request->id) }}">
           @csrf
           <div class="saas-field">
-            <label>Alasan Reject</label>
+            <label>Alasan Penolakan</label>
             <input class="nb-field" name="reject_reason" required>
           </div>
           <div style="height:10px;"></div>
-          <button class="nb-btn" type="submit" onclick="return confirm('Tolak request ini?');">Reject</button>
+          <button class="nb-btn" type="submit" onclick="return confirm('Tolak permintaan ini?');">Tolak</button>
         </form>
       </div>
     </div>
@@ -241,7 +241,7 @@
 
   @if($request->status === 'approved')
     <div class="saas-card">
-      <div style="font-weight:600; margin-bottom:10px;">Convert ke PO</div>
+      <div style="font-weight:600; margin-bottom:10px;">Konversi ke PO</div>
       <form method="POST" action="{{ route('acquisitions.requests.convert', $request->id) }}">
         @csrf
         <div class="saas-grid">
@@ -265,10 +265,11 @@
           </div>
         </div>
         <div style="height:10px;"></div>
-        <button class="nb-btn nb-btn-primary" type="submit">Convert to PO</button>
+        <button class="nb-btn nb-btn-primary" type="submit">Konversi ke PO</button>
       </form>
     </div>
   @endif
 </div>
 @endsection
+
 

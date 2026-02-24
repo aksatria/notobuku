@@ -1,6 +1,6 @@
 @extends('layouts.notobuku')
 
-@section('title', 'Purchase Orders')
+@section('title', 'Pesanan Pembelian')
 
 @section('content')
 @php
@@ -51,11 +51,11 @@
   <div class="saas-card">
     <div class="saas-head">
       <div>
-        <h1 class="saas-title">Purchase Orders</h1>
+        <h1 class="saas-title">Pesanan Pembelian</h1>
         <div class="saas-sub">Kelola draft hingga penerimaan barang.</div>
       </div>
       <div style="display:flex; gap:10px; flex-wrap:wrap;">
-        <a class="nb-btn" href="{{ route('acquisitions.requests.index') }}">Request</a>
+        <a class="nb-btn" href="{{ route('acquisitions.requests.index') }}">Permintaan</a>
         <a class="nb-btn nb-btn-primary" href="{{ route('acquisitions.pos.create') }}">Buat PO</a>
       </div>
     </div>
@@ -67,10 +67,10 @@
           <select class="nb-field" name="status">
             <option value="" {{ $status==='' ? 'selected' : '' }}>Semua</option>
             <option value="draft" {{ $status==='draft' ? 'selected' : '' }}>Draft</option>
-            <option value="ordered" {{ $status==='ordered' ? 'selected' : '' }}>Ordered</option>
-            <option value="partially_received" {{ $status==='partially_received' ? 'selected' : '' }}>Partially Received</option>
-            <option value="received" {{ $status==='received' ? 'selected' : '' }}>Received</option>
-            <option value="cancelled" {{ $status==='cancelled' ? 'selected' : '' }}>Cancelled</option>
+            <option value="ordered" {{ $status==='ordered' ? 'selected' : '' }}>Dipesan</option>
+            <option value="partially_received" {{ $status==='partially_received' ? 'selected' : '' }}>Diterima Sebagian</option>
+            <option value="received" {{ $status==='received' ? 'selected' : '' }}>Diterima</option>
+            <option value="cancelled" {{ $status==='cancelled' ? 'selected' : '' }}>Dibatalkan</option>
           </select>
         </div>
         <div class="field col-3">
@@ -95,7 +95,7 @@
         </div>
         <div class="field col-3">
           <label>Cari</label>
-          <input class="nb-field" name="q" value="{{ $q }}" placeholder="PO number">
+          <input class="nb-field" name="q" value="{{ $q }}" placeholder="Nomor PO">
         </div>
         <div class="col-12" style="display:flex; gap:10px; align-items:end;">
           <button class="nb-btn nb-btn-primary" type="submit">Terapkan</button>
@@ -165,4 +165,5 @@
   </div>
 </div>
 @endsection
+
 

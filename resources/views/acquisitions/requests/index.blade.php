@@ -1,6 +1,6 @@
 @extends('layouts.notobuku')
 
-@section('title', 'Pengadaan - Requests')
+@section('title', 'Pengadaan - Permintaan')
 
 @section('content')
 @php
@@ -73,12 +73,12 @@
   <div class="saas-card">
     <div class="saas-head">
       <div>
-        <h1 class="saas-title">Request Pengadaan</h1>
-        <div class="saas-sub">Daftar permintaan pengadaan dari staff / member.</div>
+        <h1 class="saas-title">Permintaan Pengadaan</h1>
+        <div class="saas-sub">Daftar permintaan pengadaan dari staf / anggota.</div>
       </div>
       <div style="display:flex; gap:10px; flex-wrap:wrap;">
         <a class="nb-btn" href="{{ route('acquisitions.pos.index') }}">Lihat PO</a>
-        <a class="nb-btn nb-btn-primary" href="{{ route('acquisitions.requests.create') }}">Buat Request</a>
+        <a class="nb-btn nb-btn-primary" href="{{ route('acquisitions.requests.create') }}">Buat Permintaan</a>
       </div>
     </div>
 
@@ -97,19 +97,19 @@
           <label>Status</label>
           <select class="nb-field" name="status">
             <option value="" {{ $status==='' ? 'selected' : '' }}>Semua</option>
-            <option value="requested" {{ $status==='requested' ? 'selected' : '' }}>Requested</option>
-            <option value="reviewed" {{ $status==='reviewed' ? 'selected' : '' }}>Reviewed</option>
-            <option value="approved" {{ $status==='approved' ? 'selected' : '' }}>Approved</option>
-            <option value="rejected" {{ $status==='rejected' ? 'selected' : '' }}>Rejected</option>
-            <option value="converted_to_po" {{ $status==='converted_to_po' ? 'selected' : '' }}>Converted</option>
+            <option value="requested" {{ $status==='requested' ? 'selected' : '' }}>Diminta</option>
+            <option value="reviewed" {{ $status==='reviewed' ? 'selected' : '' }}>Ditinjau</option>
+            <option value="approved" {{ $status==='approved' ? 'selected' : '' }}>Disetujui</option>
+            <option value="rejected" {{ $status==='rejected' ? 'selected' : '' }}>Ditolak</option>
+            <option value="converted_to_po" {{ $status==='converted_to_po' ? 'selected' : '' }}>Dikonversi</option>
           </select>
         </div>
         <div class="field col-3">
           <label>Sumber</label>
           <select class="nb-field" name="source">
             <option value="" {{ $source==='' ? 'selected' : '' }}>Semua</option>
-            <option value="staff_manual" {{ $source==='staff_manual' ? 'selected' : '' }}>Staff Manual</option>
-            <option value="member_request" {{ $source==='member_request' ? 'selected' : '' }}>Member Request</option>
+            <option value="staff_manual" {{ $source==='staff_manual' ? 'selected' : '' }}>Input Staf</option>
+            <option value="member_request" {{ $source==='member_request' ? 'selected' : '' }}>Permintaan Anggota</option>
           </select>
         </div>
         <div class="field col-3">
@@ -156,7 +156,7 @@
   </div>
 
   <div class="saas-card">
-    <div style="font-weight:600; margin-bottom:8px;">Bulk Convert ke PO</div>
+    <div style="font-weight:600; margin-bottom:8px;">Konversi Massal ke PO</div>
     <form method="POST" action="{{ route('acquisitions.requests.bulk_convert') }}" id="bulkConvertForm">
       @csrf
       <div class="saas-grid">
@@ -192,8 +192,8 @@
           <input class="nb-field" name="currency" value="IDR">
         </div>
         <div class="col-12" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-          <button class="nb-btn nb-btn-success" type="submit" id="bulkConvertBtn" disabled>Convert Terpilih</button>
-          <span class="meta">Hanya request berstatus <b>approved</b> yang bisa dipilih.</span>
+          <button class="nb-btn nb-btn-success" type="submit" id="bulkConvertBtn" disabled>Konversi Terpilih</button>
+          <span class="meta">Hanya permintaan berstatus <b>disetujui</b> yang bisa dipilih.</span>
         </div>
       </div>
     </form>
@@ -202,8 +202,8 @@
   <div class="saas-card">
     @if(!$requests || $requests->count() === 0)
       <div class="empty">
-        <div style="font-weight:600;">Belum ada request</div>
-        <div class="saas-sub">Buat request baru untuk memulai pengadaan.</div>
+        <div style="font-weight:600;">Belum ada permintaan</div>
+        <div class="saas-sub">Buat permintaan baru untuk memulai pengadaan.</div>
       </div>
     @else
       <div class="list">
@@ -216,7 +216,7 @@
             <div class="item-grid">
               <div>
                 <div class="value">{{ $r->title }}</div>
-                <div class="meta" style="margin-top:4px;">{{ $r->author_text ?: '-' }} • ISBN: {{ $r->isbn ?: '-' }}</div>
+                <div class="meta" style="margin-top:4px;">{{ $r->author_text ?: '-' }} â€¢ ISBN: {{ $r->isbn ?: '-' }}</div>
                 <div style="margin-top:8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
                   @php $tone = $statusTone[$r->status] ?? ['bg'=>'rgba(148,163,184,.12)','bd'=>'rgba(148,163,184,.2)','tx'=>'#94a3b8']; @endphp
                   <span class="badge" style="background:{{ $tone['bg'] }}; border-color:{{ $tone['bd'] }}; color:{{ $tone['tx'] }};">
@@ -233,9 +233,9 @@
                 <div class="value">{{ $r->branch?->name ?? '-' }}</div>
               </div>
               <div>
-                <div class="meta">Requester</div>
+                <div class="meta">Peminta</div>
                 <div class="value">{{ $r->requester?->name ?? '-' }}</div>
-                <div class="meta">{{ $r->source === 'member_request' ? 'Member' : 'Staff' }}</div>
+                <div class="meta">{{ $r->source === 'member_request' ? 'Anggota' : 'Staf' }}</div>
               </div>
               <div>
                 <div class="meta">Estimasi</div>
@@ -244,7 +244,7 @@
                   <form method="POST" action="{{ route('acquisitions.requests.update_estimate', $r->id) }}" style="margin-top:6px; display:flex; gap:6px; align-items:center;">
                     @csrf
                     <input class="nb-field" type="number" step="0.01" name="estimated_price" value="{{ $r->estimated_price }}" style="max-width:140px;">
-                    <button class="nb-btn" type="submit">Update</button>
+                    <button class="nb-btn" type="submit">Perbarui</button>
                   </form>
                 @endif
               </div>
@@ -271,12 +271,12 @@
                 @if($canQuick)
                   <form method="POST" action="{{ route('acquisitions.requests.approve', $r->id) }}">
                     @csrf
-                    <button class="nb-btn nb-btn-success" type="submit">Approve</button>
+                    <button class="nb-btn nb-btn-success" type="submit">Setujui</button>
                   </form>
                   <form method="POST" action="{{ route('acquisitions.requests.reject', $r->id) }}" class="quick-reject">
                     @csrf
                     <input type="hidden" name="reject_reason" value="">
-                    <button class="nb-btn" type="submit">Reject</button>
+                    <button class="nb-btn" type="submit">Tolak</button>
                   </form>
                 @endif
               </div>
@@ -304,7 +304,7 @@
 
     document.querySelectorAll('.quick-reject').forEach(function(form){
       form.addEventListener('submit', function(e){
-        var reason = prompt('Alasan reject?');
+        var reason = prompt('Alasan penolakan?');
         if(!reason){ e.preventDefault(); return; }
         var input = form.querySelector('input[name="reject_reason"]');
         if(input) input.value = reason;
@@ -321,4 +321,5 @@
   })();
 </script>
 @endsection
+
 
