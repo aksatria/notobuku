@@ -30,7 +30,7 @@
     $s = $s ?: 'unpaid';
     return match ($s) {
       'paid' => ['Lunas', 'ok'],
-      'void' => ['Void', 'info'],
+      'void' => ['Dibatalkan', 'info'],
       default => ['Belum Dibayar', 'bad'],
     };
   };
@@ -102,7 +102,7 @@
             <option value="" {{ $status==='' ? 'selected' : '' }}>Semua</option>
             <option value="unpaid" {{ $status==='unpaid' ? 'selected' : '' }}>Belum Dibayar</option>
             <option value="paid" {{ $status==='paid' ? 'selected' : '' }}>Lunas</option>
-            <option value="void" {{ $status==='void' ? 'selected' : '' }}>Void</option>
+            <option value="void" {{ $status==='void' ? 'selected' : '' }}>Dibatalkan</option>
           </select>
         </div>
 
@@ -155,7 +155,7 @@
           <tr>
             <th style="width:36px; text-align:center;">No</th>
             <th style="width:148px;">Transaksi</th>
-            <th style="width:160px;">Tanggal<span class="th-sub">Due / Returned</span></th>
+            <th style="width:160px;">Tanggal<span class="th-sub">Jatuh Tempo / Kembali</span></th>
             <th style="width:76px; text-align:center;">Telat</th>
             <th style="width:100px; text-align:right;">Total</th>
             <th style="width:100px; text-align:right;">Dibayar</th>

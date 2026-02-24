@@ -710,23 +710,23 @@
           ...r,
           retry_count: retryCount,
           next_retry_at: Date.now() + backoff,
-          last_error: 'Sync partial failed',
+          last_error: 'Sinkron sebagian gagal',
         });
       });
       queueSave(remaining);
-      log(res.message || 'Sync selesai.');
+      log(res.message || 'Sinkron selesai.');
       setErrorPanel('', '', '');
       renderBatchSummary();
     } catch (e) {
-      log(`Sync gagal: ${e.message || 'network error'}`);
+      log(`Sinkron gagal: ${e.message || 'kesalahan jaringan'}`);
       const cls = classifyError(e.message || '');
-      setErrorPanel(cls.title, String(e.message || 'Sync queue gagal.'), cls.hint);
+      setErrorPanel(cls.title, String(e.message || 'Sinkron antrean gagal.'), cls.hint);
       const retryRows = rows.map((r) => {
         const processed = chunk.find((c) => c.client_event_id === r.client_event_id);
         if (!processed) return r;
         const retryCount = Number(r.retry_count || 0) + 1;
         if (retryCount > SYNC_MAX_RETRY) {
-          deadQueuePush(r, e.message || 'Sync queue gagal');
+          deadQueuePush(r, e.message || 'Sinkron antrean gagal');
           return null;
         }
         const backoff = Math.min(SYNC_MAX_DELAY_MS, SYNC_BASE_DELAY_MS * Math.pow(2, retryCount - 1));
@@ -734,7 +734,7 @@
           ...r,
           retry_count: retryCount,
           next_retry_at: Date.now() + backoff,
-          last_error: String(e.message || 'Sync queue gagal'),
+          last_error: String(e.message || 'Sinkron antrean gagal'),
         };
       }).filter(Boolean);
       queueSave(retryRows);

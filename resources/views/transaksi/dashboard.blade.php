@@ -266,7 +266,7 @@
 
     <div class="nb-db-card">
       <div class="nb-db-card-title">Health & Operasional</div>
-      <div class="nb-db-card-sub">Rate ringkas untuk monitoring cepat.</div>
+      <div class="nb-db-card-sub">Rasio ringkas untuk pemantauan cepat.</div>
 
       <div style="margin-top:12px; display:flex; flex-direction:column; gap:10px;">
         <span class="nb-db-pill {{ $insightTone }}">
@@ -299,7 +299,7 @@
 
       <div style="margin-top:14px; border-top:1px dashed #e5e7eb; padding-top:12px;">
         <div class="nb-db-card-title" style="font-size:13px;">Peringatan Observabilitas</div>
-        <div class="nb-db-card-sub">p95 latency + failure reason top-N endpoint sirkulasi.</div>
+        <div class="nb-db-card-sub">p95 latensi + alasan kegagalan top-N endpoint sirkulasi.</div>
         <div style="margin-top:10px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
           <span
             id="circ-obs-pill"
@@ -309,7 +309,7 @@
           <button id="circ-obs-refresh" type="button" class="nb-db-pill ok" style="cursor:pointer;">Muat Ulang</button>
         </div>
         <div id="circ-obs-sub" class="nb-db-card-sub" style="margin-top:8px;">
-          p95 {{ $fmt($obsP95) }} ms, failure {{ $fmt2($obsFailureRate) }}%
+          p95 {{ $fmt($obsP95) }} ms, gagal {{ $fmt2($obsFailureRate) }}%
         </div>
         <div id="circ-obs-reason" class="nb-db-card-sub" style="margin-top:4px;">
           Kegagalan teratas: {{ $obsTopReason }} ({{ $fmt($obsTopReasonCount) }})
@@ -324,7 +324,7 @@
     {{-- Aging Overdue --}}
     <div class="nb-db-card">
       <div class="nb-db-card-title">Usia Keterlambatan</div>
-      <div class="nb-db-card-sub">Sebaran keterlambatan untuk prioritas follow-up.</div>
+      <div class="nb-db-card-sub">Sebaran keterlambatan untuk prioritas tindak lanjut.</div>
 
       @php
         $b = is_array($aging_overdue) ? $aging_overdue : [];
@@ -338,7 +338,7 @@
       @endphp
 
       @if(($b13 + $b47 + $b814 + $b1530 + $b30p) === 0)
-        <div class="nb-db-empty">Tidak ada overdue items saat ini.</div>
+        <div class="nb-db-empty">Tidak ada item terlambat saat ini.</div>
       @else
         <div class="nb-db-bar">
           <div class="nb-db-bar-label">1–3</div>
@@ -371,7 +371,7 @@
     {{-- Top Titles --}}
     <div class="nb-db-card">
       <div class="nb-db-card-title">Judul Teratas</div>
-      <div class="nb-db-card-sub">Judul paling sering dipinjam (window {{ $range_days }} hari).</div>
+      <div class="nb-db-card-sub">Judul paling sering dipinjam (rentang {{ $range_days }} hari).</div>
 
       @if(empty($top_titles))
         <div class="nb-db-empty">Belum ada data judul teratas.</div>
@@ -381,7 +381,7 @@
             <tr>
               <th style="width:60%;">Judul</th>
               <th style="width:18%;">Pinjam</th>
-              <th style="text-align:right;">Pressure</th>
+              <th style="text-align:right;">Tekanan</th>
             </tr>
           </thead>
           <tbody>
@@ -401,7 +401,7 @@
         </table>
 
         <div style="margin-top:12px;">
-          <span class="nb-db-pill ok">Pressure = total pinjam / total stok.</span>
+          <span class="nb-db-pill ok">Tekanan = total pinjam / total stok.</span>
         </div>
       @endif
     </div>
@@ -409,10 +409,10 @@
     {{-- Top Overdue Members --}}
     <div class="nb-db-card">
       <div class="nb-db-card-title">Anggota Terlambat Teratas</div>
-      <div class="nb-db-card-sub">Anggota dengan overdue terbanyak + keterlambatan terlama.</div>
+      <div class="nb-db-card-sub">Anggota dengan keterlambatan terbanyak + keterlambatan terlama.</div>
 
       @if(empty($top_overdue_members))
-        <div class="nb-db-empty">Tidak ada member dengan overdue saat ini.</div>
+        <div class="nb-db-empty">Tidak ada anggota terlambat saat ini.</div>
       @else
         <table class="nb-db-table">
           <thead>
@@ -439,7 +439,7 @@
         </table>
 
         <div style="margin-top:12px;">
-          <span class="nb-db-pill warn">Saran: follow-up mulai dari bucket 15–30 & 30+ hari.</span>
+          <span class="nb-db-pill warn">Saran: tindak lanjut mulai dari bucket 15–30 & 30+ hari.</span>
         </div>
       @endif
     </div>
@@ -562,7 +562,7 @@
 
   function refreshRelativeTime(){
     const sec = Math.max(0, Math.floor((Date.now() - lastUpdatedAt) / 1000));
-    updated.textContent = `Last updated ${sec} detik lalu`;
+    updated.textContent = `Terakhir diperbarui ${sec} detik lalu`;
   }
 
   async function refreshObservability(){
@@ -588,8 +588,8 @@
       const topReasonCount = reasons.length > 0 ? Number((reasons[0] && reasons[0].count) || 0) : 0;
 
       setPillClass(String(health.class || 'good'), String(health.label || 'Sehat'));
-      sub.textContent = `p95 ${p95.toLocaleString('id-ID')} ms, failure ${failureRate.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
-      reasonEl.textContent = `Top failure: ${topReason} (${topReasonCount.toLocaleString('id-ID')})`;
+      sub.textContent = `p95 ${p95.toLocaleString('id-ID')} ms, gagal ${failureRate.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
+      reasonEl.textContent = `Kegagalan teratas: ${topReason} (${topReasonCount.toLocaleString('id-ID')})`;
       lastUpdatedAt = Date.now();
       refreshRelativeTime();
     } catch (e) {

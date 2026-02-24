@@ -260,7 +260,7 @@
                     Bayar
                   </button>
                   <button type="button" class="dt-btn danger js-fine-void" onclick="openVoidDrawer(this.closest('.fine-row'))" disabled>
-                    Void
+                    Batalkan
                   </button>
                 </div>
                 <div class="dt-subline fine-hint" style="margin-top:6px;">—</div>
@@ -329,11 +329,11 @@
     </div>
   </div>
 
-  {{-- Drawer Void --}}
+  {{-- Drawer Batalkan --}}
   <div id="drawerVoid" class="dt-drawer" style="display:none;">
     <div class="dt-drawer-head">
       <div>
-        <div class="dt-drawer-title">Void Denda</div>
+        <div class="dt-drawer-title">Batalkan Denda</div>
         <div class="dt-drawer-sub" id="voidMeta">—</div>
       </div>
       <button type="button" class="dt-x" onclick="closeDrawers()">×</button>
@@ -343,11 +343,11 @@
         @csrf
         <input type="hidden" name="loan_item_id" id="voidLoanItemId" value="">
         <div class="dt-field">
-          <label>Alasan void</label>
+          <label>Alasan pembatalan</label>
           <textarea name="notes" id="voidNotes" class="dt-input" rows="3" placeholder="Contoh: salah hitung / kebijakan khusus"></textarea>
         </div>
         <button type="submit" class="nb-btn" style="width:100%; border-radius:14px; background:#ef4444; color:#fff; border-color:#ef4444;">
-          Void Denda
+          Batalkan Denda
         </button>
       </form>
     </div>
@@ -639,7 +639,7 @@
         } else if(paidPart > 0 && remain > 0){
           hint.textContent = `Pembayaran sebagian: sisa Rp ${rupiah(remain)}.`;
         } else {
-          hint.textContent = 'Klik Bayar untuk melunasi atau Void untuk membatalkan.';
+          hint.textContent = 'Klik Bayar untuk melunasi atau Batalkan untuk membatalkan denda.';
         }
       }
 

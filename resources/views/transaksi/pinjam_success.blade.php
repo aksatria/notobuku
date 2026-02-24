@@ -664,7 +664,7 @@
           <div class="qr">
             <img src="{{ $qrUrl }}" alt="QR">
             <div>
-              <div style="font-size:10.5px; font-weight:900;">Scan untuk cepat cari transaksi</div>
+              <div style="font-size:10.5px; font-weight:900;">Pindai untuk cepat cari transaksi</div>
               <div style="font-size:10px; color:#6b7280; font-weight:800;">{{ $qrData }}</div>
             </div>
           </div>
@@ -693,7 +693,7 @@
 
             <div class="qrWrap">
               <div style="text-align:right;">
-                <div style="font-size:11px; font-weight:1000;">QR Loan</div>
+                <div style="font-size:11px; font-weight:1000;">QR Pinjaman</div>
                 <div style="font-size:10.5px; font-weight:800; color:#6b7280;">{{ $qrData }}</div>
               </div>
               <img src="{{ $qrUrl }}" alt="QR">
@@ -731,7 +731,7 @@
                 <th>Judul</th>
                 <th style="width:30mm;">Call No</th>
                 <th style="width:26mm;">Status</th>
-                <th style="width:34mm;">Due</th>
+                <th style="width:34mm;">Jatuh Tempo</th>
               </tr>
             </thead>
             <tbody>
@@ -888,7 +888,7 @@
       <div class="qrBox">
         <div class="qrMeta">
           <div class="h">QR Kode Pinjaman</div>
-          <div class="p">Scan QR ini untuk cari transaksi dengan cepat.</div>
+          <div class="p">Pindai QR ini untuk cari transaksi dengan cepat.</div>
           <div class="p" style="font-weight:900;">Data: {{ $qrData }}</div>
 
           <div style="margin-top:10px;">

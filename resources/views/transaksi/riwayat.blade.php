@@ -353,7 +353,7 @@
 
       @if($tab === 'denda')
         <div class="nb-rw-muted" style="font-weight:900;">
-          Rate: {{ $idr($fineRate) }}/hari
+          Tarif: {{ $idr($fineRate) }}/hari
         </div>
       @endif
     </div>
