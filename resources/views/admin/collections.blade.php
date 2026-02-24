@@ -182,7 +182,7 @@
       <a class="nb-btn" href="{{ route('katalog.index') }}">Buka Katalog Lengkap</a>
       <a class="nb-btn" href="{{ route('admin.search_synonyms') }}">Kelola Sinonim</a>
       <a class="nb-btn" href="{{ route('admin.search_tuning') }}">Query Tuning</a>
-      <a class="nb-btn" href="{{ route('admin.search_analytics') }}">Search Analytics</a>
+      <a class="nb-btn" href="{{ route('admin.search_analytics') }}">Analitik Pencarian</a>
       <a class="nb-btn primary" href="{{ route('katalog.create') }}">Tambah Koleksi</a>
     </div>
   </div>
@@ -191,7 +191,7 @@
     <input class="nb-input" id="admin-quick-search-input" type="text" name="q" placeholder="Cari judul, pengarang, ISBN, penerbit..." value="{{ $q }}" autocomplete="off">
     <button class="nb-btn" type="submit">Cari</button>
     @if($q !== '')
-      <a class="nb-btn" href="{{ route('admin.koleksi') }}">Reset</a>
+      <a class="nb-btn" href="{{ route('admin.koleksi') }}">Reset Filter</a>
     @endif
     <span class="nb-search-indicator" id="admin-search-indicator" style="display:none;">Sedang mencari...</span>
   </form>

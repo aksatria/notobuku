@@ -1,7 +1,7 @@
-{{-- resources/views/admin/marc-settings.blade.php --}}
+﻿{{-- resources/views/admin/marc-settings.blade.php --}}
 @extends('layouts.notobuku')
 
-@section('title', 'Pengaturan MARC • NOTOBUKU')
+@section('title', 'Pengaturan MARC - NOTOBUKU')
 
 @php
   $defaultCity = json_encode($defaults['place_codes_city'] ?? [], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
@@ -25,7 +25,127 @@
 @endphp
 
 @section('content')
-<div class="rounded-3xl border border-[var(--nb-border)] bg-[var(--nb-card)] shadow-sm overflow-hidden">
+<style>
+  .nb-marc-page {
+    max-width: 1180px;
+    margin: 0 auto;
+    color: var(--nb-text, #0b2545);
+  }
+  .nb-marc-page * { box-sizing: border-box; }
+  .nb-marc-page .hidden { display: none !important; }
+  .nb-marc-page .overflow-hidden { overflow: hidden; }
+  .nb-marc-page .overflow-auto { overflow: auto; }
+  .nb-marc-page .rounded-3xl { border-radius: 22px; }
+  .nb-marc-page .rounded-2xl { border-radius: 16px; }
+  .nb-marc-page .rounded-xl { border-radius: 12px; }
+  .nb-marc-page .rounded-lg { border-radius: 10px; }
+  .nb-marc-page .rounded-md { border-radius: 8px; }
+  .nb-marc-page .rounded-full { border-radius: 999px; }
+  .nb-marc-page .border { border: 1px solid var(--nb-border, rgba(148,163,184,.35)); }
+  .nb-marc-page .shadow-sm { box-shadow: 0 8px 20px rgba(15, 23, 42, .06); }
+  .nb-marc-page .bg-white,
+  .nb-marc-page .bg-\[var\(--nb-surface\)\],
+  .nb-marc-page .bg-\[var\(--nb-card\)\] { background: var(--nb-card, #fff); }
+  .nb-marc-page .bg-white\/70 { background: rgba(255,255,255,.7); }
+  .nb-marc-page .bg-white\/80 { background: rgba(255,255,255,.8); }
+  .nb-marc-page .p-6 { padding: 24px; }
+  .nb-marc-page .p-4 { padding: 16px; }
+  .nb-marc-page .p-3 { padding: 12px; }
+  .nb-marc-page .p-2 { padding: 8px; }
+  .nb-marc-page .px-6 { padding-left: 24px; padding-right: 24px; }
+  .nb-marc-page .px-5 { padding-left: 20px; padding-right: 20px; }
+  .nb-marc-page .px-4 { padding-left: 16px; padding-right: 16px; }
+  .nb-marc-page .px-3 { padding-left: 12px; padding-right: 12px; }
+  .nb-marc-page .py-3 { padding-top: 12px; padding-bottom: 12px; }
+  .nb-marc-page .py-2 { padding-top: 8px; padding-bottom: 8px; }
+  .nb-marc-page .py-1\.5 { padding-top: 6px; padding-bottom: 6px; }
+  .nb-marc-page .py-1 { padding-top: 4px; padding-bottom: 4px; }
+  .nb-marc-page .py-0\.5 { padding-top: 2px; padding-bottom: 2px; }
+  .nb-marc-page .mt-1 { margin-top: 4px; }
+  .nb-marc-page .mt-2 { margin-top: 8px; }
+  .nb-marc-page .mt-3 { margin-top: 12px; }
+  .nb-marc-page .mt-4 { margin-top: 16px; }
+  .nb-marc-page .mb-1 { margin-bottom: 4px; }
+  .nb-marc-page .mb-2 { margin-bottom: 8px; }
+  .nb-marc-page .mb-3 { margin-bottom: 12px; }
+  .nb-marc-page .m-0 { margin: 0; }
+  .nb-marc-page .w-full { width: 100%; }
+  .nb-marc-page .h-12 { height: 48px; }
+  .nb-marc-page .w-12 { width: 48px; }
+  .nb-marc-page .h-4 { height: 16px; }
+  .nb-marc-page .w-4 { width: 16px; }
+  .nb-marc-page .text-xl { font-size: 1.375rem; line-height: 1.35; }
+  .nb-marc-page .text-lg { font-size: 1.0625rem; }
+  .nb-marc-page .text-sm { font-size: .875rem; line-height: 1.45; }
+  .nb-marc-page .text-xs { font-size: .8125rem; line-height: 1.4; }
+  .nb-marc-page .text-\[11px\] { font-size: 11px; line-height: 1.4; }
+  .nb-marc-page .font-extrabold { font-weight: 800; }
+  .nb-marc-page .font-bold { font-weight: 700; }
+  .nb-marc-page .font-semibold { font-weight: 600; }
+  .nb-marc-page .font-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .nb-marc-page .leading-relaxed { line-height: 1.6; }
+  .nb-marc-page .underline { text-decoration: underline; }
+  .nb-marc-page .grid { display: grid; }
+  .nb-marc-page .grid-cols-1 { grid-template-columns: 1fr; }
+  .nb-marc-page .grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .nb-marc-page .gap-2 { gap: 8px; }
+  .nb-marc-page .gap-3 { gap: 12px; }
+  .nb-marc-page .gap-4 { gap: 16px; }
+  .nb-marc-page .space-y-2 > * + * { margin-top: 8px; }
+  .nb-marc-page .space-y-1 > * + * { margin-top: 4px; }
+  .nb-marc-page .flex { display: flex; }
+  .nb-marc-page .flex-wrap { flex-wrap: wrap; }
+  .nb-marc-page .items-center { align-items: center; }
+  .nb-marc-page .items-end { align-items: flex-end; }
+  .nb-marc-page .justify-center { justify-content: center; }
+  .nb-marc-page .self-center { align-self: center; }
+  .nb-marc-page .cursor-pointer { cursor: pointer; }
+  .nb-marc-page .nb-stack { display: grid; gap: 14px; }
+  .nb-marc-page .nb-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .nb-marc-page .nb-row-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+  }
+  .nb-marc-page .nb-row-right { display: flex; gap: 8px; flex-wrap: wrap; }
+  .nb-marc-page textarea,
+  .nb-marc-page input[type="text"],
+  .nb-marc-page input[type="number"],
+  .nb-marc-page input[type="date"],
+  .nb-marc-page select {
+    width: 100%;
+    border: 1px solid var(--nb-border, rgba(148,163,184,.35));
+    background: #fff;
+    border-radius: 10px;
+    padding: 8px 10px;
+    font-size: 13px;
+    color: var(--nb-text, #0b2545);
+  }
+  .nb-marc-page textarea { min-height: 110px; }
+  .nb-marc-page button { cursor: pointer; }
+  .nb-marc-page pre { white-space: pre-wrap; word-break: break-word; }
+  .nb-marc-page details summary { list-style: none; }
+  .nb-marc-page details summary::-webkit-details-marker { display: none; }
+  @media (min-width: 768px) {
+    .nb-marc-page .md\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .nb-marc-page .md\:grid-cols-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+    .nb-marc-page .md\:col-span-1 { grid-column: span 1 / span 1; }
+    .nb-marc-page .md\:col-span-2 { grid-column: span 2 / span 2; }
+    .nb-marc-page .md\:col-span-6 { grid-column: span 6 / span 6; }
+    .nb-marc-page .md\:mt-7 { margin-top: 28px; }
+  }
+  @media (min-width: 1024px) {
+    .nb-marc-page .lg\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+</style>
+<div class="nb-marc-page rounded-3xl border border-[var(--nb-border)] bg-[var(--nb-card)] shadow-sm overflow-hidden">
   <div style="height:6px;background:var(--nb-grad)"></div>
   <div class="p-6 nb-stack">
     <div class="nb-row">
@@ -60,7 +180,7 @@
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div class="rounded-2xl border border-[var(--nb-border)] bg-[var(--nb-surface)] p-4">
-          <div class="text-sm font-extrabold mb-1">Place Codes: City</div>
+          <div class="text-sm font-extrabold mb-1">Kode Tempat: Kota</div>
           <div class="text-xs text-[var(--nb-muted)] mb-2">
             Format JSON objek. Contoh: {"jakarta":"io","london":"xxk"}
           </div>
@@ -70,7 +190,7 @@
         </div>
 
         <div class="rounded-2xl border border-[var(--nb-border)] bg-[var(--nb-surface)] p-4">
-          <div class="text-sm font-extrabold mb-1">Place Codes: Country</div>
+          <div class="text-sm font-extrabold mb-1">Kode Tempat: Negara</div>
           <div class="text-xs text-[var(--nb-muted)] mb-2">
             Format JSON objek. Contoh: {"indonesia":"io","united states":"xxu"}
           </div>
@@ -81,13 +201,13 @@
       </div>
 
       <div class="rounded-2xl border border-[var(--nb-border)] bg-[var(--nb-surface)] p-4">
-        <div class="text-sm font-extrabold mb-1">Media Profiles</div>
+        <div class="text-sm font-extrabold mb-1">Profil Media</div>
         <div class="text-xs text-[var(--nb-muted)] mb-2">
           Format JSON array. Contoh: [{"name":"video","keywords":["video"],"pattern_006":"g                 ","pattern_007":"vd","pattern_008":"{entered}{status}{date1}{date2}{place}                {lang}  "}]
         </div>
         <div class="text-[11px] text-[var(--nb-muted)] mb-2">
-          Hint pattern_008 (40 chars): pos 00-05=entered, 06=status, 07-10=date1, 11-14=date2, 15-17=place, 23=form of item, 35-37=lang.
-          pattern_007 sebaiknya lebih panjang (sesuai jenis) — bisa pakai spasi untuk posisi yang tidak diketahui.
+          Panduan pattern_008 (40 karakter): pos 00-05=entered, 06=status, 07-10=date1, 11-14=date2, 15-17=place, 23=form of item, 35-37=lang.
+          pattern_007 sebaiknya lebih panjang (sesuai jenis) - bisa pakai spasi untuk posisi yang tidak diketahui.
         </div>
         <textarea name="media_profiles" rows="16" data-json-field="media_profiles"
                   class="w-full rounded-xl border border-[var(--nb-border)] bg-[var(--nb-surface)] p-3 text-sm font-mono">{{ $profilesValue }}</textarea>
@@ -110,13 +230,13 @@
             <div class="text-xs text-[var(--nb-muted)] mb-1">DDC Validation Mode</div>
             <select name="ddc_rules_validation_mode"
                     class="w-full rounded-xl border border-[var(--nb-border)] bg-[var(--nb-surface)] px-3 py-2 text-sm">
-              <option value="warn" @selected($ddcModeValue === 'warn')>warn (default)</option>
-              <option value="error" @selected($ddcModeValue === 'error')>error (blokir export)</option>
+              <option value="warn" @selected($ddcModeValue === 'warn')>warn (bawaan)</option>
+              <option value="error" @selected($ddcModeValue === 'error')>error (blokir ekspor)</option>
             </select>
           </div>
         </div>
         <div class="mt-3">
-          <div class="text-xs text-[var(--nb-muted)] mb-1">Online Detection Mode</div>
+          <div class="text-xs text-[var(--nb-muted)] mb-1">Mode Deteksi Online</div>
           <select name="online_detection_mode"
                   class="w-full rounded-xl border border-[var(--nb-border)] bg-[var(--nb-surface)] px-3 py-2 text-sm">
             <option value="strict" @selected($onlineDetectionValue === 'strict')>strict (recommended)</option>
@@ -124,46 +244,46 @@
           </select>
           <div class="text-[11px] text-[var(--nb-muted)] mt-1">
             Strict: online hanya jika ada identifier skema uri/url (value/uri terisi).
-            Loose: online juga bisa dipicu keyword (ebook/online/computer/digital) atau ada uri tanpa skema.
+            Loose: online juga bisa dipicu kata kunci (ebook/online/computer/digital) atau ada uri tanpa skema.
           </div>
         </div>
       </div>
 
       <div class="rounded-2xl border border-[var(--nb-border)] bg-[var(--nb-surface)] p-4">
-        <div class="text-sm font-extrabold mb-1">Policy MARC</div>
+        <div class="text-sm font-extrabold mb-1">Kebijakan MARC</div>
         <div class="text-xs text-[var(--nb-muted)] mb-3">
-          Policy menentukan severity rule (warn/error) untuk validasi MARC. Draft harus dipublish agar aktif.
+          Kebijakan menentukan tingkat aturan (warn/error) untuk validasi MARC. Draft harus dipublikasikan agar aktif.
         </div>
         @if($canGlobalPolicy)
           <div class="mb-3">
-            <div class="text-xs text-[var(--nb-muted)] mb-1">Scope Policy</div>
+            <div class="text-xs text-[var(--nb-muted)] mb-1">Cakupan Kebijakan</div>
             <select name="policy_scope" id="policy_scope"
                     class="w-full rounded-xl border border-[var(--nb-border)] bg-[var(--nb-surface)] px-3 py-2 text-sm">
               <option value="institution" @selected(($policyScope ?? 'institution') === 'institution')>Institusi Saat Ini</option>
-              <option value="global" @selected(($policyScope ?? '') === 'global')>Global (fallback)</option>
+              <option value="global" @selected(($policyScope ?? '') === 'global')>Global (cadangan)</option>
             </select>
             <div class="text-[11px] text-[var(--nb-muted)] mt-1">
-              Global dipakai jika institusi belum punya policy published.
+              Global dipakai jika institusi belum punya kebijakan terpublikasi.
             </div>
           </div>
         @endif
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
-            <div class="text-xs text-[var(--nb-muted)] mb-1">Nama Policy</div>
+            <div class="text-xs text-[var(--nb-muted)] mb-1">Nama Kebijakan</div>
             <input type="text" name="policy_name"
                    class="w-full rounded-xl border border-[var(--nb-border)] bg-[var(--nb-surface)] px-3 py-2 text-sm"
                    value="{{ $policyNameValue }}" placeholder="RDA Core" />
           </div>
           <div class="text-xs text-[var(--nb-muted)] md:mt-7">
             @if($policyPublished)
-              Published v{{ $policyPublished->version }} ({{ $policyPublished->name }})
+              Terpublikasi v{{ $policyPublished->version }} ({{ $policyPublished->name }})
             @else
-              Belum ada policy published.
+              Belum ada kebijakan terpublikasi.
             @endif
           </div>
         </div>
         <div class="mt-3">
-          <div class="text-xs text-[var(--nb-muted)] mb-1">Payload JSON</div>
+          <div class="text-xs text-[var(--nb-muted)] mb-1">Muatan JSON</div>
           <textarea name="policy_payload" rows="10"
                     class="w-full rounded-xl border border-[var(--nb-border)] bg-[var(--nb-surface)] p-3 text-sm font-mono">{{ $policyPayloadValue }}</textarea>
           <div class="text-[11px] text-[var(--nb-muted)] mt-1">
@@ -178,12 +298,12 @@
             <button type="button"
                     class="rounded-xl px-3 py-1.5 text-[11px] font-bold border border-rose-200 bg-rose-50 text-rose-700"
                     data-policy-preset="strict">
-              Preset Strict
+              Preset Ketat
             </button>
             <button type="button"
                     class="rounded-xl px-3 py-1.5 text-[11px] font-bold border border-amber-200 bg-amber-50 text-amber-700"
                     data-policy-preset="strict_institution">
-              Strict (Institusi)
+              Ketat (Institusi)
             </button>
             <span class="text-[11px] text-[var(--nb-muted)] self-center">Preset hanya mengisi textarea, belum disimpan.</span>
           </div>
@@ -191,19 +311,19 @@
             Panduan policy (ringkas):
           </div>
           <div class="text-[11px] text-[var(--nb-muted)]">
-            `warn` = boleh export, muncul di audit. `error` = blok export.
+            `warn` = boleh ekspor, muncul di audit. `error` = blok ekspor.
           </div>
           <div class="text-[11px] text-[var(--nb-muted)]">
-            Rule serial: `serial_008_missing`, `serial_008_detail_missing`, `serial_362_missing`, `serial_588_missing`.
+            Aturan serial: `serial_008_missing`, `serial_008_detail_missing`, `serial_362_missing`, `serial_588_missing`.
           </div>
           <div class="text-[11px] text-[var(--nb-muted)]">
-            Rule authority: `authority_missing`, `authority_uri_missing`, `authority_dedup`.
+            Aturan authority: `authority_missing`, `authority_uri_missing`, `authority_dedup`.
           </div>
           <div class="text-[11px] text-[var(--nb-muted)]">
-            Rule relator: `relator_uncontrolled`, `relator_missing`.
+            Aturan relator: `relator_uncontrolled`, `relator_missing`.
           </div>
           <div class="text-[11px] text-[var(--nb-muted)]">
-            Rule metadata: `publisher_missing`, `material_type_missing`, `media_type_missing`, `call_number_missing`, `isbn_invalid`, `issn_invalid`, `physical_desc_missing`.
+            Aturan metadata: `publisher_missing`, `material_type_missing`, `media_type_missing`, `call_number_missing`, `isbn_invalid`, `issn_invalid`, `physical_desc_missing`.
           </div>
           <div class="text-[11px] text-[var(--nb-muted)] mt-2">
             Dokumentasi lengkap: <a href="/docs/marc-policy" class="underline">/docs/marc-policy</a>
@@ -214,14 +334,14 @@
                   formaction="{{ route('admin.marc.policy.draft') }}"
                   class="rounded-2xl px-4 py-2 text-xs font-extrabold"
                   style="background:#0f172a;color:#fff;border:1px solid rgba(15,23,42,.12);">
-            Save Draft
+            Simpan Draft
           </button>
           @if($policyDraft)
             <button type="submit"
                     formaction="{{ route('admin.marc.policy.publish') }}"
                     class="rounded-2xl px-4 py-2 text-xs font-extrabold"
                     style="background:#047857;color:#fff;border:1px solid rgba(4,120,87,.12);">
-              Publish Draft v{{ $policyDraft->version }}
+              Publikasikan Draft v{{ $policyDraft->version }}
             </button>
             <input type="hidden" name="policy_id" value="{{ $policyDraft->id }}" />
           @endif
@@ -229,11 +349,11 @@
         @php $policyDiff = $policyDiff ?? []; @endphp
         @if(!empty($policyDiff))
           <div class="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
-            <div class="font-semibold mb-2">Diff Draft vs Published</div>
+            <div class="font-semibold mb-2">Perbedaan Draft vs Terpublikasi</div>
             <div class="grid grid-cols-1 gap-2">
               <div class="grid grid-cols-3 gap-2 font-semibold">
-                <div>Rule</div>
-                <div>Published</div>
+                <div>Aturan</div>
+                <div>Terpublikasi</div>
                 <div>Draft</div>
               </div>
               @foreach($policyDiff as $row)
@@ -266,11 +386,11 @@
                   </summary>
                   <div class="mt-2 grid grid-cols-1 gap-2 text-[11px] text-amber-900">
                     <div>
-                      <div class="font-semibold">Published JSON</div>
+                      <div class="font-semibold">JSON Terpublikasi</div>
                       <pre class="mt-1 rounded-md border border-amber-100 bg-white/80 p-2 overflow-auto">{{ $row['published_json'] ?? '{}' }}</pre>
                     </div>
                     <div>
-                      <div class="font-semibold">Draft JSON</div>
+                    <div class="font-semibold">JSON Draft</div>
                       <pre class="mt-1 rounded-md border border-amber-100 bg-white/80 p-2 overflow-auto">{{ $row['draft_json'] ?? '{}' }}</pre>
                     </div>
                   </div>
@@ -282,8 +402,8 @@
       </div>
 
       <div class="rounded-2xl border border-[var(--nb-border)] bg-[var(--nb-surface)] p-4">
-        <div class="text-sm font-extrabold mb-1">Policy Audit</div>
-        <div class="text-xs text-[var(--nb-muted)] mb-3">Riwayat perubahan policy (draft/publish).</div>
+        <div class="text-sm font-extrabold mb-1">Audit Kebijakan</div>
+        <div class="text-xs text-[var(--nb-muted)] mb-3">Riwayat perubahan kebijakan (draft/publikasi).</div>
         @php $policyAudits = $policyAudits ?? collect(); @endphp
           @php $policyAuditUsers = $policyAuditUsers ?? collect(); @endphp
           @php $auditFilters = $auditFilters ?? ['start_date' => null, 'end_date' => null, 'include_global' => '1', 'action' => '', 'status' => '']; @endphp
@@ -294,25 +414,25 @@
           @php $csvLimit = $csvLimit < 1 ? 500 : ($csvLimit > 1000 ? 1000 : $csvLimit); @endphp
         <div class="mb-3 grid grid-cols-1 md:grid-cols-6 gap-2">
           <div>
-            <div class="text-[11px] text-[var(--nb-muted)] mb-1">Start Date</div>
+            <div class="text-[11px] text-[var(--nb-muted)] mb-1">Tanggal Mulai</div>
             <input type="date" name="start_date"
                    class="w-full rounded-xl border border-[var(--nb-border)] bg-[var(--nb-surface)] px-3 py-2 text-xs"
                    value="{{ $auditFilters['start_date'] ?? '' }}" form="auditFilterForm" />
           </div>
           <div>
-            <div class="text-[11px] text-[var(--nb-muted)] mb-1">End Date</div>
+            <div class="text-[11px] text-[var(--nb-muted)] mb-1">Tanggal Selesai</div>
             <input type="date" name="end_date"
                    class="w-full rounded-xl border border-[var(--nb-border)] bg-[var(--nb-surface)] px-3 py-2 text-xs"
                    value="{{ $auditFilters['end_date'] ?? '' }}" form="auditFilterForm" />
           </div>
           <div>
-            <div class="text-[11px] text-[var(--nb-muted)] mb-1">Action</div>
+            <div class="text-[11px] text-[var(--nb-muted)] mb-1">Aksi</div>
             <select name="action"
                     form="auditFilterForm"
                     class="w-full rounded-xl border border-[var(--nb-border)] bg-[var(--nb-surface)] px-3 py-2 text-xs">
-              <option value="">All</option>
+              <option value="">Semua</option>
               <option value="marc_policy_draft" @selected(($auditFilters['action'] ?? '') === 'marc_policy_draft')>draft</option>
-              <option value="marc_policy_publish" @selected(($auditFilters['action'] ?? '') === 'marc_policy_publish')>publish</option>
+              <option value="marc_policy_publish" @selected(($auditFilters['action'] ?? '') === 'marc_policy_publish')>publikasi</option>
             </select>
           </div>
           <div>
@@ -320,9 +440,9 @@
             <select name="status"
                     form="auditFilterForm"
                     class="w-full rounded-xl border border-[var(--nb-border)] bg-[var(--nb-surface)] px-3 py-2 text-xs">
-              <option value="">All</option>
+              <option value="">Semua</option>
               <option value="draft" @selected(($auditFilters['status'] ?? '') === 'draft')>draft</option>
-              <option value="published" @selected(($auditFilters['status'] ?? '') === 'published')>published</option>
+              <option value="published" @selected(($auditFilters['status'] ?? '') === 'published')>terpublikasi</option>
             </select>
           </div>
           <div class="flex items-end">
@@ -331,7 +451,7 @@
                      form="auditFilterForm"
                      class="h-4 w-4 rounded border border-[var(--nb-border)]"
                      @checked(($auditFilters['include_global'] ?? '1') !== '0') />
-              Include global
+              Sertakan global
             </label>
           </div>
           <div class="flex items-end">
@@ -342,7 +462,7 @@
               <button type="submit"
                       class="w-full rounded-xl px-3 py-2 text-xs font-extrabold"
                       style="background:#0f172a;color:#fff;border:1px solid rgba(15,23,42,.12);">
-                Apply Filter
+                Terapkan Filter
               </button>
             </form>
           </div>
@@ -364,11 +484,11 @@
                   <div class="flex items-center gap-2">
                     <button type="button" data-columns-select-all
                             class="rounded-full border border-[var(--nb-border)] px-2 py-0.5 text-[10px] font-semibold text-[var(--nb-muted)] hover:text-[var(--nb-text)]">
-                      Select all
+                      Pilih semua
                     </button>
                     <button type="button" data-columns-clear-all
                             class="rounded-full border border-[var(--nb-border)] px-2 py-0.5 text-[10px] font-semibold text-[var(--nb-muted)] hover:text-[var(--nb-text)]">
-                      Clear all
+                      Kosongkan semua
                     </button>
                   </div>
                 </div>
@@ -389,7 +509,7 @@
               <button type="submit"
                       class="w-full rounded-xl px-3 py-2 text-xs font-extrabold"
                       style="background:#111827;color:#fff;border:1px solid rgba(17,24,39,.12);">
-                Export CSV (custom)
+                Ekspor CSV (kustom)
               </button>
             </div>
           </form>
@@ -402,19 +522,19 @@
               @php $u = $policyAuditUsers[$a->user_id] ?? null; @endphp
               <div class="rounded-xl border border-[var(--nb-border)] bg-white/70 p-3 text-xs">
                 <div class="font-semibold">
-                  {{ $a->action }} — {{ $a->status }}
+                  {{ $a->action }} - {{ $a->status }}
                 </div>
                 <div class="text-[var(--nb-muted)]">
                   {{ $a->created_at?->format('Y-m-d H:i') }}
                   @if($u)
-                    • {{ $u->name }}
+                    - {{ $u->name }}
                   @endif
                 </div>
                 @if(is_array($a->meta))
                   <div class="mt-1 text-[11px] text-[var(--nb-muted)]">
-                    Policy: {{ $a->meta['name'] ?? '-' }} v{{ $a->meta['version'] ?? '-' }}
+                    Kebijakan: {{ $a->meta['name'] ?? '-' }} v{{ $a->meta['version'] ?? '-' }}
                     @if(isset($a->meta['institution_id']))
-                      • Institution: {{ $a->meta['institution_id'] ?? '-' }}
+                      - Institusi: {{ $a->meta['institution_id'] ?? '-' }}
                     @endif
                   </div>
                 @endif
@@ -427,15 +547,15 @@
       <div class="rounded-2xl border border-[var(--nb-border)] bg-[var(--nb-surface)] p-4">
         <div class="nb-row">
           <div class="nb-row-left">
-            <div class="text-sm font-extrabold">Preview MARC</div>
-            <div class="text-xs text-[var(--nb-muted)]">Preview MARCXML berdasarkan mapping yang sedang diedit.</div>
+            <div class="text-sm font-extrabold">Pratinjau MARC</div>
+            <div class="text-xs text-[var(--nb-muted)]">Pratinjau MARCXML berdasarkan mapping yang sedang diedit.</div>
           </div>
           <div class="nb-row-right">
             <button type="button"
                     class="rounded-2xl px-4 py-2 text-xs font-extrabold"
                     style="background:#111827;color:#fff;border:1px solid rgba(17,24,39,.12);"
                     data-marc-preview-btn>
-              Generate Preview
+              Buat Pratinjau
             </button>
           </div>
         </div>
@@ -444,7 +564,7 @@
             <div class="text-xs text-[var(--nb-muted)] mb-1">Judul</div>
             <input type="text" data-marc-preview-title
                    class="w-full rounded-xl border border-[var(--nb-border)] bg-[var(--nb-surface)] px-3 py-2 text-sm"
-                   value="Preview MARC" />
+                   value="Pratinjau MARC" />
           </div>
           <div>
             <div class="text-xs text-[var(--nb-muted)] mb-1">Subtitle</div>
@@ -453,13 +573,13 @@
                    value="" />
           </div>
           <div>
-            <div class="text-xs text-[var(--nb-muted)] mb-1">Variant Title (246)</div>
+            <div class="text-xs text-[var(--nb-muted)] mb-1">Judul Varian (246)</div>
             <input type="text" data-marc-preview-variant-title
                    class="w-full rounded-xl border border-[var(--nb-border)] bg-[var(--nb-surface)] px-3 py-2 text-sm"
                    value="" placeholder="Judul alternatif" />
           </div>
           <div>
-            <div class="text-xs text-[var(--nb-muted)] mb-1">Former Title (247)</div>
+            <div class="text-xs text-[var(--nb-muted)] mb-1">Judul Sebelumnya (247)</div>
             <input type="text" data-marc-preview-former-title
                    class="w-full rounded-xl border border-[var(--nb-border)] bg-[var(--nb-surface)] px-3 py-2 text-sm"
                    value="" placeholder="Judul sebelumnya" />
@@ -471,7 +591,7 @@
                    value="Jakarta" />
           </div>
           <div>
-            <div class="text-xs text-[var(--nb-muted)] mb-1">Publisher</div>
+            <div class="text-xs text-[var(--nb-muted)] mb-1">Penerbit</div>
             <input type="text" data-marc-preview-publisher
                    class="w-full rounded-xl border border-[var(--nb-border)] bg-[var(--nb-surface)] px-3 py-2 text-sm"
                    value="" />
@@ -489,35 +609,35 @@
                    value="id" />
           </div>
           <div>
-            <div class="text-xs text-[var(--nb-muted)] mb-1">Author</div>
+            <div class="text-xs text-[var(--nb-muted)] mb-1">Pengarang</div>
             <input type="text" data-marc-preview-author
                    class="w-full rounded-xl border border-[var(--nb-border)] bg-[var(--nb-surface)] px-3 py-2 text-sm"
                    value="" placeholder="Nama1, Nama2" />
           </div>
           <div>
-            <div class="text-xs text-[var(--nb-muted)] mb-1">Author Role</div>
+            <div class="text-xs text-[var(--nb-muted)] mb-1">Peran Pengarang</div>
             <select data-marc-preview-author-role
                     class="w-full rounded-xl border border-[var(--nb-border)] bg-[var(--nb-surface)] px-3 py-2 text-sm">
               <option value="pengarang">Pengarang</option>
               <option value="editor">Editor</option>
               <option value="ilustrator">Ilustrator</option>
               <option value="penerjemah">Penerjemah</option>
-              <option value="meeting">Meeting</option>
+              <option value="meeting">Pertemuan</option>
             </select>
           </div>
           <div>
-            <div class="text-xs text-[var(--nb-muted)] mb-1">Author Role (Custom)</div>
+            <div class="text-xs text-[var(--nb-muted)] mb-1">Peran Pengarang (Kustom)</div>
             <input type="text" data-marc-preview-author-role-custom
                    class="w-full rounded-xl border border-[var(--nb-border)] bg-[var(--nb-surface)] px-3 py-2 text-sm"
                    value="" placeholder="mis. kontributor" />
           </div>
           <div class="md:col-span-2">
-            <div class="text-xs text-[var(--nb-muted)] mb-1">Meeting Names (111/711)</div>
+            <div class="text-xs text-[var(--nb-muted)] mb-1">Nama Pertemuan (111/711)</div>
             <input type="text" data-marc-preview-meetings
                    class="w-full rounded-xl border border-[var(--nb-border)] bg-[var(--nb-surface)] px-3 py-2 text-sm"
                    value="" placeholder="Konferensi A; Seminar B" />
             <div class="text-[11px] text-[var(--nb-muted)] mt-1">
-              Meeting names akan masuk ke 111 (main entry) atau 711 (added entry).
+              Nama pertemuan akan masuk ke 111 (entri utama) atau 711 (entri tambahan).
             </div>
             <div class="text-[11px] text-[var(--nb-muted)] mt-1 hidden" data-meeting-error></div>
           </div>
@@ -528,55 +648,55 @@
                    value="" placeholder="Oleh Nama Penulis" />
           </div>
           <div>
-            <div class="text-xs text-[var(--nb-muted)] mb-1">Contents Note (505)</div>
+            <div class="text-xs text-[var(--nb-muted)] mb-1">Catatan Isi (505)</div>
             <input type="text" data-marc-preview-contents
                    class="w-full rounded-xl border border-[var(--nb-border)] bg-[var(--nb-surface)] px-3 py-2 text-sm"
                    value="" placeholder="Bab 1; Bab 2" />
           </div>
           <div>
-            <div class="text-xs text-[var(--nb-muted)] mb-1">Material Type</div>
+            <div class="text-xs text-[var(--nb-muted)] mb-1">Tipe Material</div>
             <input type="text" data-marc-preview-material
                    class="w-full rounded-xl border border-[var(--nb-border)] bg-[var(--nb-surface)] px-3 py-2 text-sm"
                    value="ebook" />
           </div>
           <div>
-            <div class="text-xs text-[var(--nb-muted)] mb-1">Media Type</div>
+            <div class="text-xs text-[var(--nb-muted)] mb-1">Tipe Media</div>
             <input type="text" data-marc-preview-media
                    class="w-full rounded-xl border border-[var(--nb-border)] bg-[var(--nb-surface)] px-3 py-2 text-sm"
                    value="online" />
           </div>
           <div>
-            <div class="text-xs text-[var(--nb-muted)] mb-1">Citation Note (510)</div>
+            <div class="text-xs text-[var(--nb-muted)] mb-1">Catatan Sitasi (510)</div>
             <input type="text" data-marc-preview-citation
                    class="w-full rounded-xl border border-[var(--nb-border)] bg-[var(--nb-surface)] px-3 py-2 text-sm"
                    value="" placeholder="Dirujuk dalam..." />
           </div>
           <div>
-            <div class="text-xs text-[var(--nb-muted)] mb-1">Target Audience (521)</div>
+            <div class="text-xs text-[var(--nb-muted)] mb-1">Target Pembaca (521)</div>
             <input type="text" data-marc-preview-audience
                    class="w-full rounded-xl border border-[var(--nb-border)] bg-[var(--nb-surface)] px-3 py-2 text-sm"
                    value="" placeholder="Dewasa / Anak" />
           </div>
           <div>
-            <div class="text-xs text-[var(--nb-muted)] mb-1">Language Note (546)</div>
+            <div class="text-xs text-[var(--nb-muted)] mb-1">Catatan Bahasa (546)</div>
             <input type="text" data-marc-preview-language-note
                    class="w-full rounded-xl border border-[var(--nb-border)] bg-[var(--nb-surface)] px-3 py-2 text-sm"
                    value="" placeholder="Teks dalam bahasa Indonesia." />
           </div>
           <div class="md:col-span-2">
-            <div class="text-xs text-[var(--nb-muted)] mb-1">Local Note (590)</div>
+            <div class="text-xs text-[var(--nb-muted)] mb-1">Catatan Lokal (590)</div>
             <input type="text" data-marc-preview-local-note
                    class="w-full rounded-xl border border-[var(--nb-border)] bg-[var(--nb-surface)] px-3 py-2 text-sm"
                    value="" placeholder="Catatan lokal" />
           </div>
           <div class="md:col-span-2">
-            <div class="text-xs text-[var(--nb-muted)] mb-1">Subjects (650)</div>
+            <div class="text-xs text-[var(--nb-muted)] mb-1">Subjek (650)</div>
             <input type="text" data-marc-preview-subjects
                    class="w-full rounded-xl border border-[var(--nb-border)] bg-[var(--nb-surface)] px-3 py-2 text-sm"
                    value="" placeholder="Subjek 1; Subjek 2" />
           </div>
           <div>
-            <div class="text-xs text-[var(--nb-muted)] mb-1">Subject Scheme</div>
+            <div class="text-xs text-[var(--nb-muted)] mb-1">Skema Subjek</div>
             <select data-marc-preview-subject-scheme
                     class="w-full rounded-xl border border-[var(--nb-border)] bg-[var(--nb-surface)] px-3 py-2 text-sm">
               <option value="local">Local</option>
@@ -584,19 +704,19 @@
             </select>
           </div>
           <div>
-            <div class="text-xs text-[var(--nb-muted)] mb-1">Subject Type (6xx)</div>
+            <div class="text-xs text-[var(--nb-muted)] mb-1">Jenis Subjek (6xx)</div>
             <select data-marc-preview-subject-type
                     class="w-full rounded-xl border border-[var(--nb-border)] bg-[var(--nb-surface)] px-3 py-2 text-sm">
               <option value="topic">Topik (650)</option>
               <option value="person">Nama Orang (600)</option>
               <option value="corporate">Organisasi (610)</option>
-              <option value="meeting">Meeting (611)</option>
+              <option value="meeting">Pertemuan (611)</option>
               <option value="uniform">Judul Seragam (630)</option>
               <option value="geographic">Geografis (651)</option>
             </select>
           </div>
           <div>
-            <div class="text-xs text-[var(--nb-muted)] mb-1">Meeting Indicator 1 (111/711)</div>
+            <div class="text-xs text-[var(--nb-muted)] mb-1">Indikator Pertemuan 1 (111/711)</div>
             <select data-marc-preview-meeting-ind1
                     class="w-full rounded-xl border border-[var(--nb-border)] bg-[var(--nb-surface)] px-3 py-2 text-sm">
               <option value=" ">Blank</option>
@@ -619,7 +739,7 @@
         </div>
         <div class="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 hidden"
              data-marc-validation>
-          Validation issues akan muncul di sini jika ada.
+          Isu validasi akan muncul di sini jika ada.
         </div>
         <div class="mt-3 rounded-xl border border-sky-200 bg-sky-50 p-3 text-xs text-sky-900 hidden"
              data-marc-qa>
@@ -627,19 +747,19 @@
         </div>
         <div class="mt-3 rounded-xl border border-[var(--nb-border)] bg-white/70 p-3 text-xs leading-relaxed hidden"
              data-marc-diff>
-          Diff preview akan muncul setelah preview kedua.
+          Pratinjau perbedaan akan muncul setelah pratinjau kedua.
         </div>
         <div class="mt-2 hidden" data-marc-diff-actions>
           <button type="button"
                   class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
                   data-marc-diff-clear>
-            Clear Diff
+            Bersihkan Diff
           </button>
         </div>
         <pre class="mt-3 rounded-xl border border-[var(--nb-border)] bg-white/80 p-3 text-xs leading-relaxed overflow-auto"
              style="max-height:360px"
              data-marc-preview>
-Klik "Generate Preview" untuk melihat MARCXML.</pre>
+Klik "Buat Pratinjau" untuk melihat MARCXML.</pre>
       </div>
 
       <div class="nb-row">
@@ -692,8 +812,8 @@ Klik "Generate Preview" untuk melihat MARCXML.</pre>
       policyTextarea.value = JSON.stringify(payload, null, 2);
       if (policyNameInput) {
         policyNameInput.value = key === 'strict'
-          ? 'RDA Core (Strict)'
-          : (key === 'strict_institution' ? 'RDA Core (Strict - Institusi)' : 'RDA Core');
+          ? 'RDA Core (Ketat)'
+          : (key === 'strict_institution' ? 'RDA Core (Ketat - Institusi)' : 'RDA Core');
       }
     });
   });
@@ -842,7 +962,7 @@ Klik "Generate Preview" untuk melihat MARCXML.</pre>
     const warnings = detectProfileWarnings(parsed.value);
     if (warnings.length > 0) {
       box.innerHTML = '<div class="font-semibold mb-1">Peringatan</div>' +
-        warnings.map((w) => `<div>• ${w}</div>`).join('');
+        warnings.map((w) => `<div>- ${w}</div>`).join('');
       box.classList.remove('hidden');
     } else {
       box.classList.add('hidden');
@@ -906,8 +1026,8 @@ Klik "Generate Preview" untuk melihat MARCXML.</pre>
       if (validationBox) {
         if (validationIssues.length > 0) {
           validationBox.classList.remove('hidden');
-          validationBox.innerHTML = '<div class="font-semibold mb-2">Validation Issues</div>' +
-            validationIssues.map((m) => `<div>• ${m}</div>`).join('');
+          validationBox.innerHTML = '<div class="font-semibold mb-2">Isu Validasi</div>' +
+            validationIssues.map((m) => `<div>- ${m}</div>`).join('');
         } else {
           validationBox.classList.add('hidden');
           validationBox.textContent = '';
@@ -1237,7 +1357,7 @@ Klik "Generate Preview" untuk melihat MARCXML.</pre>
         if (qaIssues.length > 0) {
           qaBox.classList.remove('hidden');
           qaBox.innerHTML = '<div class="font-semibold mb-2">QA RDA Core</div>' +
-            qaIssues.map((m) => `<div>• ${m}</div>`).join('');
+            qaIssues.map((m) => `<div>- ${m}</div>`).join('');
         } else {
           qaBox.classList.add('hidden');
           qaBox.textContent = '';
@@ -1302,7 +1422,7 @@ Klik "Generate Preview" untuk melihat MARCXML.</pre>
           }
           if (diffs.length > 0) {
             diffBox.classList.remove('hidden');
-            diffBox.innerHTML = '<div class="font-semibold mb-2">Diff Preview</div><div class="space-y-1 font-mono">' +
+            diffBox.innerHTML = '<div class="font-semibold mb-2">Pratinjau Perbedaan</div><div class="space-y-1 font-mono">' +
               diffs.join('') +
               '</div>';
             const diffActions = document.querySelector('[data-marc-diff-actions]');
@@ -1328,7 +1448,7 @@ Klik "Generate Preview" untuk melihat MARCXML.</pre>
     const meetingsInput = document.querySelector('[data-marc-preview-meetings]')?.value || '';
     const meetings = normalizeMeetingNames(meetingsInput);
     if (meetingsInput.trim() !== '' && meetings.length === 0) {
-      setMeetingError('Meeting names harus berisi minimal 1 nama.');
+      setMeetingError('Nama pertemuan harus berisi minimal 1 nama.');
       return;
     }
     if (meetings.length > 0) {
@@ -1450,7 +1570,7 @@ Klik "Generate Preview" untuk melihat MARCXML.</pre>
     meetingsInput.addEventListener('input', () => {
       const meetings = normalizeMeetingNames(meetingsInput.value);
       if (meetingsInput.value.trim() !== '' && meetings.length === 0) {
-        setMeetingError('Meeting names harus berisi minimal 1 nama.');
+        setMeetingError('Nama pertemuan harus berisi minimal 1 nama.');
       } else {
         setMeetingError('');
       }
@@ -1509,3 +1629,4 @@ Klik "Generate Preview" untuk melihat MARCXML.</pre>
 </script>
 @endif
 @endsection
+

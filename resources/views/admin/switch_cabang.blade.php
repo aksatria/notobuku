@@ -1,5 +1,5 @@
 @php
-    $title = 'Switch Cabang (Super Admin)';
+    $title = 'Ganti Cabang (Super Admin)';
 @endphp
 
 <!doctype html>
@@ -54,7 +54,7 @@
 
         <form method="POST" action="{{ route('preferences.active_branch.reset') }}" style="margin-top: 10px;">
             @csrf
-            <button type="submit" class="btn-secondary">Reset (pakai cabang akun)</button>
+            <button type="submit" class="btn-secondary">Reset (gunakan cabang akun)</button>
         </form>
 
         <div class="muted">

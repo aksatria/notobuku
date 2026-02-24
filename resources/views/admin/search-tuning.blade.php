@@ -1,6 +1,6 @@
 @extends('layouts.notobuku')
 
-@section('title', 'Search Query Tuning - Admin NOTOBUKU')
+@section('title', 'Pengaturan Query Pencarian - Admin NOTOBUKU')
 
 @section('content')
 <style>
@@ -55,17 +55,17 @@
       <button type="submit" class="nb-btn primary">Simpan Tuning</button>
       <a class="nb-btn" href="{{ route('admin.search_synonyms') }}">Kelola Sinonim</a>
       <a class="nb-btn" href="{{ route('admin.search_stopwords') }}">Kelola Stopwords</a>
-      <a class="nb-btn" href="{{ route('admin.search_analytics') }}">Search Analytics</a>
-      <a class="nb-btn" href="{{ route('admin.dashboard') }}">Kembali Dashboard</a>
+      <a class="nb-btn" href="{{ route('admin.search_analytics') }}">Analitik Pencarian</a>
+      <a class="nb-btn" href="{{ route('admin.dashboard') }}">Kembali ke Dashboard</a>
     </div>
   </form>
 
   <form class="nb-tune-card" method="POST" action="{{ route('admin.search_tuning.reset') }}">
     @csrf
-    <div class="nb-tune-title" style="font-size:14px;">Reset ke Default</div>
+    <div class="nb-tune-title" style="font-size:14px;">Reset ke Bawaan</div>
     <div class="nb-tune-sub">Gunakan ini jika tuning percobaan membuat relevance turun.</div>
     <div class="nb-tune-actions">
-      <button type="submit" class="nb-btn">Reset Default</button>
+      <button type="submit" class="nb-btn">Reset Bawaan</button>
     </div>
   </form>
 </div>

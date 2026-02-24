@@ -1,6 +1,6 @@
 @extends('layouts.notobuku')
 
-@section('title', 'Stopwords Search - Admin NOTOBUKU')
+@section('title', 'Stopword Pencarian - Admin NOTOBUKU')
 
 @section('content')
 <style>
@@ -21,7 +21,7 @@
 
 <div class="nb-sw-wrap">
   <div class="nb-sw-card">
-    <div class="nb-sw-title">Stopwords Manager</div>
+    <div class="nb-sw-title">Pengelola Stopword</div>
     <div class="nb-sw-sub">Kelola kata umum yang diabaikan saat ekspansi query/saran agar hasil lebih presisi.</div>
     @if(session('status'))<div class="nb-ok">{{ session('status') }}</div>@endif
     <form method="POST" action="{{ route('admin.search_stopwords.store') }}" class="nb-sw-row">
@@ -33,7 +33,7 @@
           <option value="{{ $b->id }}">{{ $b->name }}</option>
         @endforeach
       </select>
-      <button class="nb-btn primary" type="submit">Tambah Stopwords</button>
+      <button class="nb-btn primary" type="submit">Tambah Stopword</button>
       <a class="nb-btn" href="{{ route('admin.search_tuning') }}">Query Tuning</a>
     </form>
   </div>
@@ -41,7 +41,7 @@
   <div class="nb-sw-card">
     <table class="nb-sw-table">
       <thead>
-        <tr><th>Kata</th><th>Scope</th><th>Aksi</th></tr>
+          <tr><th>Kata</th><th>Cakupan</th><th>Aksi</th></tr>
       </thead>
       <tbody>
         @forelse($rows as $r)
@@ -65,4 +65,3 @@
   </div>
 </div>
 @endsection
-

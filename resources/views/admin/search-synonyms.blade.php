@@ -94,13 +94,13 @@
       </select>
       <select class="nb-select" name="status">
         <option value="">Semua status</option>
-        <option value="pending" @selected(($statusFilter ?? '') === 'pending')>Pending</option>
-        <option value="approved" @selected(($statusFilter ?? '') === 'approved')>Approved</option>
-        <option value="rejected" @selected(($statusFilter ?? '') === 'rejected')>Rejected</option>
+        <option value="pending" @selected(($statusFilter ?? '') === 'pending')>Menunggu</option>
+        <option value="approved" @selected(($statusFilter ?? '') === 'approved')>Disetujui</option>
+        <option value="rejected" @selected(($statusFilter ?? '') === 'rejected')>Ditolak</option>
       </select>
-      <button class="nb-btn" type="submit">Filter</button>
+      <button class="nb-btn" type="submit">Terapkan Filter</button>
       @if($q || $branchId || ($statusFilter ?? ''))
-        <a class="nb-btn" href="{{ route('admin.search_synonyms') }}">Reset</a>
+        <a class="nb-btn" href="{{ route('admin.search_synonyms') }}">Reset Filter</a>
       @endif
     </form>
   </div>
@@ -108,7 +108,7 @@
   <div class="nb-syn-card">
     <div class="nb-syn-header">
       <div>
-        <div class="nb-syn-title">Zero-result Resolution Queue</div>
+        <div class="nb-syn-title">Antrian Penanganan Tanpa Hasil</div>
         <div class="nb-syn-sub">Query tanpa hasil yang perlu ditangani operator.</div>
       </div>
     </div>
@@ -139,13 +139,13 @@
             <td><span class="nb-chip">{{ $z->zero_result_status ?? 'open' }}</span></td>
             <td>
               @if(!empty($z->auto_suggestion_query))
-                <div class="nb-syn-sub">Auto suggestion: <b>{{ $z->auto_suggestion_query }}</b> ({{ number_format((float) ($z->auto_suggestion_score ?? 0), 1) }}%)</div>
+                <div class="nb-syn-sub">Saran otomatis: <b>{{ $z->auto_suggestion_query }}</b> ({{ number_format((float) ($z->auto_suggestion_score ?? 0), 1) }}%)</div>
                 <form method="POST" action="{{ route('admin.search_synonyms.zero_result.resolve', $z->id) }}" class="nb-grid" style="margin:6px 0;">
                   @csrf
                   <input type="hidden" name="status" value="resolved">
                   <input type="hidden" name="use_auto_suggestion" value="1">
-                  <input class="nb-input" name="note" placeholder="catatan (opsional)" value="Resolved via auto-suggestion">
-                  <button class="nb-btn primary" type="submit">Approve Suggestion</button>
+                  <input class="nb-input" name="note" placeholder="catatan (opsional)" value="Diselesaikan via saran otomatis">
+                  <button class="nb-btn primary" type="submit">Setujui Saran</button>
                 </form>
               @endif
               <form method="POST" action="{{ route('admin.search_synonyms.zero_result.resolve', $z->id) }}" class="nb-grid">
@@ -160,7 +160,7 @@
                 @csrf
                 <input type="hidden" name="status" value="ignored">
                 <input type="hidden" name="note" value="Diabaikan operator.">
-                <button class="nb-btn" type="submit">Ignore</button>
+                <button class="nb-btn" type="submit">Abaikan</button>
               </form>
             </td>
           </tr>
@@ -489,4 +489,3 @@
   </div>
 </div>
 @endsection
-

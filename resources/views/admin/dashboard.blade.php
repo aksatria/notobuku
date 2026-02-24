@@ -1158,11 +1158,11 @@
           </div>
           <div class="nb-admin-health-actions">
             <span id="interop-health-sync" class="nb-admin-health-sync live">Live</span>
-            <button id="interop-health-refresh" type="button" class="nb-admin-health-refresh">Refresh now</button>
-            <a class="nb-admin-health-export" href="{{ route('interop.metrics.export.csv', ['days' => 30]) }}">Export CSV</a>
+            <button id="interop-health-refresh" type="button" class="nb-admin-health-refresh">Muat Ulang Sekarang</button>
+            <a class="nb-admin-health-export" href="{{ route('interop.metrics.export.csv', ['days' => 30]) }}">Ekspor CSV</a>
           </div>
           <div id="interop-health-next" class="nb-admin-insight-sub">Refresh berikutnya dalam 30 detik</div>
-          <div id="interop-health-updated" class="nb-admin-insight-sub">Last updated baru saja</div>
+          <div id="interop-health-updated" class="nb-admin-insight-sub">Terakhir diperbarui barusan</div>
         </div>
         <div class="nb-admin-insight">
           <div class="nb-admin-insight-label">OPAC Performance</div>
@@ -1207,11 +1207,11 @@
           </div>
           <div class="nb-admin-health-actions">
             <span id="opac-health-sync" class="nb-admin-health-sync live">Live</span>
-            <button id="opac-health-refresh" type="button" class="nb-admin-health-refresh">Refresh now</button>
+            <button id="opac-health-refresh" type="button" class="nb-admin-health-refresh">Muat Ulang Sekarang</button>
           </div>
           <div id="opac-health-next" class="nb-admin-insight-sub">Refresh berikutnya dalam 30 detik</div>
           <div id="opac-health-trace" class="nb-admin-insight-sub">Trace ID: -</div>
-          <div id="opac-health-updated" class="nb-admin-insight-sub">Last updated baru saja</div>
+          <div id="opac-health-updated" class="nb-admin-insight-sub">Terakhir diperbarui barusan</div>
           <div class="nb-admin-opac-analytics">
             <div class="nb-admin-auto-kpi">
               <div class="nb-admin-auto-kpi-item">
@@ -1426,7 +1426,7 @@
       <div class="nb-admin-uat-head">
         <span class="nb-admin-uat-pill pass">Pass {{ number_format($uatPass, 0, ',', '.') }}</span>
         <span class="nb-admin-uat-pill fail">Fail {{ number_format($uatFail, 0, ',', '.') }}</span>
-        <span class="nb-admin-uat-pill pending">Pending {{ number_format($uatPending, 0, ',', '.') }}</span>
+        <span class="nb-admin-uat-pill pending">Menunggu {{ number_format($uatPending, 0, ',', '.') }}</span>
         <a class="nb-admin-btn ghost" href="{{ route('docs.uat-checklist') }}">Checklist UAT</a>
       </div>
     </div>
@@ -1444,7 +1444,7 @@
           if (!in_array($status, ['pass', 'fail', 'pending'], true)) {
             $status = 'pending';
           }
-          $statusLabel = $status === 'pass' ? 'Lulus' : ($status === 'fail' ? 'Gagal' : 'Pending');
+          $statusLabel = $status === 'pass' ? 'Lulus' : ($status === 'fail' ? 'Gagal' : 'Menunggu');
           $signedAt = $row->signed_at ? \Illuminate\Support\Carbon::parse($row->signed_at)->format('d M Y H:i') : '-';
           $notes = trim((string) ($row->notes ?? ''));
           $notes = $notes !== '' ? $notes : '-';
@@ -1674,21 +1674,21 @@
       oaiEl.innerHTML = `<b>OAI</b> p95 ${oaiP95} ms, limited ${oaiLimited.toLocaleString('id-ID')}`;
       sruEl.innerHTML = `<b>SRU</b> p95 ${sruP95} ms, limited ${sruLimited.toLocaleString('id-ID')}`;
       lastUpdatedAt = Date.now();
-      updated.textContent = 'Last updated baru saja';
+      updated.textContent = 'Terakhir diperbarui barusan';
     }
 
     function tickLastUpdated() {
       const diffSec = Math.max(0, Math.floor((Date.now() - lastUpdatedAt) / 1000));
       if (diffSec <= 1) {
-        updated.textContent = 'Last updated baru saja';
+        updated.textContent = 'Terakhir diperbarui barusan';
         return;
       }
       if (diffSec < 60) {
-        updated.textContent = `Last updated ${diffSec} detik lalu`;
+        updated.textContent = `Terakhir diperbarui ${diffSec} detik lalu`;
         return;
       }
       const diffMin = Math.floor(diffSec / 60);
-      updated.textContent = `Last updated ${diffMin} menit lalu`;
+      updated.textContent = `Terakhir diperbarui ${diffMin} menit lalu`;
     }
 
     async function refreshInteropHealth() {
@@ -1755,7 +1755,7 @@
         restartRefreshTimer();
       } finally {
         refreshBtn.disabled = false;
-        refreshBtn.textContent = 'Refresh now';
+        refreshBtn.textContent = 'Muat Ulang Sekarang';
       }
     }
 
@@ -1928,7 +1928,7 @@
 
     function renderUpdated() {
       const sec = Math.max(0, Math.floor((Date.now() - lastUpdatedAt) / 1000));
-      updated.textContent = `Last updated ${sec} detik lalu`;
+      updated.textContent = `Terakhir diperbarui ${sec} detik lalu`;
     }
 
     function renderNextRefresh() {
@@ -2099,5 +2099,3 @@
   })();
 </script>
 @endsection
-
-
